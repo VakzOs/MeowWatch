@@ -15,7 +15,7 @@ export type Video = { id: string; title?: string; name?: string; season?: number
 export type Meta = {
   id: string; type: string; name: string; poster?: string; background?: string; logo?: string;
   description?: string; releaseInfo?: string; imdbRating?: string; genres?: string[]; runtime?: string; videos?: Video[];
-  imdb_id?: string; cast?: string[]; director?: string[]; trailerStreams?: { ytId: string; title?: string }[];
+  imdb_id?: string; country?: string; cast?: string[]; director?: string[]; trailerStreams?: { ytId: string; title?: string }[];
 };
 export type Stream = {
   url?: string; infoHash?: string; ytId?: string; externalUrl?: string;

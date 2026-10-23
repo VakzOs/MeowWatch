@@ -6,6 +6,7 @@ const ISO3: Record<string, string> = {
   dan: "da", fin: "fi", cze: "cs", ces: "cs", hun: "hu", gre: "el", ell: "el", heb: "he", tha: "th", vie: "vi", ind: "id",
   ukr: "uk", rum: "ro", ron: "ro", may: "ms", msa: "ms", per: "fa", fas: "fa", cat: "ca", bul: "bg", hrv: "hr", srp: "sr",
   slo: "sk", slk: "sk", slv: "sl", lit: "lt", lav: "lv", est: "et", ice: "is", isl: "is", fil: "tl", tgl: "tl",
+  pob: "pt", pb: "pt", zhe: "zh", zht: "zh", zhs: "zh", ze: "zh", scc: "sr", mne: "sr", // codes propres à OpenSubtitles
 };
 // Quand le fichier ne donne pas de code, le titre de la piste le dit souvent.
 const BY_TITLE: [RegExp, string][] = [
@@ -47,6 +48,11 @@ export function trackLabel(code: string, title?: string, extras: string[] = []) 
 export type LangChoice = { audio: string; subs: string; audio2?: string; subs2?: string };
 export type LangPrefs = { films: LangChoice; animes: LangChoice };
 /** Par défaut : films et séries en français sans sous-titres ; animés en japonais sous-titrés en français. */
+/** Animé : addon d'animés (Kitsu), ou animation japonaise (pays donné par Cinemeta, sinon langue originale TMDB). */
+export function isAnime(type: string, id: string, genres: string[] = [], country = "", originalLanguage = "") {
+  return type === "anime" || id.startsWith("kitsu:") || (genres.some(g => /anim/i.test(g)) && (/japan|japon/i.test(country) || originalLanguage === "ja"));
+}
+
 export const DEFAULT_PREFS: LangPrefs = { films: { audio: "fr", audio2: "vo", subs: "", subs2: "" }, animes: { audio: "ja", audio2: "fr", subs: "fr", subs2: "en" } };
 
 type T = { id: number; lang: string; forced?: boolean };
