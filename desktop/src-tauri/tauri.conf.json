@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Meow Watch",
+  "version": "1.0.0",
+  "identifier": "com.vkzdev.meowwatch",
+  "build": {
+    "frontendDist": "https://meowwatch.vkzdev.com"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "createUpdaterArtifacts": true,
+    "publisher": "Vakz",
+    "copyright": "Vakz",
+    "category": "Entertainment",
+    "shortDescription": "Tes films, séries et animés avec tes addons Stremio",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "French"
+        ],
+        "displayLanguageSelector": false,
+        "headerImage": "windows/header.bmp",
+        "sidebarImage": "windows/sidebar.bmp",
+        "installerIcon": "icons/icon.ico",
+        "startMenuFolder": "Meow Watch"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDA0MDk2Rjc0QjZBNzlCNTIKUldSU202ZTJkRzhKQkIxWXRhYjJoeVBqdWZPYUxzdmtTL2Y5L2xrL3RUWHkrMThHeENsUmdxSmEK",
+      "endpoints": [
+        "https://github.com/VakzOs/MeowWatch/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

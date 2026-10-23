@@ -6,6 +6,7 @@ import { Icon } from "../../../components/Icon";
 import { C, font, genreList } from "../../../components/theme";
 import { describe, epLabel, fetchMeta, fetchStreamsFor, imdbEquivalent, sortedEpisodes, type FoundStream, type Meta, type Video } from "../../../lib/addons";
 import { api, type Translation } from "../../../lib/api";
+import { desktop } from "../../../lib/desktop";
 import { isAnime } from "../../../lib/lang";
 import { getProgress, setAmbiance, toggleLibrary, useStore } from "../../../lib/store";
 
@@ -253,7 +254,8 @@ const st = StyleSheet.create({
   play: { height: 50, paddingHorizontal: 26, borderRadius: 12, backgroundColor: C.red, flexDirection: "row", alignItems: "center", gap: 10 },
   ghost: { height: 50, paddingHorizontal: 22, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.1)", justifyContent: "center" },
   side: { width: 400, backgroundColor: "rgba(8,8,10,0.78)" },
-  sideHead: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 18 },
+  sideHead: { marginTop: desktop ? 26 : 0, // appli Windows : sous les boutons de la fenêtre
+    flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 18 },
   iconBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)" },
   chip: { minWidth: 44, alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.08)" },
   picker: { padding: 16, gap: 12 },

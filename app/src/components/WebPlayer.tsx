@@ -5,6 +5,7 @@ import { createElement, useEffect, useMemo, useReducer, useRef, useState } from 
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { describe, epLabel, fetchMeta, fetchStreamsFor, fetchSubtitles, imdbEquivalent, nextEpisode, pickNextStream, type FoundStream, type Meta } from "../lib/addons";
 import { chooseTracks, DEFAULT_PREFS, flagOf, langCode, langName } from "../lib/lang";
+import { desktop, win } from "../lib/desktop";
 import { createEngine, type Engine, type Track } from "../lib/player";
 import { saveProgress, useStore } from "../lib/store";
 import { Icon, type IconName } from "./Icon";
@@ -214,6 +215,8 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   const changeDelay = (d: number) => { const x = Math.round(d * 10) / 10; setDelay(x); eng?.setSubDelay(x); };
   const changeRate = (r: number) => { setRate(r); eng?.setRate(r); };
   const fullscreen = () => {
+    // Appli Windows : plein écran de la fenêtre (celui du HTML ne remplirait que la fenêtre).
+    if (desktop) return win.toggleFullscreen().then(() => win.isFullscreen()).then(setFs);
     const el = rootRef.current as unknown as HTMLElement;
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else el.requestFullscreen?.().catch(() => {});
   };
@@ -225,7 +228,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
     const k = e.key.toLowerCase(), act: Record<string, () => void> = {
       " ": toggle, k: toggle, arrowleft: () => skip(-10), arrowright: () => skip(10), j: () => skip(-10), l: () => skip(10),
       arrowup: () => volume(prefs.volume + 0.1), arrowdown: () => volume(prefs.volume - 0.1), f: fullscreen, m: mute, c: toggleSubs,
-      escape: () => setMenu(null), n: goNext,
+      escape: () => (menu ? setMenu(null) : desktop && fs ? fullscreen() : undefined), n: goNext,
     };
     if (act[k]) { e.preventDefault(); act[k](); poke(); }
   };
@@ -268,7 +271,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
       ) : null}
 
       {/* Haut : retour, titre, moteur utilisé */}
-      <View style={[st.top, !show && st.hidden]} pointerEvents={show ? "box-none" : "none"}>
+      <View style={[st.top, desktop && { paddingRight: 160 }, !show && st.hidden]} pointerEvents={show ? "box-none" : "none"}>
         <Pressable onPress={back} style={({ hovered }: any) => [st.round, hovered && st.roundOn]} accessibilityLabel="Retour"><Icon name="back" color={C.ink} /></Pressable>
         <Text style={[font(600, 17), { flex: 1 }]} numberOfLines={1}>{p.name}{p.label ? ` · ${p.label}` : ""}</Text>
         {eng ? <Text style={font(500, 12, C.mute)}>{eng.kind === "avance" ? "Lecteur avancé" : "Lecteur du navigateur"}</Text> : null}

@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Meow Watch pour Windows : maquettes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --red: #D6182A; --ink: #fff; --soft: #D4D4D8; --mute: #A8A8AD; --faint: #8A8A90; --chrome: #0B0B0C; --raised: #18181B; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #0e0f12; color: var(--ink); font-family: "Instrument Sans", system-ui, sans-serif; padding: 48px 40px 80px; }
+  h1 { font-size: 30px; font-weight: 700; margin-bottom: 6px; }
+  .lead { color: var(--mute); font-size: 15px; margin-bottom: 40px; max-width: 900px; line-height: 1.5; }
+  .variant { margin-bottom: 64px; }
+  .variant h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .variant h2 b { color: var(--red); }
+  .variant p { color: var(--mute); font-size: 14px; margin-bottom: 18px; max-width: 900px; line-height: 1.5; }
+  /* Bureau Windows 11 */
+  .desk { position: relative; width: 1320px; height: 800px; border-radius: 14px; overflow: hidden; padding: 20px;
+    background: radial-gradient(1200px 600px at 20% 10%, #2b4b78 0%, transparent 60%), radial-gradient(900px 600px at 90% 90%, #4b2350 0%, transparent 55%), #111824; }
+  .win { position: relative; width: 1280px; height: 760px; border-radius: 8px; overflow: hidden; background: #121214;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 30px 80px rgba(0,0,0,0.6); display: flex; }
+  .amb { position: absolute; inset: -40px; background-size: cover; background-position: center; filter: blur(48px) saturate(1.2); opacity: 0.55; }
+  .scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,10,12,0.55), rgba(10,10,12,0.82)); }
+  /* Boutons Windows 11 (46 × 32) */
+  .caption { position: absolute; top: 0; right: 0; display: flex; z-index: 5; }
+  .caption span { width: 46px; height: 32px; display: grid; place-items: center; color: #e8e8e8; }
+  .caption span:hover { background: rgba(255,255,255,0.08); }
+  .caption span.x:hover { background: #C42B1C; color: #fff; }
+  .caption svg { width: 10px; height: 10px; }
+  /* Barre latérale (DA C3) */
+  .side { position: relative; z-index: 2; width: 232px; padding: 18px 12px; display: flex; flex-direction: column; gap: 4px; background: rgba(11,11,12,0.55); }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 18px; font-weight: 700; font-size: 18px; }
+  .brand img { width: 32px; height: 32px; }
+  .nav { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: var(--soft); font-weight: 500; font-size: 15px; }
+  .nav.on { background: rgba(255,255,255,0.08); color: #fff; }
+  .nav.on svg { stroke: var(--red); }
+  .nav svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .grow { flex: 1; }
+  .me { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+  .me i { width: 28px; height: 28px; border-radius: 6px; background: var(--red) url(../app/assets/brand/chat-rouge-net.svg) center/cover; }
+  .me small { display: block; color: var(--faint); font-size: 12px; }
+  .main { position: relative; z-index: 1; flex: 1; overflow: hidden; }
+  .row { margin-top: 26px; }
+  .row h3 { font-size: 18px; font-weight: 600; padding: 0 32px; display: flex; gap: 10px; align-items: baseline; }
+  .row h3 small { color: var(--faint); font-size: 13px; font-weight: 500; }
+  .tiles { display: flex; gap: 14px; padding: 12px 32px 0; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 80px), transparent); }
+  .wide { width: 300px; flex: none; }
+  .wide > div:first-child { aspect-ratio: 16/9; border-radius: 10px; background-size: cover; background-position: center; }
+  .wide .bar { height: 4px; margin-top: 8px; border-radius: 2px; background: #333; }
+  .wide .bar b { display: block; height: 4px; background: var(--red); border-radius: 2px; }
+  .poster { width: 158px; flex: none; }
+  .poster > div:first-child { aspect-ratio: 2/3; border-radius: 10px; background-size: cover; background-position: center; }
+  .t { font-weight: 600; font-size: 14px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .s { color: var(--faint); font-size: 13px; }
+  /* Recherche */
+  .search { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px; border-radius: 9px; background: rgba(255,255,255,0.08); color: var(--mute); font-size: 14px; }
+  .search svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .search kbd { margin-left: auto; font: 600 11px "Instrument Sans"; color: var(--faint); border: 1px solid rgba(255,255,255,0.14); border-radius: 5px; padding: 2px 6px; }
+  .arrows { display: flex; gap: 2px; }
+  .arrows span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; color: var(--soft); }
+  .arrows span.off { color: #55555a; }
+  .arrows svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  /* Variante A : bande transparente au-dessus du contenu */
+  .stripA { position: absolute; top: 0; left: 232px; right: 0; height: 52px; z-index: 4; display: flex; align-items: center; gap: 12px; padding: 0 160px 0 24px; }
+  .stripA .search { width: 440px; margin: 0 auto; }
+  /* Variante B : barre de commande sur toute la largeur */
+  .barB { position: absolute; top: 0; left: 0; right: 0; height: 48px; z-index: 4; display: flex; align-items: center; gap: 14px; padding: 0 150px 0 16px; background: rgba(8,8,10,0.72); border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .barB .brand { padding: 0; font-size: 16px; width: 204px; }
+  .barB .brand img { width: 26px; height: 26px; }
+  .barB .search { flex: 1; max-width: 560px; margin: 0 auto; height: 32px; }
+  .withB .side, .withB .main { margin-top: 48px; }
+  .withB .side .brand { display: none; }
+  /* Variante C : rien en haut, boutons qui flottent */
+  .floatC .caption { background: linear-gradient(to left, rgba(0,0,0,0.35), transparent); border-bottom-left-radius: 10px; }
+  .hero { position: relative; height: 330px; background-size: cover; background-position: center 20%; }
+  .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(18,18,20,0.95) 0%, rgba(18,18,20,0.55) 45%, transparent 75%), linear-gradient(0deg, #121214 0%, transparent 40%); }
+  .hero .in { position: absolute; z-index: 1; left: 32px; bottom: 30px; max-width: 440px; }
+  .hero h4 { font-size: 34px; font-weight: 700; margin-bottom: 8px; }
+  .hero .meta { color: var(--soft); font-size: 14px; margin-bottom: 16px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 20px; border-radius: 10px; background: var(--red); font-weight: 700; font-size: 15px; }
+  .btn.ghost { background: rgba(255,255,255,0.12); margin-left: 8px; }
+  .side .search { margin: 0 2px 10px; }
+  .drag { position: absolute; top: 0; left: 0; right: 138px; height: 32px; z-index: 4; outline: 1px dashed rgba(214,24,42,0.55); outline-offset: -1px; }
+  .drag::after { content: "zone pour déplacer la fenêtre (invisible)"; position: absolute; left: 250px; top: 8px; font-size: 11px; color: rgba(214,24,42,0.9); }
+  /* Mise à jour */
+  .toast { position: absolute; left: 12px; bottom: 74px; width: 208px; padding: 12px; border-radius: 12px; background: rgba(28,28,31,0.96); box-shadow: 0 12px 30px rgba(0,0,0,0.5); z-index: 6; font-size: 13px; }
+  .toast b { display: block; font-size: 14px; margin-bottom: 2px; }
+  .toast p { color: var(--mute); margin: 0 0 10px; font-size: 12.5px; line-height: 1.4; }
+  .toast span { display: inline-block; padding: 7px 12px; border-radius: 8px; background: var(--red); font-weight: 700; }
+  .toast em { font-style: normal; color: var(--mute); margin-left: 10px; }
+  /* Installateur */
+  .inst { display: flex; gap: 40px; flex-wrap: wrap; }
+  .setup { width: 620px; height: 420px; border-radius: 10px; overflow: hidden; position: relative; background: #121214; box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 24px 60px rgba(0,0,0,0.55); display: flex; }
+  .setup .art { width: 230px; background: var(--red); display: grid; place-items: center; position: relative; }
+  .setup .art img { width: 150px; }
+  .setup .art small { position: absolute; bottom: 16px; color: rgba(245,240,230,0.8); font-size: 12px; }
+  .setup .body { flex: 1; padding: 44px 34px 28px; display: flex; flex-direction: column; }
+  .setup h5 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .setup .body > p { color: var(--mute); font-size: 14px; line-height: 1.5; margin-bottom: 18px; }
+  .check { display: flex; gap: 10px; align-items: center; color: var(--soft); font-size: 14px; margin-bottom: 10px; }
+  .check i { width: 18px; height: 18px; border-radius: 5px; background: var(--red); display: grid; place-items: center; font-style: normal; font-size: 12px; }
+  .check i.off { background: transparent; border: 1.5px solid #555; }
+  .setup .foot { margin-top: auto; display: flex; align-items: center; gap: 12px; }
+  .setup .foot small { color: var(--faint); font-size: 12px; margin-right: auto; }
+  .prog { height: 6px; border-radius: 3px; background: #2a2a2e; overflow: hidden; margin: 8px 0 10px; }
+  .prog b { display: block; height: 6px; width: 64%; background: var(--red); }
+  .note { color: var(--faint); font-size: 13px; margin-top: 14px; max-width: 1280px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<h1>Meow Watch pour Windows</h1>
+<p class="lead">Fenêtre sans barre Windows : seuls les 3 boutons (réduire, agrandir, fermer) restent, dessinés comme ceux de Windows 11 ; tout le reste est l'appli. Trois façons de placer la recherche et la zone pour déplacer la fenêtre.</p>
+
+<!-- ============ A ============ -->
+<section class="variant">
+  <h2><b>A</b> · Bande fondue</h2>
+  <p>Une bande transparente au-dessus du contenu, dans le fond flouté : flèches précédent/suivant, recherche au centre (Ctrl+K), boutons Windows à droite. La barre latérale monte jusqu'en haut avec le logo. On déplace la fenêtre en attrapant la bande.</p>
+  <div class="desk"><div class="win">
+    <div class="amb" style="background-image:url(https://images.metahub.space/background/medium/tt0112159/img)"></div><div class="scrim"></div>
+    <div class="caption"><span><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor"/></svg></span><span><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor"/></svg></span><span class="x"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></span></div>
+    <aside class="side">
+      <div class="brand"><img src="../app/assets/brand/chat-rouge-net.svg" alt="">Meow Watch</div>
+      <div class="nav on"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/></svg>Accueil</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Découvrir</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><path d="M4 4v16M9 4v16M14 5l5 14.5"/></svg>Bibliothèque</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendrier</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><path d="M10 4a2 2 0 1 1 4 0v2h4v4h-2a2 2 0 1 0 0 4h2v4h-4v-2a2 2 0 1 0-4 0v2H6v-4H4a2 2 0 1 1 0-4h2V6h4z"/></svg>Addons</div>
+      <div class="grow"></div>
+      <div class="nav"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>Réglages</div>
+      <div class="me"><i></i><div>Vakz<small>Changer de profil</small></div></div>
+    </aside>
+    <div class="stripA">
+      <div class="arrows"><span class="off"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></span><span><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></div>
+      <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Rechercher un film, une série, un animé<kbd>Ctrl K</kbd></div>
+    </div>
+    <main class="main" style="padding-top:34px">
+      <div class="row"><h3>Reprendre <small>sur tous tes appareils</small></h3><div class="tiles">
+        <div class="wide"><div style="background-image:url(https://images.metahub.space/background/medium/tt0112159/img)"></div><div class="bar"><b style="width:30%"></b></div><div class="t">Neon Genesis Evangelion</div><div class="s">S1 · É9</div></div>
+        <div class="wide"><div style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"></div><div class="bar"><b style="width:62%"></b></div><div class="t">Supernatural</div><div class="s">S5 · É4</div></div>
+        <div class="wide"><div style="background-image:url(https://images.metahub.space/background/medium/tt0120737/img)"></div><div class="bar"><b style="width:80%"></b></div><div class="t">Le Seigneur des anneaux</div><div class="s">1 h 12 restante</div></div>
+      </div></div>
+      <div class="row"><h3>Populaires · Séries <small>Cinemeta</small></h3><div class="tiles">
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt0903747/img)"></div><div class="t">Breaking Bad</div><div class="s">2008–2013 · IMDb 9.5</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt11126994/img)"></div><div class="t">Arcane</div><div class="s">2021–2024 · IMDb 9.0</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt2560140/img)"></div><div class="t">L'Attaque des Titans</div><div class="s">2013–2023 · IMDb 9.1</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt0944947/img)"></div><div class="t">Game of Thrones</div><div class="s">2011–2019 · IMDb 9.2</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt7366338/img)"></div><div class="t">Chernobyl</div><div class="s">2019 · IMDb 9.3</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt4574334/img)"></div><div class="t">Stranger Things</div><div class="s">2016–2025 · IMDb 8.6</div></div>
+      </div></div>
+    </main>
+  </div></div>
+</section>
+
+<!-- ============ B ============ -->
+<section class="variant">
+  <h2><b>B</b> · Barre de commande</h2>
+  <p>Une barre sombre sur toute la largeur, comme Spotify ou Discord : logo à gauche, flèches, grande recherche au centre, boutons Windows à droite. Plus « appli de bureau », la barre latérale commence dessous. Ici avec la notification de mise à jour (téléchargée en fond, appliquée au redémarrage, sans réinstaller).</p>
+  <div class="desk"><div class="win withB">
+    <div class="amb" style="background-image:url(https://images.metahub.space/background/medium/tt11126994/img)"></div><div class="scrim"></div>
+    <div class="barB">
+      <div class="brand"><img src="../app/assets/brand/chat-rouge-net.svg" alt="">Meow Watch</div>
+      <div class="arrows"><span class="off"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></span><span class="off"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></div>
+      <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Rechercher un film, une série, un animé<kbd>Ctrl K</kbd></div>
+    </div>
+    <div class="caption" style="height:48px;align-items:center"><span style="height:48px"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor"/></svg></span><span style="height:48px"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor"/></svg></span><span class="x" style="height:48px"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></span></div>
+    <aside class="side">
+      <div class="nav on"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/></svg>Accueil</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Découvrir</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><path d="M4 4v16M9 4v16M14 5l5 14.5"/></svg>Bibliothèque</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendrier</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><path d="M10 4a2 2 0 1 1 4 0v2h4v4h-2a2 2 0 1 0 0 4h2v4h-4v-2a2 2 0 1 0-4 0v2H6v-4H4a2 2 0 1 1 0-4h2V6h4z"/></svg>Addons</div>
+      <div class="grow"></div>
+      <div class="nav"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>Réglages</div>
+      <div class="me"><i></i><div>Vakz<small>Changer de profil</small></div></div>
+    </aside>
+    <div class="toast"><b>Mise à jour 1.3 prête</b><p>Téléchargée en arrière-plan. Elle s'applique au prochain lancement.</p><span>Redémarrer</span><em>Plus tard</em></div>
+    <main class="main">
+      <div class="row"><h3>Reprendre <small>sur tous tes appareils</small></h3><div class="tiles">
+        <div class="wide"><div style="background-image:url(https://images.metahub.space/background/medium/tt11126994/img)"></div><div class="bar"><b style="width:45%"></b></div><div class="t">Arcane</div><div class="s">S2 · É3</div></div>
+        <div class="wide"><div style="background-image:url(https://images.metahub.space/background/medium/tt0112159/img)"></div><div class="bar"><b style="width:30%"></b></div><div class="t">Neon Genesis Evangelion</div><div class="s">S1 · É9</div></div>
+        <div class="wide"><div style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"></div><div class="bar"><b style="width:62%"></b></div><div class="t">Supernatural</div><div class="s">S5 · É4</div></div>
+      </div></div>
+      <div class="row"><h3>Animés <small>Anime Kitsu</small></h3><div class="tiles">
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt2560140/img)"></div><div class="t">L'Attaque des Titans</div><div class="s">2013–2023</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt0388629/img)"></div><div class="t">One Piece</div><div class="s">1999–</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt0112159/img)"></div><div class="t">Neon Genesis Evangelion</div><div class="s">1995–1996</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt0903747/img)"></div><div class="t">Breaking Bad</div><div class="s">2008–2013</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt7366338/img)"></div><div class="t">Chernobyl</div><div class="s">2019</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt4574334/img)"></div><div class="t">Stranger Things</div><div class="s">2016–2025</div></div>
+      </div></div>
+    </main>
+  </div></div>
+</section>
+
+<!-- ============ C ============ -->
+<section class="variant">
+  <h2><b>C</b> · Plein cadre</h2>
+  <p>Rien en haut : l'image du titre monte jusqu'au bord, les boutons Windows flottent par-dessus. La recherche passe en tête de la barre latérale. Une zone invisible en haut (pointillés ici) sert à déplacer la fenêtre. Le plus immersif, proche de l'appli Netflix.</p>
+  <div class="desk"><div class="win floatC">
+    <div class="amb" style="background-image:url(https://images.metahub.space/background/medium/tt0120737/img)"></div><div class="scrim"></div>
+    <div class="drag"></div>
+    <div class="caption"><span><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor"/></svg></span><span><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor"/></svg></span><span class="x"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></span></div>
+    <aside class="side" style="padding-top:22px">
+      <div class="brand"><img src="../app/assets/brand/chat-rouge-net.svg" alt="">Meow Watch</div>
+      <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Rechercher<kbd>Ctrl K</kbd></div>
+      <div class="nav on"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/></svg>Accueil</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Découvrir</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><path d="M4 4v16M9 4v16M14 5l5 14.5"/></svg>Bibliothèque</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendrier</div>
+      <div class="nav"><svg viewBox="0 0 24 24"><path d="M10 4a2 2 0 1 1 4 0v2h4v4h-2a2 2 0 1 0 0 4h2v4h-4v-2a2 2 0 1 0-4 0v2H6v-4H4a2 2 0 1 1 0-4h2V6h4z"/></svg>Addons</div>
+      <div class="grow"></div>
+      <div class="nav"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>Réglages</div>
+      <div class="me"><i></i><div>Vakz<small>Changer de profil</small></div></div>
+    </aside>
+    <main class="main">
+      <div class="hero" style="background-image:url(https://images.metahub.space/background/medium/tt0120737/img)"><div class="in">
+        <h4>Le Seigneur des anneaux</h4><div class="meta">2001 · 2 h 58 · IMDb 8.9 · Aventure, Fantastique</div>
+        <span class="btn">▶ Reprendre · 1 h 12 restante</span><span class="btn ghost">Bibliothèque</span>
+      </div></div>
+      <div class="row" style="margin-top:6px"><h3>Populaires · Films <small>Cinemeta</small></h3><div class="tiles">
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt1375666/img)"></div><div class="t">Inception</div><div class="s">2010 · IMDb 8.8</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt0816692/img)"></div><div class="t">Interstellar</div><div class="s">2014 · IMDb 8.7</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt0120737/img)"></div><div class="t">La Communauté de l'anneau</div><div class="s">2001 · IMDb 8.9</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt0903747/img)"></div><div class="t">Breaking Bad</div><div class="s">2008 · IMDb 9.5</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt7366338/img)"></div><div class="t">Chernobyl</div><div class="s">2019 · IMDb 9.3</div></div>
+        <div class="poster"><div style="background-image:url(https://images.metahub.space/poster/medium/tt11126994/img)"></div><div class="t">Arcane</div><div class="s">2021 · IMDb 9.0</div></div>
+      </div></div>
+    </main>
+  </div></div>
+</section>
+
+<!-- ============ Installateur ============ -->
+<section class="variant">
+  <h2>Installateur</h2>
+  <p>Une seule fenêtre aux couleurs de Meow Watch, en français, sans droits administrateur (installation pour ton compte) : un clic sur « Installer », barre de progression, l'appli se lance. Les mises à jour suivantes ne repassent jamais par là : elles se téléchargent dans l'appli.</p>
+  <div class="inst">
+    <div class="setup">
+      <div class="art"><img src="../app/assets/brand/chat-rouge.svg" alt=""><small>Version 1.0.0</small></div>
+      <div class="body">
+        <h5>Installer Meow Watch</h5>
+        <p>Tes films, séries et animés avec tes addons Stremio, sur Windows.</p>
+        <div class="check"><i>✓</i>Créer un raccourci sur le Bureau</div>
+        <div class="check"><i>✓</i>Lancer Meow Watch après l'installation</div>
+        <div class="check"><i class="off"></i>Ouvrir au démarrage de Windows</div>
+        <div class="foot"><small>Dans %LocalAppData%\Meow Watch · 12 Mo</small><span class="btn">Installer</span></div>
+      </div>
+    </div>
+    <div class="setup">
+      <div class="art"><img src="../app/assets/brand/chat-rouge.svg" alt=""><small>Version 1.0.0</small></div>
+      <div class="body">
+        <h5>Installation…</h5>
+        <p>Copie des fichiers de Meow Watch.</p>
+        <div class="prog"><b></b></div>
+        <div class="s">64 %</div>
+        <div class="foot"><small>Presque fini</small><span class="btn ghost" style="margin:0">Annuler</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">À savoir : sans certificat de signature de code (payant, ~10 $ par mois avec Azure Trusted Signing), Windows affiche « Windows a protégé votre ordinateur » au premier lancement de l'installateur (« Informations complémentaires » → « Exécuter quand même »). Les mises à jour, elles, sont signées par nous et vérifiées par l'appli.</p>
+</section>
+</body>
+</html>
