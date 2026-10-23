@@ -173,7 +173,7 @@ export function AvatarGrid({ value, onChange, size = 88 }: { value?: string | nu
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 14 }}>
       {AVATARS.map(a => (
-        <Pressable key={a.key} onPress={() => onChange(a)} accessibilityLabel={`Avatar ${a.key}`} style={({ hovered }: any) => [st.pick, a.key === value ? st.pickOn : hovered && { borderColor: "rgba(255,255,255,0.4)" }]}>
+        <Pressable key={a.key} onPress={() => onChange(a)} accessibilityLabel={`Avatar ${a.key}`} style={({ hovered }: any) => [st.pick, { borderRadius: size * 0.2 + 3 }, a.key === value ? st.pickOn : hovered && { borderColor: "rgba(255,255,255,0.4)" }]}>
           <Image source={a.src} style={{ width: size, height: size, borderRadius: size * 0.2 }} />
         </Pressable>
       ))}
@@ -291,7 +291,7 @@ const st = StyleSheet.create({
   keyGhost: { width: 80, height: 80 },
   panel: { width: "100%", maxWidth: 720, padding: 40, borderRadius: 20, backgroundColor: "rgba(8,8,10,0.72)" },
   input: { height: 52, paddingHorizontal: 16, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.08)", outlineStyle: "none" } as any,
-  pick: { borderRadius: 20, borderWidth: 3, borderColor: "transparent", padding: 3 },
-  pickOn: { borderColor: C.red },
+  pick: { borderWidth: 3, borderColor: "transparent", alignSelf: "flex-start" }, // contour collé à l'icône, mêmes arrondis
+  pickOn: { borderColor: C.ink }, // blanc : un contour rouge disparaîtrait sur l'avatar rouge
   btn: { height: 48, paddingHorizontal: 20, borderRadius: 12, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
 });

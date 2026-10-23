@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { test } from "node:test";
-import { start } from "./server.mjs";
+import { isPrivate, start, toVtt } from "./server.mjs";
 
 const PEOPLE = { "code-eric": { id: "1", username: "eric" }, "code-ami": { id: "2", username: "ami", global_name: "Ami", avatar: "abc" }, "code-x": { id: "3", username: "x" } };
 const discord = createServer((req, res) => {
@@ -120,7 +120,7 @@ test("profils : PIN, reprise séparée, anti-devinette, modification et suppress
   assert.equal(profiles[0].name, "eric");
 
   const kid = await (await post("/api/profiles", { name: "Enfant", color: "#3FA66B", pin: "1234" })).json();
-  assert.deepEqual({ ...kid, id: 0 }, { id: 0, name: "Enfant", color: "#3FA66B", locked: true, main: false, avatar: null });
+  assert.deepEqual({ ...kid, id: 0 }, { id: 0, name: "Enfant", color: "#3FA66B", locked: true, main: false, avatar: null, prefs: null });
   assert.equal((await post("/api/profiles", { name: "X", pin: "12" })).status, 400);
 
   assert.equal((await post("/api/profiles/select", { id: kid.id })).status, 403);
@@ -132,7 +132,7 @@ test("profils : PIN, reprise séparée, anti-devinette, modification et suppress
   assert.equal((await post("/api/profiles", { pin: null }, "PATCH")).status, 403); // retirer le code demande le code
   assert.equal((await post("/api/profiles", { pin: "5555", currentPin: "0000" }, "PATCH")).status, 403);
   await post("/api/profiles", { pin: null, currentPin: "1234", name: "Enfants", avatar: "chat-vert" }, "PATCH");
-  assert.deepEqual((await (await api("/api/auth/me", c)).json()).profile, { id: kid.id, name: "Enfants", color: "#3FA66B", locked: false, main: false, avatar: "chat-vert" });
+  assert.deepEqual((await (await api("/api/auth/me", c)).json()).profile, { id: kid.id, name: "Enfants", color: "#3FA66B", locked: false, main: false, avatar: "chat-vert", prefs: null });
   assert.equal((await api("/api/admin", c)).status, 403); // un profil secondaire ne gère pas les accès
   await post("/api/profiles/leave", {});
   assert.equal((await (await api("/api/auth/me", c)).json()).profile, null);
@@ -160,6 +160,24 @@ test("fiches traduites par TMDB, avec cache", async () => {
   await api("/api/translate?type=movie&id=tt0120737", c);
   assert.equal(tmdbCalls.length, n); // servi par le cache
   assert.equal((await api("/api/translate?type=movie&id=pas-un-id", c)).status, 400);
+});
+
+test("préférences de langue du profil et relais des sous-titres", async () => {
+  const [, c] = await login("code-eric");
+  const { profiles } = await (await api("/api/profiles", c)).json();
+  await api("/api/profiles/select", c, { method: "POST", body: JSON.stringify({ id: profiles[0].id }) });
+  const prefs = { films: { audio: "fr", audio2: "vo", subs: "", subs2: "" }, animes: { audio: "ja", audio2: "fr", subs: "fr", subs2: "en" } };
+  const put = b => api("/api/profiles/prefs", c, { method: "PUT", body: JSON.stringify(b) });
+  assert.equal((await put({ films: { audio: "français" } })).status, 400);
+  assert.equal((await put(prefs)).status, 200);
+  assert.deepEqual((await (await api("/api/auth/me", c)).json()).profile.prefs, prefs);
+  // Relais : connecté seulement, et jamais vers une adresse interne du VPS.
+  assert.equal((await api("/api/subtitle.vtt?url=https://x.dev/a.srt")).status, 401);
+  assert.equal((await (await api(`/api/subtitle.vtt?url=${encodeURIComponent("http://127.0.0.1:22/x")}`, c)).json()).error, "adresse refusée");
+  assert.equal((await api(`/api/subtitle.vtt?url=${encodeURIComponent("file:///etc/passwd")}`, c)).status, 400);
+  assert.ok(isPrivate("192.168.1.10") && isPrivate("::1") && isPrivate("fd00::1") && !isPrivate("1.1.1.1"));
+  assert.equal(toVtt("\uFEFF1\r\n00:00:01,000 --> 00:00:02,500\r\nSalut\r\n"), "WEBVTT\n\n1\n00:00:01.000 --> 00:00:02.500\nSalut\n");
+  assert.throws(() => toVtt("[Script Info]"), /non reconnu/);
 });
 
 test.after(async () => { await app.close(); discord.close(); tmdbSrv.close(); });

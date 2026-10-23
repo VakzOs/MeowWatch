@@ -28,6 +28,8 @@ export default function Title() {
   // Les textes traduits remplacent ceux de l'addon quand ils existent ; images et identifiants ne changent pas.
   const t = (key: "name" | "description") => fr?.[key] || meta[key];
   const [fullText, setFullText] = useState(false);
+  // Animé (règle de langues à part) : addon d'animés, ou animation d'origine japonaise (TMDB).
+  const isAnime = type === "anime" || id.startsWith("kitsu:") || (fr?.originalLanguage === "ja" && (meta.genres ?? []).some(g => /anim/i.test(g)));
   const epName = (e: Video) => fr?.episodes[`${e.season}:${e.episode}`]?.name || e.name || e.title;
   useEffect(() => { setAmbiance(undefined); }, []);
   // Échap : retour, seulement quand la page est affichée (elle reste montée sous le lecteur).
@@ -64,8 +66,9 @@ export default function Title() {
   const play = (s: FoundStream, v: Video | null = video) => {
     if (!s.url) return s.externalUrl && Linking.openURL(s.externalUrl);
     const vid = v?.id ?? id;
+    const alt = imdbEquivalent(meta, v);
     router.push({ pathname: "/play", params: {
-      url: s.url, file: s.behaviorHints?.filename ?? "", id, type, name: meta.name, poster: meta.poster ?? "", background: meta.background ?? "",
+      url: s.url, file: s.behaviorHints?.filename ?? "", subType: alt?.type ?? type, subVid: alt?.id ?? vid, anime: isAnime ? "1" : "", id, type, name: meta.name, poster: meta.poster ?? "", background: meta.background ?? "",
       videoId: vid, label: v ? epLabel(v) : "", start: String(saved?.videoId === vid ? Math.floor(saved!.time) : 0),
     } });
   };

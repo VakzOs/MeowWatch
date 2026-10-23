@@ -4,6 +4,8 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, T
 import { C, font } from "../components/theme";
 import { api, type Admin } from "../lib/api";
 import { ProfileEditor } from "../components/Profiles";
+import { Select } from "../components/Select";
+import { DEFAULT_PREFS, langName, type LangChoice, type LangPrefs } from "../lib/lang";
 import { leaveProfile, logout, pull, setLang, updateProfile, useStore } from "../lib/store";
 
 const day = (t: number) => new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
@@ -24,6 +26,7 @@ export default function Reglages() {
           <Btn label="Se déconnecter" onPress={logout} ghost />
         </View>
         <ProfileSettings />
+        <Playback />
         <Sync />
         <Language />
         {user.owner && user.profile?.main ? <Access /> : null}
@@ -41,6 +44,49 @@ function ProfileSettings() {
       <View style={[st.row, { padding: 20 }]}>
         <View style={{ flex: 1 }}><ProfileEditor key={profile.id} profile={profile} onChange={updateProfile} onDeleted={leaveProfile} /></View>
       </View>
+    </>
+  );
+}
+
+const AUDIO = [{ k: "vo", label: "Version originale" }, ...["fr", "en", "ja", "es", "de", "it", "ko", "pt"].map(k => ({ k, label: langName(k) }))];
+const SUBS2 = [{ k: "", label: "Aucun" }, ...["fr", "en", "es", "de", "it", "pt", "ja"].map(k => ({ k, label: langName(k) }))];
+const SUBS = [{ k: "", label: "Désactivés" }, ...["fr", "en", "es", "de", "it", "pt", "ja"].map(k => ({ k, label: langName(k) }))];
+
+/** Langues choisies au lancement d'une vidéo, pour le profil ouvert ; les animés ont leur propre règle. */
+function Playback() {
+  const profile = useStore(s => s.user?.profile)!;
+  const prefs = profile.prefs ?? DEFAULT_PREFS;
+  const [menu, setMenu] = useState<string | null>(null);
+  const save = (k: keyof LangPrefs, patch: Partial<LangChoice>) => {
+    const next = { ...prefs, [k]: { ...prefs[k], ...patch } };
+    updateProfile({ ...profile, prefs: next });
+    api("/api/profiles/prefs", { method: "PUT", body: JSON.stringify(next) }).catch(() => {});
+  };
+  return (
+    <>
+      <Text style={[font(600, 18), st.h]}>Lecture</Text>
+      {([["films", "Films et séries"], ["animes", "Animés"]] as const).map(([k, title]) => {
+        const field = (f: keyof LangChoice, label: string, items: { k: string; label: string }[]) => (
+          <View style={{ gap: 4 }}>
+            <Text style={font(500, 12, C.mute)}>{label}</Text>
+            <Select id={`${k}-${f}`} open={menu} setOpen={setMenu} items={items} value={prefs[k][f] ?? ""} onChange={v => save(k, { [f]: v })} />
+          </View>
+        );
+        return (
+          <View key={k} style={[st.row, { flexDirection: "column", alignItems: "stretch", zIndex: menu?.startsWith(k) ? 10 : 1 }]}>
+            <Text style={font(600, 15)}>{title}</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+              {field("audio", "Audio", AUDIO)}
+              {field("audio2", "Sinon", AUDIO)}
+              {field("subs", "Sous-titres", SUBS)}
+              {prefs[k].subs ? field("subs2", "Sinon", SUBS2) : null}
+            </View>
+          </View>
+        );
+      })}
+      <Text style={[font(400, 13, C.mute), { marginTop: 4 }]}>
+        Si le fichier n'a ni le premier ni le second choix, le lecteur garde sa piste par défaut ; les sous-titres viennent du fichier, sinon des addons (OpenSubtitles…). Animés : ceux des addons d'animés, et les animations japonaises.
+      </Text>
     </>
   );
 }

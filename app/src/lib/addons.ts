@@ -121,6 +121,17 @@ export async function fetchStreams(addons: Addon[], type: string, id: string): P
   return lists.flat();
 }
 
+export type FoundSubtitle = { url: string; lang: string; addon: string };
+/** Sous-titres des addons (ressource « subtitles », comme OpenSubtitles) ; le nom du fichier aide à trouver les bons. */
+export async function fetchSubtitles(addons: Addon[], type: string, id: string, filename?: string): Promise<FoundSubtitle[]> {
+  const extra = filename ? `/filename=${encodeURIComponent(filename)}` : "";
+  const lists = await Promise.all(addons.filter(a => supports(a.manifest, "subtitles", type, id)).map(a =>
+    getJSON<{ subtitles?: { url?: string; lang?: string }[] }>(`${base(a)}/subtitles/${type}/${encodeURIComponent(id)}${extra}.json`)
+      .then(r => (r.subtitles ?? []).filter(x => x.url).map(x => ({ url: x.url!, lang: x.lang ?? "", addon: a.manifest.name })))
+      .catch(() => [] as FoundSubtitle[])));
+  return lists.flat();
+}
+
 /** Équivalent IMDb d'un titre ou d'un épisode d'un autre catalogue (Kitsu…), pour les addons de flux qui ne
  *  connaissent que les identifiants tt… (comme Stremio le fait avec les correspondances de l'addon Kitsu). */
 export function imdbEquivalent(meta: Pick<Meta, "id" | "imdb_id">, video?: Video | null): { type: string; id: string } | null {

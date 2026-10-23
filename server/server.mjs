@@ -2,7 +2,9 @@
 // Aucune dépendance : node:http + node:sqlite.
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
+import { lookup } from "node:dns/promises";
 import { createServer } from "node:http";
+import { isIP } from "node:net";
 import { dirname, extname, join, normalize } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
@@ -10,6 +12,25 @@ import { fileURLToPath } from "node:url";
 const SESSION_DAYS = 60, INVITE_DAYS = 7, MAX_PROFILES = 6;
 export const COLORS = ["#D6182A", "#E8833A", "#E5B92E", "#3FA66B", "#2F8FD8", "#8B5CF6"];
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".ttf": "font/ttf", ".woff2": "font/woff2" };
+
+/** SRT (ou WebVTT) → WebVTT, que lisent le navigateur et libmedia. */
+export function toVtt(text) {
+  const t = text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").trim();
+  if (t.startsWith("WEBVTT")) return t + "\n";
+  if (!/-->/.test(t)) throw new Error("format de sous-titres non reconnu");
+  return "WEBVTT\n\n" + t.replace(/(\d\d:\d\d:\d\d),(\d{3})/g, "$1.$2") + "\n";
+}
+
+/** Adresse locale, privée ou réservée (IPv4 et IPv6). */
+export function isPrivate(ip) {
+  if (isIP(ip) === 6) {
+    const v = ip.toLowerCase();
+    if (v.startsWith("::ffff:")) return isPrivate(v.slice(7));
+    return v === "::1" || v === "::" || /^f[cd]/.test(v) || /^fe[89ab]/.test(v);
+  }
+  const [a, b] = ip.split(".").map(Number);
+  return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+}
 
 export function start(env = process.env) {
   const cfg = {
@@ -23,6 +44,7 @@ export function start(env = process.env) {
     tmdb: (env.TMDB_URL ?? "https://api.themoviedb.org").replace(/\/$/, ""),
     web: env.WEB_DIR ?? join(dirname(fileURLToPath(import.meta.url)), "../app/dist"),
     db: env.DB_PATH ?? "./data/meowwatch.db",
+    allowPrivate: env.ALLOW_PRIVATE_FETCH === "1", // tests : sous-titres servis en local
   };
   if (!cfg.clientId || !cfg.clientSecret || !cfg.owner) throw new Error("DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET et OWNER_DISCORD_ID sont obligatoires.");
   const secure = cfg.publicUrl.startsWith("https://");
@@ -44,6 +66,7 @@ export function start(env = process.env) {
   // Bases créées avant les profils : la session retient le profil choisi.
   try { db.exec("ALTER TABLE sessions ADD COLUMN profile_id TEXT"); } catch { }
   try { db.exec("ALTER TABLE profiles ADD COLUMN avatar TEXT"); } catch { }
+  try { db.exec("ALTER TABLE profiles ADD COLUMN prefs TEXT"); } catch { }
   const q = Object.fromEntries(Object.entries({
     user: "SELECT * FROM users WHERE id = ?",
     upsertUser: "INSERT INTO users (id, name, avatar, created_at, invited_by) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar = excluded.avatar",
@@ -66,6 +89,7 @@ export function start(env = process.env) {
     profile: "SELECT * FROM profiles WHERE id = ? AND user_id = ?",
     addProfile: "INSERT INTO profiles (id, user_id, name, color, pin, created_at, avatar) VALUES (?, ?, ?, ?, ?, ?, ?)",
     editProfile: "UPDATE profiles SET name = ?, color = ?, pin = ?, avatar = ? WHERE id = ? AND user_id = ?",
+    savePrefs: "UPDATE profiles SET prefs = ? WHERE id = ? AND user_id = ?",
     deleteProfile: "DELETE FROM profiles WHERE id = ? AND user_id = ?",
     selectProfile: "UPDATE sessions SET profile_id = ? WHERE hash = ?",
     leaveProfile: "UPDATE sessions SET profile_id = NULL WHERE profile_id = ?",
@@ -86,7 +110,7 @@ export function start(env = process.env) {
   const redirect = (res, to, headers = {}) => { res.writeHead(302, { location: to, "cache-control": "no-store", ...headers }); res.end(); };
   // Le premier profil du compte est le principal : lui seul gère les accès, et il ne se supprime pas.
   const mainId = userId => q.profiles.get(userId)?.id;
-  const profileView = p => p && { id: p.id, name: p.name, color: p.color, locked: !!p.pin, main: p.id === mainId(p.user_id), avatar: p.avatar };
+  const profileView = p => p && { id: p.id, name: p.name, color: p.color, locked: !!p.pin, main: p.id === mainId(p.user_id), avatar: p.avatar, prefs: p.prefs ? JSON.parse(p.prefs) : null };
   // Les images des avatars sont dans l'appli ; le serveur ne garde que leur nom.
   const avatarKey = a => (typeof a === "string" && /^[a-z0-9-]{1,40}$/.test(a) ? a : null);
   const view = u => u && { id: u.id, name: u.name, avatar: u.avatar, owner: u.id === cfg.owner, translate: !!cfg.tmdbKey, profile: u.profile_id ? profileView(q.profile.get(u.profile_id, u.id)) ?? null : null };
@@ -122,7 +146,7 @@ export function start(env = process.env) {
     let data = null;
     if (item) {
       const d = await tmdb(type === "series" ? `/tv/${item.id}` : `/movie/${item.id}`, lang);
-      data = { name: d.title ?? d.name, description: d.overview || undefined, genres: (d.genres ?? []).map(g => g.name), episodes: {} };
+      data = { name: d.title ?? d.name, description: d.overview || undefined, genres: (d.genres ?? []).map(g => g.name), originalLanguage: d.original_language, episodes: {} };
       if (type === "series") {
         const seasons = (d.seasons ?? []).map(x => x.season_number).slice(0, 40);
         const lists = await Promise.all(seasons.map(n => tmdb(`/tv/${item.id}/season/${n}`, lang).catch(() => null)));
@@ -133,6 +157,26 @@ export function start(env = process.env) {
     tmdbCache.set(key, { at: Date.now(), data });
     return data;
   }
+  // ponytail: cache des sous-titres en mémoire (300 fichiers, perdu au redémarrage).
+  const subCache = new Map();
+  /** Télécharge un petit fichier texte public (pas d'adresse interne : les invités ne doivent pas sonder le VPS). */
+  async function fetchText(src) {
+    const u = new URL(src);
+    if (!/^https?:$/.test(u.protocol)) throw new Error("lien invalide");
+    if (!cfg.allowPrivate) {
+      const { address } = await lookup(u.hostname.replace(/^\[|\]$/g, ""));
+      if (isPrivate(address)) throw new Error("adresse refusée");
+    }
+    // ponytail: pas de redirection suivie (elle pourrait viser une adresse interne après le contrôle).
+    const r = await fetch(u, { signal: AbortSignal.timeout(10000), redirect: "error" });
+    if (!r.ok) throw new Error(`sous-titres indisponibles (${r.status})`);
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > 5e6) throw new Error("fichier trop gros");
+    // Beaucoup de sous-titres sont encore en Windows-1252 : si l'UTF-8 ne colle pas, on relit dans cet encodage.
+    const utf8 = new TextDecoder("utf-8").decode(buf);
+    return utf8.includes("\uFFFD") ? new TextDecoder("windows-1252").decode(buf) : utf8;
+  }
+
   // Anti-devinette : 5 mauvais codes bloquent le profil 5 minutes.
   const fails = new Map();
   /** Vérifie le code d'un profil verrouillé ; renvoie [statut, message] en cas de refus. */
@@ -264,6 +308,31 @@ export function start(env = process.env) {
       if (!u.profile_id) return json(res, 409, { error: "Choisis d'abord un profil." });
       for (const i of items) q.saveLibrary.run(u.profile_id, i.meta.id.slice(0, 200), JSON.stringify(i), Math.min(i.updatedAt, Date.now() + 6e4));
       json(res, 200, { ok: true });
+    }),
+
+    // Langues préférées du profil ouvert (audio et sous-titres, règle à part pour les animés).
+    "PUT /api/profiles/prefs": member(async (req, res, url, u) => {
+      const b = await body(req, 4e3), lang = v => v === "" || v === "vo" || /^[a-z]{2}$/.test(v);
+      const ok = ["films", "animes"].every(k => b?.[k] && ["audio", "subs", "audio2", "subs2"].every(f => lang(b[k][f] ?? "")));
+      if (!ok) return json(res, 400, { error: "préférences invalides" });
+      if (!u.profile_id) return json(res, 409, { error: "Choisis d'abord un profil." });
+      const prefs = Object.fromEntries(["films", "animes"].map(k => [k, { audio: b[k].audio || "vo", audio2: b[k].audio2 ?? "", subs: b[k].subs, subs2: b[k].subs2 ?? "" }]));
+      q.savePrefs.run(JSON.stringify(prefs), u.profile_id, u.id);
+      json(res, 200, prefs);
+    }),
+
+    // Sous-titres des addons : récupérés ici (le navigateur n'y a pas toujours droit, CORS) et convertis en WebVTT.
+    "GET /api/subtitle.vtt": member(async (req, res, url) => {
+      const src = url.searchParams.get("url") ?? "";
+      let vtt = subCache.get(src);
+      if (!vtt) {
+        try { vtt = toVtt(await fetchText(src)); }
+        catch (e) { return json(res, 400, { error: e.message }); }
+        if (subCache.size > 300) subCache.delete(subCache.keys().next().value);
+        subCache.set(src, vtt);
+      }
+      res.writeHead(200, { "content-type": "text/vtt; charset=utf-8", "cache-control": "private, max-age=86400" });
+      res.end(vtt);
     }),
 
     // Réservé au propriétaire.

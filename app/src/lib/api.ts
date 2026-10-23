@@ -1,9 +1,11 @@
 // API du serveur MeowWatch (même origine sur le web ; adresse explicite pour les applis natives plus tard).
+import type { LangPrefs } from "./lang";
+
 export const API = process.env.EXPO_PUBLIC_API_URL ?? "";
 
-export type Profile = { id: string; name: string; color: string; locked: boolean; main: boolean; avatar: string | null };
+export type Profile = { id: string; name: string; color: string; locked: boolean; main: boolean; avatar: string | null; prefs?: LangPrefs | null };
 export type User = { id: string; name: string; avatar: string | null; owner: boolean; translate: boolean; profile: Profile | null };
-export type Translation = { name?: string; description?: string; genres?: string[]; episodes: Record<string, { name?: string; overview?: string }> };
+export type Translation = { name?: string; description?: string; genres?: string[]; originalLanguage?: string; episodes: Record<string, { name?: string; overview?: string }> };
 export type Admin = {
   users: (User & { createdAt: number })[];
   invites: { code: string; note: string; link: string; expiresAt: number }[];
