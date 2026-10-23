@@ -19,6 +19,7 @@ const SIZES = [{ k: 0.8, label: "Petit" }, { k: 1, label: "Normal" }, { k: 1.3, 
 const COLORS = [{ k: "", label: "D'origine" }, { k: "#FFFFFF", label: "Blanc" }, { k: "#FFE14D", label: "Jaune" }];
 const BGS = [{ k: "", label: "Aucun" }, { k: "rgba(0,0,0,0.55)", label: "Léger" }, { k: "rgba(0,0,0,0.9)", label: "Noir" }];
 const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const WHY = { cors: "(Lecteur avancé impossible : le serveur du lien ne l'autorise pas.)", echec: "(Lecteur avancé impossible : il n'a pas su lire ce fichier.)" };
 
 const clock = (s: number) => {
   if (!isFinite(s) || s < 0) s = 0;
@@ -220,7 +221,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
               <>
                 <Text style={st.menuTitle}>Langue audio</Text>
                 {eng.audio.length ? eng.audio.map(t => <Item key={t.id} on={t.id === eng.audioId} label={t.label} flag={t.lang} onPress={() => pickAudio(t)} />)
-                  : <Text style={st.empty}>{eng.kind === "avance" ? "Une seule piste audio." : "Le lecteur du navigateur ne peut pas changer la langue de ce fichier."}</Text>}
+                  : <Text style={st.empty}>{eng.kind === "avance" ? "Une seule piste audio." : `Le lecteur du navigateur ne peut pas changer la langue de ce fichier. ${WHY[eng.why ?? "cors"]}`}</Text>}
               </>
             ) : null}
             {menu === "subs" ? (
@@ -228,7 +229,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
                 <Text style={st.menuTitle}>Sous-titres</Text>
                 <Item on={eng.subId < 0} label="Désactivés" onPress={() => pickSub(-1)} />
                 {eng.subs.map(t => <Item key={t.id} on={t.id === eng.subId} label={t.label} flag={t.lang} onPress={() => pickSub(t.id)} />)}
-                {!eng.subs.length ? <Text style={st.empty}>{eng.kind === "avance" ? "Ce fichier n'a pas de sous-titres." : "Le lecteur du navigateur ne voit pas les sous-titres de ce fichier."}</Text> : null}
+                {!eng.subs.length ? <Text style={st.empty}>{eng.kind === "avance" ? "Ce fichier n'a pas de sous-titres." : `Le lecteur du navigateur ne voit pas les sous-titres de ce fichier. ${WHY[eng.why ?? "cors"]}`}</Text> : null}
                 {eng.canDelay && eng.subs.length ? (
                   <View style={st.delay}>
                     <Text style={[font(500, 13, C.soft), { flex: 1 }]}>Décalage</Text>

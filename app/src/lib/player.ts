@@ -5,6 +5,7 @@ import { langCode, trackLabel } from "./lang";
 export type Track = { id: number; lang: string; label: string; forced?: boolean };
 export type Engine = {
   kind: "avance" | "navigateur";
+  why?: "cors" | "echec"; // pourquoi le lecteur avancé n'a pas servi
   time(): number; duration(): number;
   play(): Promise<void>; pause(): void; seek(s: number): void;
   setRate(r: number): void; setVolume(v: number): void;
@@ -118,11 +119,13 @@ function navigateur(box: HTMLDivElement, url: string, onError: (m: string) => vo
 
 /** Lecteur avancé si le lien le permet, sinon celui du navigateur. */
 export async function createEngine(box: HTMLDivElement, url: string, file: string | undefined, onError: (m: string) => void): Promise<Engine> {
+  let why: Engine["why"] = "cors";
   if (await readable(url)) {
+    why = "echec";
     const inner = document.createElement("div");
     Object.assign(inner.style, { position: "absolute", inset: "0" });
     box.appendChild(inner);
     try { return await avance(inner, url, file); } catch (e) { console.warn("libmedia :", e); inner.remove(); }
   }
-  return navigateur(box, url, onError);
+  return Object.assign(await navigateur(box, url, onError), { why });
 }
