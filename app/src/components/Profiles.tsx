@@ -144,7 +144,7 @@ export function PinPad({ face, hint = "Entre le code du profil", onPin, onCancel
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
   }, []);
   const body = (
-    <View style={{ alignItems: "center" }}>
+    <View style={{ alignItems: "center", userSelect: "none" } as any}>
       <ProfileAvatar p={face} size={96} />
       <Text style={[font(700, 26), { marginTop: 18 }]}>{face.name}</Text>
       <Text style={[font(400, 15, error ? "#FF8A94" : C.mute), { marginTop: 6, marginBottom: 28 }]}>{error ?? hint}</Text>
@@ -286,7 +286,7 @@ const st = StyleSheet.create({
   dot: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: "rgba(255,255,255,0.4)" },
   dotOn: { backgroundColor: C.ink, borderColor: C.ink },
   pad: { width: 3 * 80 + 2 * 18, flexDirection: "row", flexWrap: "wrap", gap: 18 },
-  key: { width: 80, height: 80, borderRadius: 40, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center" },
+  key: { width: 80, height: 80, borderRadius: 40, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", userSelect: "none" } as any,
   keyGhost: { width: 80, height: 80 },
   panel: { width: "100%", maxWidth: 720, padding: 40, borderRadius: 20, backgroundColor: "rgba(8,8,10,0.72)" },
   input: { height: 52, paddingHorizontal: 16, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.08)", outlineStyle: "none" } as any,
