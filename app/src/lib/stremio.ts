@@ -33,7 +33,7 @@ export async function waitForAuth(code: string, { signal, timeoutMs = 5 * 60e3 }
 type Descriptor = { transportUrl: string; manifest: Manifest; flags?: { official?: boolean; protected?: boolean } };
 type LibraryItem = {
   _id: string; name: string; type: string; poster?: string | null; removed: boolean; temp: boolean; _mtime: string;
-  state: { lastWatched?: string | null; timeOffset: number; duration: number; video_id?: string | null };
+  state: { lastWatched?: string | null; timeOffset: number; duration?: number; video_id?: string | null };
 };
 
 /** Étape 3 : ce que l'on récupère du compte. La clé Stremio n'est gardée nulle part. */
@@ -52,15 +52,17 @@ export const toAddons = (list: Descriptor[]): Addon[] =>
 
 const episode = (videoId?: string | null) => { const m = videoId?.match(/:(\d+):(\d+)$/); return m ? `S${m[1]} · É${m[2]}` : undefined; };
 
-/** Bibliothèque Stremio → reprise : seulement ce qui est commencé, pas fini (95 %) ni retiré. */
+/** Bibliothèque Stremio → reprise, avec la règle de « Continuer à regarder » de Stremio
+ *  (stremio-core, LibraryItem::is_in_continue_watching) : commencé, et pas retiré sauf s'il est « temp »
+ *  (vu sans être ajouté à la bibliothèque). La durée peut être inconnue (0). */
 export const toProgress = (items: LibraryItem[]): Progress[] =>
-  items.filter(i => !i.removed && !i.temp && i.state?.timeOffset > 0 && i.state.duration > 0 && i.state.timeOffset / i.state.duration <= 0.95)
+  items.filter(i => i.type !== "other" && (!i.removed || i.temp) && i.state?.timeOffset > 0)
     .map(i => ({
       meta: { id: i._id, type: i.type, name: i.name, poster: i.poster || undefined },
       videoId: i.state.video_id || i._id,
       label: episode(i.state.video_id),
       time: i.state.timeOffset / 1000,
-      duration: i.state.duration / 1000,
+      duration: (i.state.duration || 0) / 1000,
       updatedAt: Date.parse(i.state.lastWatched || i._mtime) || Date.now(),
     }));
 

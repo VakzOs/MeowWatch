@@ -23,4 +23,5 @@ const GENRE_FR: Record<string, string> = {
   Crime: "Policier", "Sci-Fi": "SF", Fantasy: "Fantastique", Mystery: "Mystère", Animation: "Animation", Biography: "Biopic",
   History: "Histoire", Documentary: "Documentaire", Family: "Famille", War: "Guerre", Romance: "Romance", Music: "Musique", Western: "Western",
 };
-export const genres = (g?: string[]) => (g ?? []).slice(0, 2).map(x => GENRE_FR[x] ?? x).join(", ");
+export const genreList = (g?: string[]) => (g ?? []).map(x => GENRE_FR[x] ?? x);
+export const genres = (g?: string[]) => genreList(g).slice(0, 2).join(", ");

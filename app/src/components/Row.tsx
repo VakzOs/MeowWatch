@@ -7,8 +7,8 @@ import { C, font } from "./theme";
 export type Item = { meta: Meta; wide?: boolean; progress?: number; sub?: string };
 
 /** Une rangée qui charge ses éléments elle-même ; elle disparaît si elle est vide ou en erreur. */
-export function Row({ title, note, load, selected, onSelect }: {
-  title: string; note?: string; load: () => Promise<Item[]>; selected?: string; onSelect: (m: Meta) => void;
+export function Row({ title, note, load, selected, onSelect, onHover }: {
+  title: string; note?: string; load: () => Promise<Item[]>; selected?: string; onSelect: (m: Meta) => void; onHover?: (m: Meta) => void;
 }) {
   const [items, setItems] = useState<Item[] | null>(null);
   useEffect(() => { let on = true; load().then(i => on && setItems(i), () => on && setItems([])); return () => { on = false; }; }, [load]);
@@ -20,16 +20,16 @@ export function Row({ title, note, load, selected, onSelect }: {
         {note ? <Text style={font(500, 13, C.faint)}>{note}</Text> : null}
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.scroll}>
-        {items ? items.map(i => <Card key={i.meta.id} item={i} selected={selected === i.meta.id} onPress={() => onSelect(i.meta)} />)
+        {items ? items.map(i => <Card key={i.meta.id} item={i} selected={selected === i.meta.id} onPress={() => onSelect(i.meta)} onHover={() => onHover?.(i.meta)} />)
           : Array.from({ length: 6 }, (_, k) => <View key={k} style={[st.poster, st.ghost]} />)}
       </ScrollView>
     </View>
   );
 }
 
-function Card({ item: { meta, wide, progress, sub }, selected, onPress }: { item: Item; selected: boolean; onPress: () => void }) {
+function Card({ item: { meta, wide, progress, sub }, selected, onPress, onHover }: { item: Item; selected: boolean; onPress: () => void; onHover: () => void }) {
   return (
-    <Pressable onPress={onPress} onFocus={onPress} accessibilityLabel={meta.name} style={({ hovered, focused }: any) => [{ width: wide ? 300 : 158 }, (focused) && { transform: [{ scale: 1.04 }] }, hovered && !selected && { opacity: 0.9 }]}>
+    <Pressable onPress={onPress} onFocus={onHover} onHoverIn={onHover} accessibilityLabel={meta.name} style={({ hovered, focused }: any) => [{ width: wide ? 300 : 158 }, (focused) && { transform: [{ scale: 1.04 }] }, hovered && !selected && { opacity: 0.9 }]}>
       {({ hovered, focused }: any) => (
         <>
           <Image source={wide ? meta.background ?? meta.poster : meta.poster} style={[wide ? st.wide : st.poster, (selected || hovered || focused) && st.ring]} contentFit="cover" transition={200} recyclingKey={meta.id} />

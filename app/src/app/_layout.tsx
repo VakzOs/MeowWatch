@@ -49,7 +49,7 @@ export default function Root() {
       <StatusBar style="light" />
       {/* Thème sombre au fond transparent : le fond flouté de Shell reste visible derrière chaque page. */}
       <ThemeProvider value={THEME}>
-        <Shell bare={path.startsWith("/play")}>
+        <Shell bare={path.startsWith("/play") || path.startsWith("/title")}>
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "transparent" }, animation: "none" }} />
         </Shell>
       </ThemeProvider>

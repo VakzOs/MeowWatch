@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, catalogUrl, describe, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, catalogUrl, configureUrl, describe, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -38,4 +38,9 @@ test("describe lit les flux façon Torrentio, sans emojis", () => {
   assert.equal(d.size, "21.4 Go");
   assert.ok(d.playable);
   assert.ok(!describe({ addon: "T", infoHash: "abc" }).playable);
+});
+
+test("configureUrl : page de réglages seulement pour les addons configurables", () => {
+  assert.equal(configureUrl({ url: "https://t.dev/opts/manifest.json", manifest: { id: "t", name: "T", behaviorHints: { configurable: true } } }), "https://t.dev/opts/configure");
+  assert.equal(configureUrl(cinemeta), null);
 });
