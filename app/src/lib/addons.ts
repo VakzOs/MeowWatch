@@ -10,11 +10,12 @@ export type Manifest = {
 };
 export type Addon = { url: string; manifest: Manifest };
 
-export type Video = { id: string; title?: string; name?: string; season?: number; episode?: number; released?: string; thumbnail?: string; overview?: string };
+export type Video = { id: string; title?: string; name?: string; season?: number; episode?: number; released?: string; thumbnail?: string; overview?: string;
+  imdb_id?: string; imdbSeason?: number; imdbEpisode?: number }; // correspondance IMDb fournie par les addons d'animés (Kitsu)
 export type Meta = {
   id: string; type: string; name: string; poster?: string; background?: string; logo?: string;
   description?: string; releaseInfo?: string; imdbRating?: string; genres?: string[]; runtime?: string; videos?: Video[];
-  cast?: string[]; director?: string[]; trailerStreams?: { ytId: string; title?: string }[];
+  imdb_id?: string; cast?: string[]; director?: string[]; trailerStreams?: { ytId: string; title?: string }[];
 };
 export type Stream = {
   url?: string; infoHash?: string; ytId?: string; externalUrl?: string;
@@ -118,6 +119,23 @@ export async function fetchStreams(addons: Addon[], type: string, id: string): P
       .then(r => (r.streams ?? []).map(s => ({ ...s, addon: a.manifest.name })))
       .catch(() => [] as FoundStream[])));
   return lists.flat();
+}
+
+/** Équivalent IMDb d'un titre ou d'un épisode d'un autre catalogue (Kitsu…), pour les addons de flux qui ne
+ *  connaissent que les identifiants tt… (comme Stremio le fait avec les correspondances de l'addon Kitsu). */
+export function imdbEquivalent(meta: Pick<Meta, "id" | "imdb_id">, video?: Video | null): { type: string; id: string } | null {
+  if (meta.id.startsWith("tt")) return null;
+  const imdb = video?.imdb_id ?? meta.imdb_id;
+  if (!imdb?.startsWith("tt")) return null;
+  if (video && video.imdbSeason != null && video.imdbEpisode != null) return { type: "series", id: `${imdb}:${video.imdbSeason}:${video.imdbEpisode}` };
+  return video && video.id !== meta.id ? null : { type: "movie", id: imdb };
+}
+
+/** Flux de l'identifiant d'origine et de son équivalent IMDb, sans doublon : lisibles d'abord, avis des addons ensuite. */
+export async function fetchStreamsFor(addons: Addon[], type: string, id: string, alt: { type: string; id: string } | null) {
+  const [own, other] = await Promise.all([fetchStreams(addons, type, id), alt ? fetchStreams(addons, alt.type, alt.id) : []]);
+  const seen = new Set<string>(), all = [...own, ...other].filter(s => !s.url || (!seen.has(s.url) && seen.add(s.url)));
+  return [...all.filter(s => s.url), ...all.filter(s => !s.url)];
 }
 
 // --- Présentation d'un flux ---------------------------------------------------

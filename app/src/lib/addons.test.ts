@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, catalogUrl, configureUrl, describe, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, catalogUrl, configureUrl, describe, imdbEquivalent, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -55,4 +55,12 @@ test("Découvrir : catalogues sans paramètre ou à genre obligatoire (avec choi
   assert.deepEqual(discoverCatalogs([a]).map(c => c.catalog.id), ["top", "year"]);
   assert.deepEqual(genreOptions(a.manifest.catalogs![1]), ["2026", "2025"]);
   assert.equal(catalogUrl(a, a.manifest.catalogs![0], { genre: "Sci-Fi", skip: "100" }), "https://x/catalog/movie/top/genre=Sci-Fi&skip=100.json");
+});
+
+test("équivalent IMDb pour les animés Kitsu", () => {
+  const meta = { id: "kitsu:1", imdb_id: "tt0213338" };
+  assert.deepEqual(imdbEquivalent(meta, { id: "kitsu:1:3", episode: 3, imdb_id: "tt0213338", imdbSeason: 1, imdbEpisode: 3 }), { type: "series", id: "tt0213338:1:3" });
+  assert.equal(imdbEquivalent(meta, { id: "kitsu:1:3", episode: 3 }), null); // épisode sans correspondance
+  assert.deepEqual(imdbEquivalent({ id: "kitsu:9", imdb_id: "tt0245429" }), { type: "movie", id: "tt0245429" }); // film
+  assert.equal(imdbEquivalent({ id: "tt0903747" }), null); // déjà IMDb
 });
