@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeowWatch, maquettes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&family=Archivo:wdth,wght@62..100,400..900&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --red: #D6182A; --cream: #F5F0E6; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #0A0A0B; color: #fff; }
+img { display: block; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+.switch { position: fixed; z-index: 50; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; background: #000; border-radius: 999px; font: 500 14px/1 system-ui, sans-serif; }
+.switch button { padding: 10px 16px; border-radius: 999px; color: #aaa; }
+.switch button[aria-pressed="true"] { background: #fff; color: #000; }
+.mock { display: none; min-height: 100vh; }
+.mock.on { display: block; }
+.ico { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.logo { width: 32px; height: 32px; }
+.row-scroll { display: flex; gap: var(--gap); overflow-x: auto; scrollbar-width: none; padding: 12px var(--m) 24px; scroll-padding: 0 var(--m); }
+.row-scroll::-webkit-scrollbar { display: none; }
+.card { flex: none; outline: none; }
+
+/* ---------- A. Salle obscure : Netflix / VortX ---------- */
+#a { --m: 48px; --gap: 12px; font-family: Onest, sans-serif; background: #0A0A0B; }
+#a header { position: absolute; z-index: 5; inset: 0 0 auto; display: flex; align-items: center; gap: 32px; padding: 20px var(--m); }
+#a .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+#a nav { display: flex; gap: 24px; font-size: 15px; color: #c8c8c8; }
+#a nav a { color: inherit; text-decoration: none; }
+#a nav a.cur { color: #fff; font-weight: 700; }
+#a .tools { margin-left: auto; display: flex; align-items: center; gap: 20px; }
+#a .avatar { width: 32px; height: 32px; border-radius: 6px; background: var(--red); display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+#a .hero { position: relative; height: 82vh; min-height: 560px; display: flex; align-items: flex-end; padding: 0 var(--m) 14vh; }
+#a .hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#a .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10,10,11,.92) 0%, rgba(10,10,11,.5) 42%, rgba(10,10,11,0) 70%), linear-gradient(0deg, #0A0A0B 0%, rgba(10,10,11,0) 30%); }
+#a .hero-in { position: relative; z-index: 1; max-width: 560px; }
+#a .hero-logo { max-width: 440px; max-height: 150px; object-fit: contain; object-position: left; margin-bottom: 20px; }
+#a h1 { font-size: 64px; line-height: 1; letter-spacing: -0.03em; font-weight: 800; margin-bottom: 20px; }
+#a .meta { display: flex; gap: 14px; font-size: 15px; color: #d0d0d0; margin-bottom: 14px; }
+#a .meta b { color: #fff; }
+#a .desc { font-size: 17px; line-height: 1.5; color: #e6e6e6; margin-bottom: 28px; }
+#a .acts { display: flex; gap: 12px; }
+#a .btn { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 26px; border-radius: 6px; font-weight: 700; font-size: 16px; transition: transform .15s; }
+#a .btn:hover, #a .btn:focus-visible { transform: scale(1.04); outline: none; }
+#a .btn.play { background: var(--red); }
+#a .btn.list { background: rgba(255,255,255,.16); }
+#a .rows { position: relative; z-index: 2; margin-top: -10vh; padding-bottom: 96px; }
+#a h2 { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; padding: 0 var(--m); margin-top: 28px; }
+#a .card { width: 200px; border-radius: 6px; overflow: hidden; position: relative; transition: transform .2s; background: #1a1a1c; }
+#a .card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; }
+#a .card.wide { width: 320px; }
+#a .card.wide img { aspect-ratio: 16/9; }
+#a .card:hover, #a .card:focus { transform: scale(1.07); z-index: 3; box-shadow: 0 0 0 3px #fff; }
+#a .prog { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255,255,255,.25); }
+#a .prog i { display: block; height: 100%; background: var(--red); }
+#a .cap { position: absolute; left: 12px; bottom: 14px; font-weight: 700; font-size: 15px; text-shadow: 0 1px 8px #000; }
+
+/* ---------- B. Affiche : aplat rouge, grande typo condensée ---------- */
+#b { --m: 40px; --gap: 16px; font-family: Archivo, sans-serif; background: #111112; }
+#b header { display: flex; align-items: center; gap: 40px; padding: 18px var(--m); background: var(--red); }
+#b .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-stretch: 62%; font-size: 30px; text-transform: uppercase; letter-spacing: -0.01em; color: var(--cream); }
+#b .brand .logo { width: 36px; height: 36px; }
+#b nav { display: flex; gap: 28px; font-weight: 600; font-size: 16px; color: var(--cream); }
+#b nav a { color: inherit; text-decoration: none; opacity: .75; }
+#b nav a.cur { opacity: 1; text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; }
+#b .tools { margin-left: auto; display: flex; gap: 20px; color: var(--cream); }
+#b .hero { display: grid; grid-template-columns: 1.25fr 1fr; background: var(--red); color: var(--cream); padding: 24px var(--m) 0; gap: 40px; min-height: 620px; }
+#b .hero-in { display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 48px; }
+#b .kicker { font-weight: 600; font-size: 18px; margin-bottom: 12px; }
+#b h1 { font-weight: 900; font-stretch: 62%; text-transform: uppercase; font-size: clamp(64px, 9vw, 148px); line-height: .86; letter-spacing: -0.02em; margin-bottom: 28px; }
+#b .meta { display: flex; gap: 20px; font-size: 18px; font-weight: 600; margin-bottom: 14px; }
+#b .desc { font-size: 18px; line-height: 1.5; max-width: 52ch; margin-bottom: 28px; }
+#b .acts { display: flex; gap: 12px; }
+#b .btn { height: 54px; padding: 0 30px; font-weight: 800; font-size: 18px; display: inline-flex; align-items: center; gap: 10px; transition: transform .15s; }
+#b .btn:hover, #b .btn:focus-visible { transform: translateY(-3px); outline: none; }
+#b .btn.play { background: var(--cream); color: #111; }
+#b .btn.list { background: #111112; color: var(--cream); }
+#b .hero-pic { align-self: end; }
+#b .hero-pic img { width: 100%; aspect-ratio: 2/3; object-fit: cover; max-height: 600px; object-position: top; }
+#b .band { padding: 56px 0 8px; }
+#b .band.alt { background: #1C1C1E; }
+#b h2 { font-weight: 900; font-stretch: 62%; text-transform: uppercase; font-size: 44px; line-height: 1; padding: 0 var(--m); display: flex; align-items: baseline; justify-content: space-between; }
+#b h2 small { font: 600 16px Archivo, sans-serif; text-transform: none; color: #bbb; }
+#b .card { width: 220px; transition: transform .2s; }
+#b .card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; background: #222; }
+#b .card .t { font-weight: 800; font-stretch: 75%; font-size: 20px; margin-top: 10px; text-transform: uppercase; line-height: 1.05; }
+#b .card .s { font-size: 14px; color: #aaa; margin-top: 4px; }
+#b .card:hover, #b .card:focus { transform: translateY(-8px); }
+#b .card:focus img, #b .card:hover img { outline: 6px solid var(--red); outline-offset: -6px; }
+#b .card.wide { width: 380px; }
+#b .card.wide img { aspect-ratio: 16/9; }
+#b .bar { height: 6px; background: #333; margin-top: 8px; }
+#b .bar i { display: block; height: 100%; background: var(--red); }
+#b footer { padding: 72px var(--m) 96px; font-weight: 900; font-stretch: 62%; text-transform: uppercase; font-size: 15vw; line-height: .8; color: var(--red); }
+
+/* ---------- C. Régie : barre latérale façon Stremio, panneau des flux ---------- */
+#c { --m: 32px; --gap: 14px; font-family: "Instrument Sans", sans-serif; background: #121214; display: none; }
+#c.on { display: grid; grid-template-columns: 220px 1fr 380px; height: 100vh; }
+#c aside { background: #0B0B0C; padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; }
+#c .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; padding: 4px 10px 24px; }
+#c aside a { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; color: #a8a8ad; text-decoration: none; font-weight: 500; font-size: 15px; }
+#c aside a.cur { background: #1E1E21; color: #fff; }
+#c aside a.cur .ico { color: var(--red); }
+#c aside .sep { flex: 1; }
+#c aside .addons { font-size: 13px; color: #8a8a90; padding: 12px; line-height: 1.6; }
+#c aside .addons b { color: #ddd; font-weight: 600; display: block; }
+#c main { overflow-y: auto; padding-bottom: 80px; }
+#c .search { margin: 20px var(--m) 8px; display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 16px; background: #1C1C1F; border-radius: 10px; color: #8a8a90; font-size: 15px; }
+#c .search kbd { margin-left: auto; font: inherit; font-size: 13px; color: #6b6b70; }
+#c h2 { font-size: 18px; font-weight: 600; padding: 0 var(--m); margin-top: 24px; display: flex; gap: 10px; align-items: baseline; }
+#c h2 small { font-size: 13px; color: #8a8a90; font-weight: 500; }
+#c .card { width: 158px; border-radius: 10px; transition: transform .15s; }
+#c .card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 10px; background: #222; }
+#c .card .t { font-size: 14px; font-weight: 600; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#c .card .s { font-size: 13px; color: #8a8a90; }
+#c .card:hover img, #c .card:focus img, #c .card.sel img { box-shadow: 0 0 0 3px var(--red); }
+#c .card:focus { transform: scale(1.04); }
+#c .card.wide { width: 300px; }
+#c .card.wide img { aspect-ratio: 16/9; }
+#c .card.wide .prog { height: 4px; background: #333; border-radius: 2px; margin-top: 8px; }
+#c .card.wide .prog i { display: block; height: 100%; background: var(--red); border-radius: 2px; }
+#c .panel { background: #0B0B0C; overflow-y: auto; }
+#c .panel .bg { position: relative; aspect-ratio: 16/10; }
+#c .panel .bg img { width: 100%; height: 100%; object-fit: cover; }
+#c .panel .bg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, #0B0B0C 0%, rgba(11,11,12,0) 60%); }
+#c .panel .in { padding: 0 24px 32px; margin-top: -40px; position: relative; }
+#c .panel h3 { font-size: 26px; line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 8px; }
+#c .panel .meta { display: flex; gap: 12px; color: #a8a8ad; font-size: 14px; margin-bottom: 12px; }
+#c .panel .meta b { color: #fff; }
+#c .panel .desc { font-size: 15px; line-height: 1.5; color: #d4d4d8; margin-bottom: 20px; }
+#c .panel h4 { font-size: 14px; font-weight: 600; color: #a8a8ad; margin-bottom: 10px; display: flex; justify-content: space-between; }
+#c .stream { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 14px; border-radius: 10px; background: #18181B; margin-bottom: 8px; text-align: left; width: 100%; transition: background .15s; }
+#c .stream:hover, #c .stream:focus-visible { background: #24242a; outline: 2px solid var(--red); outline-offset: -2px; }
+#c .stream .q { font-weight: 700; font-size: 15px; }
+#c .stream .src { font-size: 13px; color: #a8a8ad; grid-column: 1; }
+#c .stream .sz { grid-row: 1 / 3; grid-column: 2; align-self: center; font-size: 13px; color: #d4d4d8; }
+#c .stream.best .q::after { content: "Meilleur"; margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--red); }
+#c .play { width: 100%; height: 48px; border-radius: 10px; background: var(--red); font-weight: 700; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 24px; }
+
+
+/* ---------- Variantes de C ---------- */
+#c .top, #c .amb { display: none; }
+/* C2 : barre latérale en aplat rouge, crème dessus */
+#c.v2 aside { background: var(--red); }
+#c.v2 aside .brand, #c.v2 aside a, #c.v2 aside .addons b { color: var(--cream); }
+#c.v2 aside a { color: rgba(245,240,230,.78); }
+#c.v2 aside a.cur { background: #A90F1F; color: var(--cream); }
+#c.v2 aside a.cur .ico { color: var(--cream); }
+#c.v2 aside .addons { color: rgba(245,240,230,.75); }
+#c.v2 .card:hover img, #c.v2 .card:focus img, #c.v2 .card.sel img { box-shadow: 0 0 0 3px var(--cream); }
+#c.v2 .panel { background: #161618; }
+/* C3 : le fond de toute l'appli prend l'image du titre sélectionné */
+#c.v3 { position: relative; background: #08080A; }
+#c.v3 .amb { display: block; position: absolute; inset: 0; background-size: cover; background-position: center; opacity: .45; transition: background-image .4s; filter: blur(48px) saturate(1.3); transform: scale(1.15); }
+#c.v3 { overflow: hidden; }
+#c.v3 .amb::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #08080A 0%, rgba(8,8,10,.55) 30%, rgba(8,8,10,.55) 70%, #08080A 100%); }
+#c.v3 aside, #c.v3 main, #c.v3 .panel { position: relative; z-index: 1; background: transparent; }
+#c.v3 .panel { background: rgba(8,8,10,.72); }
+#c.v3 .panel .bg { display: none; }
+#c.v3 .panel .in { margin-top: 0; padding-top: 32px; }
+#c.v3 .search { background: rgba(255,255,255,.08); }
+#c.v3 .stream { background: rgba(255,255,255,.07); }
+/* C4 : salon / Apple TV, rail d'icônes, la fiche passe en haut */
+#c.v4.on { grid-template-columns: 88px 1fr; }
+#c.v4 .panel, #c.v4 .search, #c.v4 aside .addons, #c.v4 aside .brand { display: none; }
+#c.v4 aside { padding: 28px 14px; align-items: center; gap: 10px; }
+#c.v4 aside::before { content: ""; width: 44px; height: 44px; background: url(logo.svg) center/contain no-repeat; margin-bottom: 28px; }
+#c.v4 aside a { font-size: 0; gap: 0; padding: 14px; border-radius: 12px; }
+#c.v4 aside a .ico { width: 26px; height: 26px; }
+#c.v4 .top { display: block; position: relative; height: 54vh; min-height: 420px; }
+#c.v4 .top > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#c.v4 .top::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #121214 0%, rgba(18,18,20,.6) 45%, rgba(18,18,20,0) 75%), linear-gradient(0deg, #121214 0%, rgba(18,18,20,0) 40%); }
+#c.v4 .top-in { position: relative; z-index: 1; max-width: 560px; padding: 64px 48px 0; }
+#c.v4 .top-logo { max-width: 380px; max-height: 120px; object-fit: contain; object-position: left; margin-bottom: 18px; }
+#c.v4 .top h3 { font-size: 48px; line-height: 1; margin-bottom: 16px; }
+#c.v4 .top .meta { display: flex; gap: 14px; font-size: 15px; color: #d0d0d4; margin-bottom: 12px; flex-wrap: wrap; }
+#c.v4 .top .meta b { color: #fff; }
+#c.v4 .top .desc { font-size: 17px; line-height: 1.5; color: #e4e4e7; margin-bottom: 22px; }
+#c.v4 .top .acts { display: flex; gap: 12px; }
+#c.v4 .top .acts button { height: 50px; padding: 0 26px; border-radius: 12px; font-weight: 700; font-size: 16px; display: inline-flex; align-items: center; gap: 10px; }
+#c.v4 .top .play { width: auto; margin: 0; background: var(--red); }
+#c.v4 .top .more { background: rgba(255,255,255,.14); }
+#c.v4 main { --m: 48px; }
+#c.v4 h2 { font-size: 22px; margin-top: 8px; }
+#c.v4 .card { width: 184px; }
+#c.v4 .card.wide { width: 340px; }
+#c.v4 .card:focus { transform: scale(1.1); z-index: 2; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="switch" role="group" aria-label="Choisir la maquette">
+  <button data-k="a" aria-pressed="true">A · Salle obscure</button>
+  <button data-k="b" aria-pressed="false">B · Affiche</button>
+  <button data-k="c" aria-pressed="false">C1 · Régie</button>
+  <button data-k="c2" aria-pressed="false">C2 · Rouge</button>
+  <button data-k="c3" aria-pressed="false">C3 · Ambiance</button>
+  <button data-k="c4" aria-pressed="false">C4 · Salon (TV)</button>
+</div>
+
+<!-- A -->
+<section class="mock on" id="a">
+  <header>
+    <div class="brand"><img class="logo" src="logo.svg" alt="">MeowWatch</div>
+    <nav><a class="cur" href="#">Accueil</a><a href="#">Films</a><a href="#">Séries</a><a href="#">Ma liste</a><a href="#">Addons</a></nav>
+    <div class="tools"><svg class="ico"><use href="#i-search"/></svg><div class="avatar">E</div></div>
+  </header>
+  <div class="hero" data-hero></div>
+  <div class="rows">
+    <h2>Reprendre</h2><div class="row-scroll" data-row="cont"></div>
+    <h2>Films populaires</h2><div class="row-scroll" data-row="movie"></div>
+    <h2>Séries populaires</h2><div class="row-scroll" data-row="series"></div>
+  </div>
+</section>
+
+<!-- B -->
+<section class="mock" id="b">
+  <header>
+    <div class="brand"><img class="logo" src="logo.svg" alt="">MeowWatch</div>
+    <nav><a class="cur" href="#">Accueil</a><a href="#">Films</a><a href="#">Séries</a><a href="#">Ma liste</a><a href="#">Addons</a></nav>
+    <div class="tools"><svg class="ico"><use href="#i-search"/></svg><svg class="ico"><use href="#i-user"/></svg></div>
+  </header>
+  <div class="hero" data-hero></div>
+  <div class="band"><h2>Reprendre <small>3 en cours</small></h2><div class="row-scroll" data-row="cont"></div></div>
+  <div class="band alt"><h2>Films du moment <small>Cinemeta</small></h2><div class="row-scroll" data-row="movie"></div></div>
+  <div class="band"><h2>Séries du moment <small>Cinemeta</small></h2><div class="row-scroll" data-row="series"></div></div>
+  <footer>MeowWatch</footer>
+</section>
+
+<!-- C -->
+<section class="mock" id="c">
+  <aside>
+    <div class="brand"><img class="logo" src="logo.svg" alt="">MeowWatch</div>
+    <a class="cur" href="#"><svg class="ico"><use href="#i-home"/></svg>Accueil</a>
+    <a href="#"><svg class="ico"><use href="#i-compass"/></svg>Découvrir</a>
+    <a href="#"><svg class="ico"><use href="#i-lib"/></svg>Bibliothèque</a>
+    <a href="#"><svg class="ico"><use href="#i-cal"/></svg>Calendrier</a>
+    <a href="#"><svg class="ico"><use href="#i-puzzle"/></svg>Addons</a>
+    <div class="sep"></div>
+    <a href="#"><svg class="ico"><use href="#i-gear"/></svg>Réglages</a>
+  </aside>
+  <div class="amb" data-amb></div>
+  <main>
+    <div class="top" data-top></div>
+    <div class="search"><svg class="ico"><use href="#i-search"/></svg>Rechercher un film, une série, un acteur<kbd>Ctrl K</kbd></div>
+    <h2>Reprendre <small>synchronisé sur 3 appareils</small></h2><div class="row-scroll" data-row="cont"></div>
+    <h2>Films populaires <small>Cinemeta</small></h2><div class="row-scroll" data-row="movie"></div>
+    <h2>Séries populaires <small>Cinemeta</small></h2><div class="row-scroll" data-row="series"></div>
+  </main>
+  <div class="panel" data-panel></div>
+</section>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z" fill="currentColor"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></symbol>
+  <symbol id="i-lib" viewBox="0 0 24 24"><path d="M4 4v16M9 4v16M14 5l5 14.5"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M10 4a2 2 0 1 1 4 0v2h4v4h-2a2 2 0 1 0 0 4h2v4h-4v-2a2 2 0 1 0-4 0v2H6v-4H4a2 2 0 1 1 0-4h2V6h4z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+</svg>
+
+<script>
+const D = {"movie":[{"id":"tt34384900","n":"Love of Your Life","y":"2026","r":"","g":["Drama","Romance"],"p":"https://images.metahub.space/poster/small/tt34384900/img","b":"https://images.metahub.space/background/medium/tt34384900/img","l":"https://images.metahub.space/logo/medium/tt34384900/img","d":"Maya, a smart, wry nurse, is swept up in an immersive love, that sets her life on a trajectory she never would have imagined."},{"id":"tt6262770","n":"Tenzing","y":"2026","r":"7.5","g":["Adventure","Biography"],"p":"https://images.metahub.space/poster/small/tt6262770/img","b":"https://images.metahub.space/background/medium/tt6262770/img","l":"https://images.metahub.space/logo/medium/tt6262770/img","d":"The untold and inspiring tale of one of the most important mountain climbers in history who, with Edmund Hillary, became the first person to reach the summit of Mount Eve"},{"id":"tt27369017","n":"Hope","y":"2026","r":"6.9","g":["Action","Drama"],"p":"https://images.metahub.space/poster/small/tt27369017/img","b":"https://images.metahub.space/background/medium/tt27369017/img","l":"https://images.metahub.space/logo/medium/tt27369017/img","d":"A mysterious discovery is made on the outskirts of the remote harbor town. The residents find themselves in a desperate fight for survival against something they have nev"},{"id":"tt22084616","n":"Spider-Man: Brand New Day","y":"2026","r":"8.0","g":["Action","Adventure"],"p":"https://images.metahub.space/poster/small/tt22084616/img","b":"https://images.metahub.space/background/medium/tt22084616/img","l":"https://images.metahub.space/logo/medium/tt22084616/img","d":"A forgotten Peter Parker lives alone as a full-time Spider-Man until mounting pressure triggers a dangerous change and a powerful new enemy emerges."},{"id":"tt37281055","n":"Buddy","y":"2026","r":"7.1","g":["Horror"],"p":"https://images.metahub.space/poster/small/tt37281055/img","b":"https://images.metahub.space/background/medium/tt37281055/img","l":"https://images.metahub.space/logo/medium/tt37281055/img","d":"A brave girl and her friends must escape a kids television show."},{"id":"tt15047880","n":"Disclosure Day","y":"2026","r":"6.4","g":["Action","Mystery"],"p":"https://images.metahub.space/poster/small/tt15047880/img","b":"https://images.metahub.space/background/medium/tt15047880/img","l":"https://images.metahub.space/logo/medium/tt15047880/img","d":"If you found out we weren't alone, if someone showed you, proved it to you, would that frighten you?"},{"id":"tt37287335","n":"Obsession","y":"2026","r":"7.8","g":["Horror","Thriller"],"p":"https://images.metahub.space/poster/small/tt37287335/img","b":"https://images.metahub.space/background/medium/tt37287335/img","l":"https://images.metahub.space/logo/medium/tt37287335/img","d":"After breaking the mysterious \"One Wish Willow\" to win his crush's heart, a hopeless romantic finds himself getting exactly what he asked for but soon discovers that some"},{"id":"tt26657236","n":"Backrooms","y":"2026","r":"6.7","g":["Horror","Sci-Fi"],"p":"https://images.metahub.space/poster/small/tt26657236/img","b":"https://images.metahub.space/background/medium/tt26657236/img","l":"https://images.metahub.space/logo/medium/tt26657236/img","d":"Clark, an angry architect, chases the source of impossible power failures when a glowing gap opens in his basement, but the yellow maze beyond it threatens his sanity, hi"},{"id":"tt6933238","n":"Unabomber","y":"2026","r":"6.2","g":["Biography","Crime"],"p":"https://images.metahub.space/poster/small/tt6933238/img","b":"https://images.metahub.space/background/medium/tt6933238/img","l":"https://images.metahub.space/logo/medium/tt6933238/img","d":"A Harvard student becomes the Unabomber after psychological experiments. Years later, an FBI agent's pursuit reveals how his past shaped his deadly campaign that killed 3"},{"id":"tt32588798","n":"Practical Magic 2","y":"2026","r":"","g":["Comedy","Drama"],"p":"https://images.metahub.space/poster/small/tt32588798/img","b":"https://images.metahub.space/background/medium/tt32588798/img","l":"https://images.metahub.space/logo/medium/tt32588798/img","d":"A multi generational family of witches, cursed to be loveless for centuries, attempts to break the spell by confronting dark secrets and sacrificing for each other."},{"id":"tt32273171","n":"The Death of Robin Hood","y":"2026","r":"6.0","g":["Action","Adventure"],"p":"https://images.metahub.space/poster/small/tt32273171/img","b":"https://images.metahub.space/background/medium/tt32273171/img","l":"https://images.metahub.space/logo/medium/tt32273171/img","d":"Grappling with his past after a life of crime and murder, Robin Hood finds himself gravely injured after a battle he thought would be his last. In the hands of a mysterio"},{"id":"tt31349844","n":"Runner","y":"2026","r":"6.6","g":["Action","Comedy"],"p":"https://images.metahub.space/poster/small/tt31349844/img","b":"https://images.metahub.space/background/medium/tt31349844/img","l":"https://images.metahub.space/logo/medium/tt31349844/img","d":"A former soldier and his unlikely partner become the targets of a ruthless cartel while racing to complete a critical medical delivery and save the life of a little girl."},{"id":"tt27543632","n":"The Housemaid","y":"2025","r":"6.7","g":["Drama","Mystery"],"p":"https://images.metahub.space/poster/small/tt27543632/img","b":"https://images.metahub.space/background/medium/tt27543632/img","l":"https://images.metahub.space/logo/medium/tt27543632/img","d":"Millie a struggling young woman becomes live-in maid for a wealthy couple Nina and Andrew. She enters a mansion of secrets, manipulation, and escalating psychological gam"},{"id":"tt0074285","n":"Carrie","y":"1976","r":"7.4","g":["Horror"],"p":"https://images.metahub.space/poster/small/tt0074285/img","b":"https://images.metahub.space/background/medium/tt0074285/img","l":"https://images.metahub.space/logo/medium/tt0074285/img","d":"A social misfit with psychic powers turns prom night into Hell on Earth."}],"series":[{"id":"tt11540908","n":"Carrie","y":"2026–","r":"7.8","g":["Drama","Horror"],"p":"https://images.metahub.space/poster/small/tt11540908/img","b":"https://images.metahub.space/background/medium/tt11540908/img","l":"https://images.metahub.space/logo/medium/tt11540908/img","d":"After her father's sudden death, sheltered teenager Carrie White, raised by her domineering mother, enters public high school, where she faces a viral bullying scandal an"},{"id":"tt35934755","n":"Below","y":"2026","r":"6.6","g":["Drama","Horror"],"p":"https://images.metahub.space/poster/small/tt35934755/img","b":"https://images.metahub.space/background/medium/tt35934755/img","l":"https://images.metahub.space/logo/medium/tt35934755/img","d":"When a mysterious sea creature terrorizes a remote town, a fisherman must fight to protect his family, his community, and his way of life."},{"id":"tt23148340","n":"Crystal Lake","y":"2026–","r":"7.8","g":["Drama","Horror"],"p":"https://images.metahub.space/poster/small/tt23148340/img","b":"https://images.metahub.space/background/medium/tt23148340/img","l":"https://images.metahub.space/logo/medium/tt23148340/img","d":"Prequel series to Friday the 13th, follows a doomed small town where camp counselors come to die."},{"id":"tt21097264","n":"East of Eden","y":"2026","r":"8.1","g":["Drama"],"p":"https://images.metahub.space/poster/small/tt21097264/img","b":"https://images.metahub.space/background/medium/tt21097264/img","l":"https://images.metahub.space/logo/medium/tt21097264/img","d":"In the farmlands of the Salinas Valley in California, successive generations of two families, the Trasks and the Hamiltons, are destined to reenact the fateful story of C"},{"id":"tt23112594","n":"VisionQuest","y":"2026","r":"","g":["Action","Adventure"],"p":"https://images.metahub.space/poster/small/tt23112594/img","b":"https://images.metahub.space/background/medium/tt23112594/img","l":"https://images.metahub.space/logo/medium/tt23112594/img","d":"Vision is faced with many challenges while trying to regain his memory and humanity."},{"id":"tt17491088","n":"The Diplomat","y":"2023–","r":"8.0","g":["Drama","Thriller"],"p":"https://images.metahub.space/poster/small/tt17491088/img","b":"https://images.metahub.space/background/medium/tt17491088/img","l":"https://images.metahub.space/logo/medium/tt17491088/img","d":"In the midst of an international crisis, Kate Wyler, a career diplomat, lands in a high-profile job for which she is not suited, with tectonic implications for her marria"},{"id":"tt31510819","n":"MobLand","y":"2025–","r":"8.3","g":["Crime","Drama"],"p":"https://images.metahub.space/poster/small/tt31510819/img","b":"https://images.metahub.space/background/medium/tt31510819/img","l":"https://images.metahub.space/logo/medium/tt31510819/img","d":"Power is up for grabs as two warring crime families clash in a battle that threatens to topple empires. In the crossfire stands Harry Da Souza, a street-smart 'fixer' who"},{"id":"tt5875444","n":"Slow Horses","y":"2022–","r":"8.4","g":["Drama","Thriller"],"p":"https://images.metahub.space/poster/small/tt5875444/img","b":"https://images.metahub.space/background/medium/tt5875444/img","l":"https://images.metahub.space/logo/medium/tt5875444/img","d":"A dysfunctional team of MI5 agents navigate the espionage world's smoke and mirrors to defend the UK from sinister forces."},{"id":"tt37972251","n":"War","y":"2025–","r":"","g":["Drama","Thriller"],"p":"https://images.metahub.space/poster/small/tt37972251/img","b":"https://images.metahub.space/background/medium/tt37972251/img","l":"https://images.metahub.space/logo/medium/tt37972251/img","d":""},{"id":"tt26545992","n":"Lanterns","y":"2026–","r":"7.8","g":["Action","Crime"],"p":"https://images.metahub.space/poster/small/tt26545992/img","b":"https://images.metahub.space/background/medium/tt26545992/img","l":"https://images.metahub.space/logo/medium/tt26545992/img","d":"Lanterns follows new recruit John Stewart and Lantern legend Hal Jordan, two intergalactic cops drawn into a dark, Earth-based mystery as they investigate a murder in the"},{"id":"tt10986410","n":"Ted Lasso","y":"2020–","r":"8.7","g":["Comedy","Drama"],"p":"https://images.metahub.space/poster/small/tt10986410/img","b":"https://images.metahub.space/background/medium/tt10986410/img","l":"https://images.metahub.space/logo/medium/tt10986410/img","d":"American college football coach Ted Lasso is hired to manage AFC Richmond, a struggling English soccer club, and must win over skeptical players, staff, and fans."},{"id":"tt16358384","n":"Tulsa King","y":"2022–","r":"7.9","g":["Action","Crime"],"p":"https://images.metahub.space/poster/small/tt16358384/img","b":"https://images.metahub.space/background/medium/tt16358384/img","l":"https://images.metahub.space/logo/medium/tt16358384/img","d":"After being released from prison after 25 years, New York Mafia capo Dwight \"The General\" Manfredi is exiled to Tulsa, Oklahoma."},{"id":"tt1844624","n":"American Horror Story","y":"2011–","r":"7.9","g":["Drama","Horror"],"p":"https://images.metahub.space/poster/small/tt1844624/img","b":"https://images.metahub.space/background/medium/tt1844624/img","l":"https://images.metahub.space/logo/medium/tt1844624/img","d":"An anthology horror drama series centering on different characters and locations, showcasing different aspects of horror. Created and produced by Ryan Murphy and Brad Fal"},{"id":"tt13210838","n":"The Gentlemen","y":"2024–","r":"8.1","g":["Crime","Drama"],"p":"https://images.metahub.space/poster/small/tt13210838/img","b":"https://images.metahub.space/background/medium/tt13210838/img","l":"https://images.metahub.space/logo/medium/tt13210838/img","d":"When aristocratic Eddie inherits the family estate, he discovers that it's home to a huge weed empire, and its proprietors aren't going anywhere."}]};
+const FR = { Drama: "Drame", Romance: "Romance", Action: "Action", Adventure: "Aventure", Comedy: "Comédie", Thriller: "Thriller", Horror: "Horreur", Crime: "Policier", "Sci-Fi": "SF", Fantasy: "Fantastique", Mystery: "Mystère", Animation: "Animation", Biography: "Biopic", History: "Histoire", Documentary: "Documentaire", Family: "Famille", War: "Guerre" };
+const g = m => m.g.map(x => FR[x] || x).join(", ");
+const hero = D.movie.find(m => m.n.startsWith("Spider-Man")) || D.movie[0];
+const cont = [[D.series.find(m => m.n === "Slow Horses"), 62, "S4 · É3"], [D.series.find(m => m.n === "MobLand"), 28, "S1 · É7"], [D.movie.find(m => m.n === "Obsession"), 81, "1 h 12 restantes"]].filter(c => c[0]);
+// Exemple de flux renvoyés par les addons (factice, pour la maquette)
+const STREAMS = [["4K HDR · Dolby Vision", "AIOStreams · RD+", "21,4 Go"], ["4K · HDR10", "Torrentio · RD+", "15,8 Go"], ["1080p · WEB-DL", "Torrentio · RD+", "4,2 Go"], ["1080p · x265", "Torrentio · P2P · 312 sources", "2,1 Go"], ["720p", "Torrentio · P2P · 95 sources", "1,1 Go"]];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ACT = `<button class="btn play"><svg class="ico"><use href="#i-play"/></svg>Lecture</button><button class="btn list"><svg class="ico"><use href="#i-plus"/></svg>Ma liste</button>`;
+
+// A
+document.querySelector("#a [data-hero]").innerHTML = `<img src="${hero.b.replace("medium", "large")}" alt=""><div class="hero-in"><img class="hero-logo" src="${hero.l}" alt="${esc(hero.n)}" onerror="this.outerHTML='<h1>${esc(hero.n)}</h1>'"><div class="meta"><b>IMDb ${hero.r}</b><span>${hero.y}</span><span>${g(hero)}</span><span>4K HDR</span></div><p class="desc">${esc(hero.d)}</p><div class="acts">${ACT}</div></div>`;
+// B
+document.querySelector("#b [data-hero]").innerHTML = `<div class="hero-in"><p class="kicker">À l'affiche cette semaine</p><h1>${esc(hero.n)}</h1><div class="meta"><span>${hero.y}</span><span>IMDb ${hero.r}</span><span>${g(hero)}</span></div><p class="desc">${esc(hero.d)}</p><div class="acts">${ACT}</div></div><div class="hero-pic"><img src="${hero.p.replace("small", "large")}" alt=""></div>`;
+
+const card = {
+  a: (m, wide, c) => wide ? `<a class="card wide" tabindex="0" data-id="${m.id}"><img src="${m.b}" alt=""><span class="cap">${esc(m.n)}</span><span class="prog"><i style="width:${c[1]}%"></i></span></a>` : `<a class="card" tabindex="0" data-id="${m.id}"><img src="${m.p}" alt="${esc(m.n)}" loading="lazy"></a>`,
+  b: (m, wide, c) => `<a class="card${wide ? " wide" : ""}" tabindex="0" data-id="${m.id}"><img src="${wide ? m.b : m.p}" alt="" loading="lazy">${wide ? `<div class="bar"><i style="width:${c[1]}%"></i></div>` : ""}<div class="t">${esc(m.n)}</div><div class="s">${wide ? c[2] : m.y + (m.r ? " · " + m.r : "")}</div></a>`,
+  c: (m, wide, c) => `<a class="card${wide ? " wide" : ""}" tabindex="0" data-id="${m.id}"><img src="${wide ? m.b : m.p}" alt="" loading="lazy">${wide ? `<div class="prog"><i style="width:${c[1]}%"></i></div>` : ""}<div class="t">${esc(m.n)}</div><div class="s">${wide ? c[2] : m.y + (m.r ? " · IMDb " + m.r : "")}</div></a>`,
+};
+for (const k of "abc") for (const row of document.querySelectorAll(`#${k} [data-row]`)) {
+  const t = row.dataset.row;
+  row.innerHTML = t === "cont" ? cont.map(c => card[k](c[0], true, c)).join("") : D[t].map(m => card[k](m)).join("");
+}
+
+// C : le panneau suit la carte sélectionnée
+const all = [...D.movie, ...D.series];
+const panel = document.querySelector("[data-panel]");
+function show(id) {
+  const m = all.find(x => x.id === id); if (!m) return;
+  document.querySelectorAll("#c .card").forEach(c => c.classList.toggle("sel", c.dataset.id === id));
+  document.querySelector("[data-amb]").style.backgroundImage = `url(${m.b.replace("medium", "large")})`;
+  document.querySelector("[data-top]").innerHTML = `<img src="${m.b.replace("medium", "large")}" alt=""><div class="top-in"><img class="top-logo" src="${m.l}" alt="${esc(m.n)}" onerror="this.outerHTML='<h3>${esc(m.n)}</h3>'"><div class="meta">${m.r ? `<b>IMDb ${m.r}</b>` : ""}<span>${m.y}</span><span>${g(m)}</span><span>${STREAMS.length} flux · meilleur : ${STREAMS[0][0]}</span></div><p class="desc">${esc(m.d)}</p><div class="acts"><button class="play"><svg class="ico"><use href="#i-play"/></svg>Lecture</button><button class="more">Tous les flux</button></div></div>`;
+  panel.innerHTML = `<div class="bg"><img src="${m.b}" alt=""></div><div class="in"><h3>${esc(m.n)}</h3><div class="meta">${m.r ? `<b>IMDb ${m.r}</b>` : ""}<span>${m.y}</span><span>${g(m)}</span></div><p class="desc">${esc(m.d)}</p><button class="play"><svg class="ico"><use href="#i-play"/></svg>Lire le meilleur flux</button><h4><span>Flux des addons</span><span>${STREAMS.length} trouvés</span></h4>${STREAMS.map((s, i) => `<button class="stream${i ? "" : " best"}"><span class="q">${s[0]}</span><span class="src">${s[1]}</span><span class="sz">${s[2]}</span></button>`).join("")}</div>`;
+}
+document.querySelector("#c main").addEventListener("focusin", e => e.target.dataset.id && show(e.target.dataset.id));
+document.querySelector("#c main").addEventListener("click", e => { const c = e.target.closest(".card"); c && show(c.dataset.id); });
+show(cont[0][0].id);
+
+// Navigation aux flèches, comme à la télécommande Apple TV
+document.addEventListener("keydown", e => {
+  const cur = document.activeElement;
+  if (!cur?.classList.contains("card")) { if (e.key.startsWith("Arrow")) { document.querySelector(".mock.on .card")?.focus(); e.preventDefault(); } return; }
+  const sib = { ArrowRight: cur.nextElementSibling, ArrowLeft: cur.previousElementSibling }[e.key];
+  if (sib) { sib.focus(); sib.scrollIntoView({ block: "nearest", inline: "nearest" }); e.preventDefault(); return; }
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    const rows = [...document.querySelectorAll(".mock.on [data-row]")], i = rows.indexOf(cur.parentElement);
+    const next = rows[i + (e.key === "ArrowDown" ? 1 : -1)];
+    if (next) { const n = next.children[Math.min([...cur.parentElement.children].indexOf(cur), next.children.length - 1)]; n.focus(); n.scrollIntoView({ block: "center", inline: "nearest" }); e.preventDefault(); }
+  }
+});
+
+// Changement de maquette (?m=b pour ouvrir directement)
+function pick(k) { const id = k[0], c = document.getElementById("c"); c.className = "mock " + ({ c2: "v2", c3: "v3", c4: "v4" }[k] || ""); document.querySelectorAll(".mock").forEach(s => s.classList.toggle("on", s.id === id)); document.querySelectorAll(".switch button").forEach(b => b.setAttribute("aria-pressed", b.dataset.k === k)); }
+document.querySelectorAll(".switch button").forEach(b => b.onclick = () => pick(b.dataset.k));
+pick(new URLSearchParams(location.search).get("m") || "a");
+</script>
+</body>
+</html>
