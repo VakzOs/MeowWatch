@@ -24,6 +24,8 @@ const SHAPES = {
   speed: <><Path d="M4.5 17a8.5 8.5 0 1 1 15 0" /><Path d="m12 13 4-4" /></>,
   rewind: <><Path d="M3 12a9 9 0 1 0 3-6.7" /><Path d="M3 4v5h5" /><Path d="M10 9.5v5M13.5 9.5h2.5v5h-2.5z" /></>,
   forward: <><Path d="M21 12a9 9 0 1 1-3-6.7" /><Path d="M21 4v5h-5" /><Path d="M8 9.5v5M11.5 9.5H14v5h-2.5z" /></>,
+  layers: <><Path d="m12 3 9 5-9 5-9-5z" /><Path d="m3 13 9 5 9-5" /></>,
+  skip: <><Path d="M5 5v14l10-7z" fill="currentColor" /><Path d="M19 5v14" /></>,
   plus: <Path d="M12 5v14M5 12h14" />,
   check: <Path d="m5 12.5 4.5 4.5L19 7" />,
   link: <Path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />,

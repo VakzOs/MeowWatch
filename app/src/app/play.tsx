@@ -11,7 +11,7 @@ import { saveProgress } from "../lib/store";
 /** Sur le web, notre lecteur (pistes audio, sous-titres…) ; ailleurs, le lecteur natif en attendant les applis. */
 export default function Play() {
   const p = useLocalSearchParams<PlayParams>();
-  return Platform.OS === "web" ? <WebPlayer p={p} /> : <NativePlay p={p} />;
+  return Platform.OS === "web" ? <WebPlayer key={p.url} p={p} /> : <NativePlay p={p} />; // key : nouveau lecteur à chaque flux (épisode suivant, autre flux)
 }
 
 function NativePlay({ p }: { p: PlayParams }) {

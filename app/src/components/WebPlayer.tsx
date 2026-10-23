@@ -1,9 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { createElement, useEffect, useReducer, useRef, useState } from "react";
+import { createElement, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { fetchSubtitles } from "../lib/addons";
+import { describe, epLabel, fetchMeta, fetchStreamsFor, fetchSubtitles, imdbEquivalent, nextEpisode, pickNextStream, type FoundStream, type Meta } from "../lib/addons";
 import { chooseTracks, DEFAULT_PREFS, flagOf, langCode, langName } from "../lib/lang";
 import { createEngine, type Engine, type Track } from "../lib/player";
 import { saveProgress, useStore } from "../lib/store";
@@ -11,12 +11,12 @@ import { Icon, type IconName } from "./Icon";
 import { C, font } from "./theme";
 
 /** subType/subVid : identifiant pour les addons de sous-titres (équivalent IMDb des animés) ; anime : règle animés. */
-export type PlayParams = { url: string; file?: string; subType?: string; subVid?: string; anime?: string; id: string; type: string; name: string; poster: string; background: string; videoId: string; label: string; start: string };
+export type PlayParams = { url: string; file?: string; binge?: string; addon?: string; subType?: string; subVid?: string; anime?: string; id: string; type: string; name: string; poster: string; background: string; videoId: string; label: string; start: string };
 
 // Réglages du lecteur, retenus sur l'appareil.
-type Prefs = { volume: number; muted: boolean; size: number; color: string; bg: string };
+type Prefs = { volume: number; muted: boolean; size: number; color: string; bg: string; autoNext: boolean };
 const PREFS_KEY = "meowwatch:lecteur";
-const DEFAULT: Prefs = { volume: 1, muted: false, size: 1, color: "", bg: "" };
+const DEFAULT: Prefs = { volume: 1, muted: false, size: 1, color: "", bg: "", autoNext: true };
 const SIZES = [{ k: 0.8, label: "Petit" }, { k: 1, label: "Normal" }, { k: 1.3, label: "Grand" }, { k: 1.6, label: "Très grand" }];
 const COLORS = [{ k: "", label: "D'origine" }, { k: "#FFFFFF", label: "Blanc" }, { k: "#FFE14D", label: "Jaune" }];
 const BGS = [{ k: "", label: "Aucun" }, { k: "rgba(0,0,0,0.55)", label: "Léger" }, { k: "rgba(0,0,0,0.9)", label: "Noir" }];
@@ -44,11 +44,10 @@ function useCss(prefs: Prefs) {
       .mw-range::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 7px; background: #fff; }
       .mw-range:focus-visible { outline: 2px solid ${C.red}; outline-offset: 2px; }
       .mw-player [data-subs="off"] .ASS-box { visibility: hidden; }
-      .mw-player .mw-cues { position: absolute; left: 5%; right: 5%; bottom: 6vh; display: flex; flex-direction: column; align-items: center; gap: 0.15em; pointer-events: none; transform: translateY(calc(var(--mw-lift, 0px) + 3vh)); transition: transform 250ms; }
-      .mw-player .mw-cues span { font: 600 calc(3.6vh * ${prefs.size}) "Instrument Sans", Arial, sans-serif; color: ${prefs.color || "#fff"}; text-align: center; white-space: pre-wrap;
-        ${prefs.bg ? `background: ${prefs.bg}; padding: 0.05em 0.35em; border-radius: 4px;` : "text-shadow: 0 0 3px #000, 0 0 3px #000, 0 2px 4px #000;"} }
+      .mw-player .mw-cues { position: absolute; left: 5%; right: 5%; bottom: 5vh; display: flex; flex-direction: column; align-items: center; gap: 0.15em; pointer-events: none; transform: translateY(calc(var(--mw-lift, 0px) + 3vh)); transition: transform 250ms; }
+      .mw-player .mw-cues span { font: 500 calc(3.6vh * ${prefs.size}) "InstrumentSans_500Medium", "Instrument Sans", Arial, sans-serif; color: ${prefs.color || "#fff"}; text-align: center; white-space: pre-wrap;
+        ${prefs.bg ? `background: ${prefs.bg}; padding: 0.05em 0.35em; border-radius: 4px;` : "text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 0 0 4px rgba(0,0,0,0.8);"} }
       .mw-player .ASS-box { transform: translateY(var(--mw-lift, 0px)); transition: transform 250ms; }
-      .mw-player video::cue { font-size: calc(3.4vh * ${prefs.size}); ${prefs.color ? `color: ${prefs.color};` : ""} ${prefs.bg ? `background: ${prefs.bg};` : ""} }
       .mw-player .ASS-dialogue span { font-size: calc(var(--ass-scale) * var(--ass-real-fs) * ${prefs.size}px) !important;
         ${prefs.color ? `--ass-fill-color: ${prefs.color} !important;` : ""}
         ${prefs.bg ? `background: ${prefs.bg} !important; padding: 0.05em 0.3em; border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone;` : ""} }
@@ -71,7 +70,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   const [error, setError] = useState<string | null>(null);
   const [paused, setPaused] = useState(true);
   const [time, setTime] = useState(0), [dur, setDur] = useState(0);
-  const [menu, setMenu] = useState<null | "audio" | "subs" | "style" | "speed">(null);
+  const [menu, setMenu] = useState<null | "audio" | "subs" | "style" | "speed" | "streams">(null);
   const [ui, setUi] = useState(true);
   const [fs, setFs] = useState(false);
   const [rate, setRate] = useState(1);
@@ -85,6 +84,14 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   type Ext = { url: string; lang: string; label: string };
   const [ext, setExt] = useState<Ext[]>([]);
   const loaded = useRef(new Map<string, number>());
+  // Épisode suivant (séries) et autres flux du même épisode.
+  const [meta, setMeta] = useState<Meta | null>(null);
+  useEffect(() => { if (p.videoId !== p.id) fetchMeta(addons, p.type, p.id).then(setMeta, () => {}); }, []);
+  const next = useMemo(() => (meta ? nextEpisode(meta.videos, p.videoId) : null), [meta]);
+  const [streams, setStreams] = useState<FoundStream[] | null>(null);
+  const [nextOff, setNextOff] = useState(false); // carte fermée
+  const [going, setGoing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const prefsRef = useRef(prefs); prefsRef.current = prefs;
   const setPrefs = (patch: Partial<Prefs>) => {
     const next = { ...prefsRef.current, ...patch };
@@ -134,7 +141,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   // Temps affiché, et position enregistrée toutes les 5 s (« Reprendre »).
   useEffect(() => {
     if (!eng) return;
-    const tick = setInterval(() => { setTime(eng.time()); setDur(eng.duration()); }, 250);
+    const tick = setInterval(() => { if (Date.now() - target.current.at > 1000) setTime(eng.time()); setDur(eng.duration()); }, 250);
     const save = setInterval(() => {
       const t = eng.time(), d = eng.duration();
       if (t < 5 || !d) return;
@@ -146,12 +153,44 @@ export function WebPlayer({ p }: { p: PlayParams }) {
     return () => { clearInterval(tick); clearInterval(save); };
   }, [eng]);
 
+  const goNext = async () => {
+    if (!next || going) return;
+    setGoing(true);
+    const alt = meta ? imdbEquivalent(meta, next) : null;
+    const s = pickNextStream(await fetchStreamsFor(addons, p.type, next.id, alt).catch(() => []), p.binge, p.addon);
+    if (!s?.url) { setGoing(false); setNotice("Aucun flux lisible pour l'épisode suivant. Choisis-en un sur la page du titre."); return; }
+    router.replace({ pathname: "/play", params: { ...p, url: s.url, file: s.behaviorHints?.filename ?? "", binge: s.behaviorHints?.bingeGroup ?? "", addon: s.addon, videoId: next.id, label: epLabel(next), subType: alt?.type ?? p.type, subVid: alt?.id ?? next.id, start: "0" } });
+  };
+  const openStreams = () => {
+    setMenu(menu === "streams" ? null : "streams");
+    if (!streams) fetchStreamsFor(addons, p.type, p.videoId, p.subVid && p.subVid !== p.videoId ? { type: p.subType || p.type, id: p.subVid } : null).then(l => setStreams(l.filter(s => s.url)), () => setStreams([]));
+  };
+  const switchStream = (s: FoundStream) => {
+    if (s.url === p.url) return setMenu(null);
+    router.replace({ pathname: "/play", params: { ...p, url: s.url!, file: s.behaviorHints?.filename ?? "", binge: s.behaviorHints?.bingeGroup ?? "", addon: s.addon, start: String(Math.floor(time)) } });
+  };
+  // Fin d'épisode : carte « Épisode suivant » dans les 40 dernières secondes, lancement auto à la fin (compte à rebours de 10 s).
+  const left = dur - time;
+  const nextCard = !!next && dur > 60 && left <= 40 && !nextOff && !menu;
+  const countdown = nextCard && prefs.autoNext && left <= 10 ? Math.max(0, Math.ceil(left)) : null;
+  useEffect(() => { if (nextCard && prefs.autoNext && left <= 0.6) goNext(); }, [nextCard && left <= 0.6]);
+
   const toggle = async () => {
     if (!eng) return;
     if (blocked) { await eng.resume(); setBlocked(false); }
     if (paused) { await eng.play().catch(() => {}); setPaused(false); } else { eng.pause(); setPaused(true); }
   };
-  const seek = (s: number) => { if (!eng) return; const t = Math.max(0, Math.min(s, dur || s)); eng.seek(t); setTime(t); };
+  // Déplacements regroupés : plusieurs sauts d'affilée perdent libmedia, on n'envoie que le dernier (200 ms après).
+  const seekTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const seek = (s: number) => {
+    if (!eng) return;
+    const t = Math.max(0, Math.min(s, eng.duration() || s));
+    setTime(t); target.current = { t, at: Date.now() };
+    clearTimeout(seekTimer.current); seekTimer.current = setTimeout(() => eng.seek(t), 200);
+  };
+  // Sauts de 10 s : depuis la dernière position demandée si on enchaîne vite (le lecteur met un instant à s'y placer).
+  const target = useRef({ t: 0, at: 0 });
+  const skip = (d: number) => eng && seek((Date.now() - target.current.at < 1500 ? target.current.t : eng.time()) + d);
   const volume = (v: number) => { const x = Math.max(0, Math.min(1, v)); eng?.setVolume(x); setPrefs({ volume: x, muted: x === 0 }); };
   const mute = () => { const m = !prefs.muted; eng?.setVolume(m ? 0 : prefs.volume || 1); setPrefs({ muted: m, volume: prefs.volume || 1 }); };
   const pickAudio = async (t: Track) => { await eng?.selectAudio(t.id); refresh(); };
@@ -176,9 +215,9 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   keys.current = e => {
     if ((e.target as HTMLElement)?.tagName === "INPUT" && !(e.target as HTMLInputElement).classList.contains("mw-range")) return;
     const k = e.key.toLowerCase(), act: Record<string, () => void> = {
-      " ": toggle, k: toggle, arrowleft: () => seek(time - 10), arrowright: () => seek(time + 10), j: () => seek(time - 10), l: () => seek(time + 10),
+      " ": toggle, k: toggle, arrowleft: () => skip(-10), arrowright: () => skip(10), j: () => skip(-10), l: () => skip(10),
       arrowup: () => volume(prefs.volume + 0.1), arrowdown: () => volume(prefs.volume - 0.1), f: fullscreen, m: mute, c: toggleSubs,
-      escape: () => setMenu(null),
+      escape: () => setMenu(null), n: goNext,
     };
     if (act[k]) { e.preventDefault(); act[k](); poke(); }
   };
@@ -203,7 +242,9 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   }, []);
   const show = ui || paused || !!menu || !eng;
   // Les sous-titres remontent au-dessus des contrôles quand ils sont affichés.
-  useEffect(() => { (rootRef.current as HTMLElement | null)?.style.setProperty("--mw-lift", show && eng ? "-110px" : "-3vh"); }, [show, eng]);
+  useEffect(() => {
+    (rootRef.current as HTMLElement | null)?.style.setProperty("--mw-lift", show && eng ? "-110px" : "-3vh");
+  }, [show, eng]);
 
   return (
     <View ref={rootRef} style={[st.root, !show && ({ cursor: "none" } as any)]}>
@@ -235,11 +276,13 @@ export function WebPlayer({ p }: { p: PlayParams }) {
           </View>
           <View style={st.bar}>
             <Btn icon={paused ? "play" : "pause"} label={paused ? "Lecture (espace)" : "Pause (espace)"} onPress={toggle} />
-            <Btn icon="rewind" label="Reculer de 10 s (←)" onPress={() => seek(time - 10)} />
-            <Btn icon="forward" label="Avancer de 10 s (→)" onPress={() => seek(time + 10)} />
+            <Btn icon="rewind" label="Reculer de 10 s (←)" onPress={() => skip(-10)} />
+            <Btn icon="forward" label="Avancer de 10 s (→)" onPress={() => skip(10)} />
             <Btn icon={prefs.muted || prefs.volume === 0 ? "mute" : "volume"} label="Couper le son (M)" onPress={mute} />
             <Range value={prefs.muted ? 0 : prefs.volume} max={1} onChange={volume} label="Volume" width={110} />
             <View style={{ flex: 1 }} />
+            {next ? <Btn icon="skip" label="Épisode suivant (N)" onPress={goNext} /> : null}
+            <Btn icon="layers" label="Changer de flux" onPress={openStreams} on={menu === "streams"} />
             <Btn icon="audio" label="Langue audio" onPress={() => setMenu(menu === "audio" ? null : "audio")} on={menu === "audio"} />
             <Btn icon="cc" label="Sous-titres (C)" onPress={() => setMenu(menu === "subs" || menu === "style" ? null : "subs")} on={menu === "subs" || menu === "style" || eng.subId >= 0} />
             <Btn icon="speed" label="Vitesse" onPress={() => setMenu(menu === "speed" ? null : "speed")} on={menu === "speed" || rate !== 1} />
@@ -270,10 +313,10 @@ export function WebPlayer({ p }: { p: PlayParams }) {
                 {!eng.subs.some(t => !t.ext) && !ext.length ? <Text style={st.empty}>{eng.kind === "avance" ? "Ce fichier n'a pas de sous-titres." : `Le lecteur du navigateur ne voit pas les sous-titres de ce fichier. ${WHY[eng.why ?? "cors"]}`}</Text> : null}
                 {eng.canDelay && eng.subId >= 0 ? (
                   <View style={st.delay}>
-                    <Text style={[font(500, 13, C.soft), { flex: 1 }]}>Décalage</Text>
-                    <Small label="−0,5 s" onPress={() => changeDelay(delay - 0.5)} />
+                    <Text style={[font(500, 13, C.soft), { flex: 1 }]}>Décalage (par 0,5 s)</Text>
+                    <Small label="−" a11y="Sous-titres plus tôt (0,5 s)" onPress={() => changeDelay(delay - 0.5)} />
                     <Text style={[font(600, 13), { minWidth: 54, textAlign: "center" }]}>{delay > 0 ? "+" : ""}{delay.toFixed(1).replace(".", ",")} s</Text>
-                    <Small label="+0,5 s" onPress={() => changeDelay(delay + 0.5)} />
+                    <Small label="+" a11y="Sous-titres plus tard (0,5 s)" onPress={() => changeDelay(delay + 0.5)} />
                   </View>
                 ) : null}
                 <Item label="Apparence des sous-titres" chevron onPress={() => setMenu("style")} />
@@ -287,6 +330,17 @@ export function WebPlayer({ p }: { p: PlayParams }) {
                 <Choice title="Fond" items={BGS} value={prefs.bg} onChange={bg => setPrefs({ bg })} />
               </>
             ) : null}
+            {menu === "streams" ? (
+              <>
+                <Text style={st.menuTitle}>Flux</Text>
+                {!streams ? <ActivityIndicator color={C.red} style={{ margin: 12 }} /> : !streams.length ? <Text style={st.empty}>Aucun autre flux.</Text> : streams.map((s, i) => {
+                  const d = describe(s);
+                  const extra = [...d.chips.filter(c => !d.quality.includes(c)), d.multi ? "MULTi" : ""].filter(Boolean).join(" · ");
+                  return <Item key={i} on={s.url === p.url} label={`${d.quality}${d.size ? ` · ${d.size}` : ""}\n${extra || d.source}`} onPress={() => switchStream(s)} />;
+                })}
+                <Text style={st.empty}>Le nouveau flux reprend à la même position.</Text>
+              </>
+            ) : null}
             {menu === "speed" ? (
               <>
                 <Text style={st.menuTitle}>Vitesse</Text>
@@ -296,6 +350,27 @@ export function WebPlayer({ p }: { p: PlayParams }) {
           </ScrollView>
         </View>
       ) : null}
+
+      {nextCard && next ? (
+        <View style={st.next}>
+          <Image source={next.thumbnail ?? p.background} style={st.nextImg} contentFit="cover" />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={font(600, 12, C.mute)}>Épisode suivant</Text>
+            <Text style={font(700, 15)} numberOfLines={2}>{epLabel(next)}{next.name || next.title ? ` · ${next.name || next.title}` : ""}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>
+              <Pressable onPress={goNext} style={({ hovered }: any) => [st.nextBtn, hovered && { opacity: 0.9 }]}>
+                {going ? <ActivityIndicator color={C.ink} size="small" /> : <Icon name="play" size={16} color={C.ink} />}
+                <Text style={font(700, 14)}>{countdown !== null ? `Lecture dans ${countdown} s` : "Lire"}</Text>
+              </Pressable>
+              <Small label="Fermer" onPress={() => setNextOff(true)} />
+            </View>
+            <Pressable onPress={() => setPrefs({ autoNext: !prefs.autoNext })} style={{ marginTop: 6 }}>
+              <Text style={font(500, 12, C.mute)}>Lancement automatique : {prefs.autoNext ? "activé" : "désactivé"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+      {notice ? <Pressable onPress={() => setNotice(null)} style={st.notice}><Text style={font(500, 14)}>{notice}</Text></Pressable> : null}
 
       {error ? (
         <View style={st.error}>
@@ -330,8 +405,8 @@ function Item({ label, on, flag, onPress, chevron }: { label: string; on?: boole
     </Pressable>
   );
 }
-function Small({ label, onPress }: { label: string; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={({ hovered }: any) => [st.small, hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}><Text style={font(600, 12)}>{label}</Text></Pressable>;
+function Small({ label, onPress, a11y }: { label: string; onPress: () => void; a11y?: string }) {
+  return <Pressable onPress={onPress} accessibilityLabel={a11y} style={({ hovered }: any) => [st.small, hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}><Text style={font(600, 12)}>{label}</Text></Pressable>;
 }
 function Choice<T extends string | number>({ title, items, value, onChange }: { title: string; items: { k: T; label: string }[]; value: T; onChange: (k: T) => void }) {
   return (
@@ -371,6 +446,10 @@ const st = StyleSheet.create({
   empty: { ...font(400, 13, C.mute), paddingHorizontal: 10, paddingVertical: 8, lineHeight: 19 },
   delay: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 10, marginTop: 4, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
   small: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.08)" },
+  next: { position: "absolute", right: 24, bottom: 112, width: 420, flexDirection: "row", gap: 14, padding: 14, borderRadius: 14, backgroundColor: "rgba(20,20,23,0.96)", boxShadow: "0 16px 40px rgba(0,0,0,0.6)" } as any,
+  nextImg: { width: 150, aspectRatio: 16 / 9, borderRadius: 8, backgroundColor: C.raised },
+  nextBtn: { flexDirection: "row", alignItems: "center", gap: 8, height: 36, paddingHorizontal: 14, borderRadius: 9, backgroundColor: C.red },
+  notice: { position: "absolute", top: 80, alignSelf: "center", paddingHorizontal: 18, paddingVertical: 12, borderRadius: 10, backgroundColor: "rgba(20,20,23,0.96)" },
   error: { position: "absolute", alignSelf: "center", top: "30%", maxWidth: 520, padding: 28, borderRadius: 14, backgroundColor: C.raised },
   btn: { height: 46, paddingHorizontal: 20, borderRadius: 10, justifyContent: "center" },
 });

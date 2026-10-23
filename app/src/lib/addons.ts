@@ -121,6 +121,21 @@ export async function fetchStreams(addons: Addon[], type: string, id: string): P
   return lists.flat();
 }
 
+export const epLabel = (v: Video) => `S${v.season} · É${v.episode}`;
+/** Épisodes triés ; ceux sans saison (animés) vont en saison 1. */
+export const sortedEpisodes = (videos: Video[] = []) => videos.filter(v => v.season !== undefined || v.episode !== undefined)
+  .map(v => (v.season === undefined ? { ...v, season: 1 } : v)).sort((a, b) => a.season! - b.season! || (a.episode ?? 0) - (b.episode ?? 0));
+/** Épisode qui suit `id` (spéciaux exclus), s'il est déjà sorti. */
+export function nextEpisode(videos: Video[] | undefined, id: string, now = Date.now()): Video | null {
+  const eps = sortedEpisodes(videos).filter(v => v.season !== 0), i = eps.findIndex(v => v.id === id), n = i >= 0 ? eps[i + 1] : undefined;
+  return n && !(n.released && Date.parse(n.released) > now) ? n : null;
+}
+/** Flux de l'épisode suivant, comme Stremio : même groupe (bingeGroup : même source et qualité), sinon même addon. */
+export function pickNextStream(list: FoundStream[], binge?: string, addon?: string): FoundStream | null {
+  const ok = list.filter(s => s.url);
+  return (binge && ok.find(s => s.behaviorHints?.bingeGroup === binge)) || (addon && ok.find(s => s.addon === addon)) || ok[0] || null;
+}
+
 export type FoundSubtitle = { url: string; lang: string; addon: string };
 /** Sous-titres des addons (ressource « subtitles », comme OpenSubtitles) ; le nom du fichier aide à trouver les bons. */
 export async function fetchSubtitles(addons: Addon[], type: string, id: string, filename?: string): Promise<FoundSubtitle[]> {

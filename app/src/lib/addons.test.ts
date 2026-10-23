@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -76,4 +76,18 @@ test("pastilles et drapeaux d'un flux façon Lumio", () => {
   const t = streamTags({ name: "[AD] Lumio", title: "Lumio · Salon · 1080p · BluRay REMUX · 29 Mb/s\n🇫🇷 🇯🇵 ✓ · 💾 5,2 Go · 🔍 DMM | YGG\nH264 · DTS-HD MA 2.0", behaviorHints: { filename: "Shingeki.No.Kyojin.S01E01.MULTi.1080p.BluRay.REMUX.AVC.DTS-HDMA.2.0-Psaro.mkv" } });
   assert.deepEqual(t, { chips: ["1080p", "REMUX", "H264", "DTS-HD MA 2.0", "29 Mb/s"], langs: ["fr", "jp"], multi: true });
   assert.deepEqual(streamTags({ title: "Film.2160p.WEB-DL.DV.HDR.x265.TrueHD.Atmos.7.1.VFF.mkv" }), { chips: ["4K", "WEB-DL", "Dolby Vision", "HEVC", "Atmos 7.1"], langs: ["fr"], multi: false });
+});
+
+test("épisode suivant et son flux (même groupe que l'épisode en cours)", () => {
+  const v = (season: number | undefined, episode: number, released = "2020-01-01") => ({ id: `tt1:${season}:${episode}`, season, episode, released });
+  const videos = [v(1, 2), v(0, 1), v(1, 1), v(2, 1), v(2, 2, "2999-01-01")];
+  assert.equal(nextEpisode(videos, "tt1:1:1")?.id, "tt1:1:2");
+  assert.equal(nextEpisode(videos, "tt1:1:2")?.id, "tt1:2:1"); // saison suivante, spéciaux sautés
+  assert.equal(nextEpisode(videos, "tt1:2:1"), null); // pas encore sorti
+  assert.equal(nextEpisode(videos, "inconnu"), null);
+  const s = (addon: string, binge?: string, url = "https://x") => ({ addon, url, behaviorHints: { bingeGroup: binge } });
+  const list = [{ addon: "A", title: "avis" }, s("A", "a-720"), s("B", "b-1080"), s("A", "a-1080")];
+  assert.equal(pickNextStream(list, "a-1080", "A")?.behaviorHints?.bingeGroup, "a-1080");
+  assert.equal(pickNextStream(list, "z", "B")?.addon, "B");
+  assert.equal(pickNextStream(list)?.behaviorHints?.bingeGroup, "a-720");
 });

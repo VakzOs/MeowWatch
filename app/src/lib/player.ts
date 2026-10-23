@@ -71,43 +71,23 @@ async function avance(box: HTMLDivElement, url: string, file?: string): Promise<
     subId: -1,
     selectAudio: async id => { await p.selectAudio(id); eng.audioId = id; },
     selectSub: async id => {
-      const own = extCues.has(id);
+      const own = cues.has(id);
       if (id >= 0 && !own && id !== p.getSelectedSubtitleStreamId()) await p.selectSubtitle(id);
       box.dataset.subs = id >= 0 && !own ? "on" : "off";
+      cues.show(id);
       eng.subId = id;
-      drawCues();
     },
     // Sous-titres des addons : libmedia 1.3.1 n'arrive pas à les charger (« analyze stream failed », URL ou File, VTT ou
-    // SRT) : on les affiche nous-mêmes par-dessus la vidéo.
-    addSub: async (url, lang, label) => {
-      const r = await fetch(url);
-      if (!r.ok) throw new Error("sous-titres indisponibles");
-      const id = 1000 + extCues.size;
-      extCues.set(id, parseVtt(await r.text()));
-      eng.subs.push({ id, lang, label, ext: true });
-      return id;
-    },
+    // SRT) : affichage maison (cueLayer).
+    addSub: async (url, lang, label) => { const id = await cues.add(url); eng.subs.push({ id, lang, label, ext: true }); return id; },
     canDelay: true,
-    setSubDelay: s => { p.setSubtitleDelay(Math.round(s * 1000)); delay = s; },
+    setSubDelay: s => { p.setSubtitleDelay(Math.round(s * 1000)); cues.setDelay(s); },
     suspended: () => p.isSuspended(),
     resume: () => p.resume(),
     resize: () => p.resize(box.clientWidth, box.clientHeight),
-    destroy: () => { clearInterval(timer); p.destroy().catch(() => {}); },
+    destroy: () => { cues.destroy(); p.destroy().catch(() => {}); },
   };
-  // Affichage maison des sous-titres des addons, toutes les 100 ms.
-  const extCues = new Map<number, Cue[]>();
-  let delay = 0, shown = "";
-  const layer = document.createElement("div");
-  layer.className = "mw-cues";
-  box.appendChild(layer);
-  const drawCues = () => {
-    const t = Number(p.currentTime) / 1000 - delay;
-    const text = (extCues.get(eng.subId) ?? []).filter(c => c.start <= t && t < c.end).map(c => c.text).join("\n");
-    if (text === shown) return;
-    shown = text;
-    layer.replaceChildren(...text.split("\n").filter(Boolean).map(line => Object.assign(document.createElement("span"), { textContent: line })));
-  };
-  const timer = setInterval(drawCues, 100);
+  const cues = cueLayer(box, eng.time);
   // L'affichage des sous-titres ne démarre que s'il est actif au lancement, et ne repart plus après une désactivation :
   // il reste actif, masqué tant que « Désactivés » est choisi.
   p.setSubtitleEnable(true);
@@ -115,14 +95,38 @@ async function avance(box: HTMLDivElement, url: string, file?: string): Promise<
   return eng;
 }
 
-/** Décale toutes les répliques d'une piste de `d` secondes (décalage des sous-titres du lecteur du navigateur). */
-function shift(t: TextTrack, d: number) {
-  if (!d) return;
-  for (const c of Array.from(t.cues ?? [])) { c.startTime = Math.max(0, c.startTime + d); c.endTime = Math.max(0, c.endTime + d); }
+/** Sous-titres des addons affichés par nous (comme Stremio : texte blanc ombré, au-dessus des contrôles), mis à jour
+ *  toutes les 100 ms. Le CSS du calque (.mw-cues) est dans WebPlayer. */
+function cueLayer(box: HTMLElement, time: () => number) {
+  const tracks = new Map<number, Cue[]>();
+  let cur = -1, delay = 0, shown = "";
+  const layer = document.createElement("div");
+  layer.className = "mw-cues";
+  box.appendChild(layer);
+  const draw = () => {
+    const t = time() - delay;
+    const text = (tracks.get(cur) ?? []).filter(c => c.start <= t && t < c.end).map(c => c.text).join("\n");
+    if (text === shown) return;
+    shown = text;
+    layer.replaceChildren(...text.split("\n").filter(Boolean).map(line => Object.assign(document.createElement("span"), { textContent: line })));
+  };
+  const timer = setInterval(draw, 100);
+  return {
+    add: async (url: string) => {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error("sous-titres indisponibles");
+      const id = 1000 + tracks.size;
+      tracks.set(id, parseVtt(await r.text()));
+      return id;
+    },
+    has: (id: number) => tracks.has(id),
+    show: (id: number) => { cur = id; draw(); },
+    setDelay: (s: number) => { delay = s; draw(); },
+    destroy: () => { clearInterval(timer); layer.remove(); },
+  };
 }
 
 function navigateur(box: HTMLDivElement, url: string, onError: (m: string) => void): Promise<Engine> {
-  let delay = 0;
   const v = document.createElement("video");
   Object.assign(v.style, { width: "100%", height: "100%", objectFit: "contain", background: "#000" });
   v.playsInline = true;
@@ -141,23 +145,13 @@ function navigateur(box: HTMLDivElement, url: string, onError: (m: string) => vo
         audio: at.map((t, i) => { const lang = langCode(t.language, t.label); return { id: i, lang, label: trackLabel(lang, t.label) }; }),
         subs: [], audioId: Math.max(0, at.findIndex(t => t.enabled)), subId: -1,
         selectAudio: async id => { at.forEach((t, i) => (t.enabled = i === id)); eng.audioId = id; },
-        // Sous-titres externes : balises <track> (WebVTT servi par notre serveur), une seule affichée.
-        selectSub: async id => { Array.from(v.textTracks).forEach((t, i) => (t.mode = i === id ? "showing" : "disabled")); eng.subId = id; },
-        addSub: (url, lang, label) => new Promise(done => {
-          const el = document.createElement("track");
-          Object.assign(el, { kind: "subtitles", src: url, srclang: lang, label, default: false }); // même origine : pas de CORS
-          v.appendChild(el);
-          const id = v.textTracks.length - 1;
-          el.track.mode = "hidden"; // charge les répliques sans les afficher
-          el.addEventListener("load", () => shift(el.track, delay), { once: true });
-          eng.subs.push({ id, lang, label, ext: true });
-          done(id);
-        }),
-        canDelay: true,
-        setSubDelay: s => { Array.from(v.textTracks).forEach(t => shift(t, s - delay)); delay = s; },
+        selectSub: async id => { cues.show(id); eng.subId = id; },
+        addSub: async (url, lang, label) => { const id = await cues.add(url); eng.subs.push({ id, lang, label, ext: true }); return id; },
+        canDelay: true, setSubDelay: s => cues.setDelay(s),
         suspended: () => false, resume: async () => {},
-        resize: () => {}, destroy: () => { v.pause(); v.removeAttribute("src"); v.load(); v.remove(); },
+        resize: () => {}, destroy: () => { cues.destroy(); v.pause(); v.removeAttribute("src"); v.load(); v.remove(); },
       };
+      const cues = cueLayer(box, eng.time);
       ok(eng);
     }, { once: true });
   });
