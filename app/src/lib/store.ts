@@ -8,7 +8,7 @@ export type { Progress };
 
 // Les addons (communs au compte) et la reprise (propre au profil) vivent sur le serveur ;
 // l'appareil en garde une copie pour démarrer vite et tenir si le réseau saute.
-type State = { ready: boolean; addons: Addon[]; progress: Record<string, Progress>; ambiance?: string; user?: User | null };
+type State = { ready: boolean; addons: Addon[]; progress: Record<string, Progress>; ambiance?: string; user?: User | null; lastSync?: number };
 
 const LEGACY_KEY = "meowwatch:v1"; // avant la synchro : données sans compte
 let state: State = { ready: false, addons: [], progress: {} };
@@ -57,15 +57,16 @@ export const updateProfile = (profile: Profile) => set({ user: { ...state.user!,
 
 /** Récupère l'état du serveur et y renvoie ce que cet appareil a de plus récent. */
 export async function pull(first = false) {
-  if (!state.user?.profile) return;
+  if (!state.user?.profile) return false;
   let remote: { addons: Addon[] | null; progress: Progress[] };
-  try { remote = await api("/api/sync"); } catch { return; } // hors ligne : on garde la copie locale
+  try { remote = await api("/api/sync"); } catch { return false; } // hors ligne : on garde la copie locale
   // Première synchro de ce compte : les addons de l'appareil deviennent ceux du compte.
   if (remote.addons === null) { if (first && state.addons.length) await saveAddons(state.addons); }
   else if (JSON.stringify(remote.addons) !== JSON.stringify(state.addons)) set({ addons: remote.addons });
   const { merged, toPush } = mergeProgress(state.progress, remote.progress);
-  set({ progress: merged });
+  set({ progress: merged, lastSync: Date.now() });
   toPush.forEach(push);
+  return true;
 }
 
 const push = (p: Progress) => api("/api/sync/progress", { method: "PUT", body: JSON.stringify(p) }).catch(() => {});

@@ -100,6 +100,18 @@ export function start(env = process.env) {
   const validPin = pin => /^\d{4}$/.test(pin);
   // Anti-devinette : 5 mauvais codes bloquent le profil 5 minutes.
   const fails = new Map();
+  /** Vérifie le code d'un profil verrouillé ; renvoie [statut, message] en cas de refus. */
+  function checkPin(p, pin) {
+    if (!p.pin) return null;
+    const f = fails.get(p.id) ?? { n: 0, until: 0 };
+    if (f.until > Date.now()) return [429, "Trop d'essais. Réessaie dans quelques minutes."];
+    if (!pin || !pinOk(pin, p.pin)) {
+      f.n++; if (f.n >= 5) { f.n = 0; f.until = Date.now() + 5 * 6e4; } fails.set(p.id, f);
+      return [403, "Code incorrect."];
+    }
+    fails.delete(p.id);
+    return null;
+  }
   const me = req => { const t = cookies(req).mw_session; return t ? q.session.get(hash(t), Date.now()) : undefined; };
   const body = (req, max = 1e4) => new Promise((ok, ko) => { let d = ""; req.on("data", c => { d += c; if (d.length > max) { ko(Object.assign(new Error("trop gros"), { status: 413 })); req.destroy(); } }).on("end", () => { try { ok(d ? JSON.parse(d) : {}); } catch (e) { ko(e); } }); });
 
@@ -146,15 +158,8 @@ export function start(env = process.env) {
     "POST /api/profiles/select": member(async (req, res, url, u) => {
       const { id, pin } = await body(req), p = q.profile.get(String(id), u.id);
       if (!p) return json(res, 404, { error: "profil introuvable" });
-      if (p.pin) {
-        const f = fails.get(p.id) ?? { n: 0, until: 0 };
-        if (f.until > Date.now()) return json(res, 429, { error: "Trop d'essais. Réessaie dans quelques minutes." });
-        if (!pin || !pinOk(pin, p.pin)) {
-          f.n++; if (f.n >= 5) { f.n = 0; f.until = Date.now() + 5 * 6e4; } fails.set(p.id, f);
-          return json(res, 403, { error: "Code incorrect." });
-        }
-        fails.delete(p.id);
-      }
+      const refused = checkPin(p, pin);
+      if (refused) return json(res, refused[0], { error: refused[1] });
       q.selectProfile.run(p.id, hash(cookies(req).mw_session));
       json(res, 200, profileView(p));
     }),
@@ -168,21 +173,26 @@ export function start(env = process.env) {
       q.addProfile.run(id, u.id, String(name).trim().slice(0, 20), COLORS.includes(color) ? color : COLORS[0], pin ? pinHash(pin) : null, Date.now(), avatarKey(avatar));
       json(res, 201, profileView(q.profile.get(id, u.id)));
     }),
-    // Modifier ou supprimer : seulement le profil ouvert (déjà déverrouillé).
+    // Modifier ou supprimer : seulement le profil ouvert. Toucher au code ou supprimer un profil
+    // verrouillé demande en plus le code actuel (`currentPin`).
     "PATCH /api/profiles": member(async (req, res, url, u) => {
       const p = u.profile_id && q.profile.get(u.profile_id, u.id);
       if (!p) return json(res, 409, { error: "Choisis d'abord un profil." });
       const b = await body(req);
       if (b.pin && !validPin(b.pin)) return json(res, 400, { error: "Le code doit faire 4 chiffres." });
+      const refused = b.pin !== undefined && checkPin(p, b.currentPin);
+      if (refused) return json(res, refused[0], { error: refused[1] });
       const name = b.name !== undefined ? String(b.name).trim().slice(0, 20) : p.name;
       if (!name) return json(res, 400, { error: "Donne un nom au profil." });
       q.editProfile.run(name, COLORS.includes(b.color) ? b.color : p.color, b.pin === null ? null : b.pin ? pinHash(b.pin) : p.pin, b.avatar !== undefined ? avatarKey(b.avatar) : p.avatar, p.id, u.id);
       json(res, 200, profileView(q.profile.get(p.id, u.id)));
     }),
-    "DELETE /api/profiles": member((req, res, url, u) => {
+    "DELETE /api/profiles": member(async (req, res, url, u) => {
       const p = u.profile_id && q.profile.get(u.profile_id, u.id);
       if (!p) return json(res, 409, { error: "Choisis d'abord un profil." });
       if (p.id === mainId(u.id)) return json(res, 400, { error: "Le profil principal ne peut pas être supprimé." });
+      const refused = checkPin(p, (await body(req)).currentPin);
+      if (refused) return json(res, refused[0], { error: refused[1] });
       q.leaveProfile.run(p.id); q.deleteProfile.run(p.id, u.id);
       json(res, 200, { ok: true });
     }),

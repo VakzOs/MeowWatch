@@ -1,21 +1,20 @@
 import { Image } from "expo-image";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { Shell } from "../components/Shell";
 import { C, font } from "../components/theme";
 import { api, type Admin } from "../lib/api";
-import { AvatarGrid, PinPad, ProfileAvatar } from "../components/Profiles";
-import { leaveProfile, logout, updateProfile, useStore } from "../lib/store";
-import type { Profile } from "../lib/api";
+import { ProfileEditor } from "../components/Profiles";
+import { leaveProfile, logout, pull, updateProfile, useStore } from "../lib/store";
 
 const day = (t: number) => new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
 
 export default function Reglages() {
   const user = useStore(s => s.user)!;
   return (
-    <Shell>
+    <>
       <ScrollView contentContainerStyle={{ padding: 32, paddingBottom: 80, maxWidth: 880 }}>
-        <Text style={[font(700, 28), { marginBottom: 24 }]}>Réglages</Text>
+        <Text style={[font(700, 28), { marginBottom: 8 }]}>Réglages</Text>
+        <Text style={[font(600, 18), st.h]}>Compte Discord</Text>
         <View style={st.row}>
           <Avatar name={user.name} src={user.avatar} size={48} />
           <View style={{ flex: 1 }}>
@@ -25,44 +24,44 @@ export default function Reglages() {
           <Btn label="Se déconnecter" onPress={logout} ghost />
         </View>
         <ProfileSettings />
+        <Sync />
         {user.owner && user.profile?.main ? <Access /> : null}
       </ScrollView>
-    </Shell>
+    </>
   );
 }
 
-/** Le profil ouvert : nom, couleur, code, suppression. */
+/** Le profil ouvert (même éditeur que « Gérer les profils »). */
 function ProfileSettings() {
   const profile = useStore(s => s.user?.profile)!;
-  const [name, setName] = useState(profile.name);
-  const [pinMode, setPinMode] = useState(false);
-  const [msg, setMsg] = useState<string>();
-  const [confirm, setConfirm] = useState(false);
-  const patch = (b: object) => api<Profile>("/api/profiles", { method: "PATCH", body: JSON.stringify(b) }).then(updateProfile).catch((e: Error) => setMsg(e.message));
-  const remove = () => api("/api/profiles", { method: "DELETE" }).then(leaveProfile).catch((e: Error) => setMsg(e.message));
-  if (pinMode) return (
-    <View style={[st.row, { justifyContent: "center", paddingVertical: 32, marginTop: 24 }]}>
-      <PinPad framed={false} face={profile} hint="Choisis un code à 4 chiffres" onPin={pin => patch({ pin }).then(() => setPinMode(false))} onCancel={() => setPinMode(false)} />
-    </View>
-  );
   return (
     <>
       <Text style={[font(600, 18), st.h]}>Profil</Text>
-      <View style={[st.row, { alignItems: "flex-start" }]}>
-        <ProfileAvatar p={profile} size={96} />
-        <View style={{ flex: 1, gap: 14 }}>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <TextInput value={name} onChangeText={setName} onSubmitEditing={() => patch({ name })} maxLength={20} style={[font(500, 15), st.input]} accessibilityLabel="Nom du profil" />
-            <Btn label="Renommer" onPress={() => patch({ name })} ghost />
-          </View>
-          <AvatarGrid value={profile.avatar} onChange={a => patch({ avatar: a.key, color: a.color })} size={48} />
-          <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
-            <Btn label={profile.locked ? "Changer le code" : "Verrouiller par un code"} onPress={() => setPinMode(true)} ghost />
-            {profile.locked ? <Btn label="Retirer le code" onPress={() => patch({ pin: null })} ghost /> : null}
-            {profile.main ? null : confirm ? <Btn label="Oui, supprimer (sa reprise aussi)" onPress={remove} /> : <Btn label="Supprimer ce profil" onPress={() => setConfirm(true)} ghost />}
-          </View>
-          {msg ? <Text style={font(500, 14, "#FF8A94")}>{msg}</Text> : null}
+      <View style={[st.row, { padding: 20 }]}>
+        <View style={{ flex: 1 }}><ProfileEditor key={profile.id} profile={profile} onChange={updateProfile} onDeleted={leaveProfile} /></View>
+      </View>
+    </>
+  );
+}
+
+/** La synchro est automatique ; ce bloc la rend visible. */
+function Sync() {
+  const lastSync = useStore(s => s.lastSync);
+  const addons = useStore(s => s.addons.length);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [, tick] = useState(0);
+  useEffect(() => { const t = setInterval(() => tick(n => n + 1), 30000); return () => clearInterval(t); }, []);
+  const ago = !lastSync ? "pas encore" : Date.now() - lastSync < 60000 ? "à l'instant" : `il y a ${Math.round((Date.now() - lastSync) / 60000)} min`;
+  return (
+    <>
+      <Text style={[font(600, 18), st.h]}>Synchro</Text>
+      <View style={st.row}>
+        <View style={{ flex: 1 }}>
+          <Text style={font(600, 15)}>{failed ? "Serveur injoignable, la copie de cet appareil est utilisée" : `Synchronisé ${ago}`}</Text>
+          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>Automatique : tes {addons} addons (communs au compte) et la reprise de ce profil sont enregistrés sur le serveur et suivent sur tous tes appareils.</Text>
         </View>
+        <Btn label={busy ? "Synchro…" : "Synchroniser maintenant"} onPress={() => { setBusy(true); pull().then(ok => setFailed(!ok)).finally(() => setBusy(false)); }} ghost />
       </View>
     </>
   );

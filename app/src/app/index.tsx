@@ -3,7 +3,6 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Detail } from "../components/Detail";
 import { Icon } from "../components/Icon";
 import { Row, type Item } from "../components/Row";
-import { Shell } from "../components/Shell";
 import { C, font, TYPE_FR } from "../components/theme";
 import { fetchCatalog, homeCatalogs, searchCatalogs, type Meta } from "../lib/addons";
 import { useStore } from "../lib/store";
@@ -35,7 +34,7 @@ export default function Home() {
   useEffect(() => { if (!sel && resume[0]) setSel(resume[0].meta as Meta); }, [resume, sel]);
 
   return (
-    <Shell>
+    <>
       <View style={{ flex: 1, flexDirection: "row" }}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 80 }}>
           <View style={st.search}>
@@ -48,7 +47,7 @@ export default function Home() {
         </ScrollView>
         <View style={st.panel}>{sel ? <Detail key={sel.id} preview={sel} /> : null}</View>
       </View>
-    </Shell>
+    </>
   );
 }
 

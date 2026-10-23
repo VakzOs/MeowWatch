@@ -2,7 +2,6 @@ import { Image } from "expo-image";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Icon } from "../components/Icon";
-import { Shell } from "../components/Shell";
 import { C, font, TYPE_FR } from "../components/theme";
 import type { Addon } from "../lib/addons";
 import { addAddon, moveAddon, removeAddon, useStore } from "../lib/store";
@@ -22,7 +21,7 @@ export default function Addons() {
   };
 
   return (
-    <Shell>
+    <>
       <ScrollView contentContainerStyle={{ padding: 32, paddingBottom: 80, maxWidth: 880 }}>
         <Text style={[font(700, 28), { marginBottom: 6 }]}>Addons</Text>
         <Text style={[font(400, 15, C.mute), { marginBottom: 24 }]}>Les mêmes addons que Stremio. Colle le lien d'installation (celui qui finit par manifest.json, ou stremio://).</Text>
@@ -41,7 +40,7 @@ export default function Addons() {
         </View>
         {addons.map((a, i) => <AddonRow key={a.url} a={a} first={i === 0} last={i === addons.length - 1} />)}
       </ScrollView>
-    </Shell>
+    </>
   );
 }
 

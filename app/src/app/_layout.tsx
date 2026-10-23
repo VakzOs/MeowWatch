@@ -1,10 +1,11 @@
 import { InstrumentSans_400Regular, InstrumentSans_500Medium, InstrumentSans_600SemiBold, InstrumentSans_700Bold, useFonts } from "@expo-google-fonts/instrument-sans";
-import { Stack, useGlobalSearchParams, usePathname } from "expo-router";
+import { DarkTheme, Stack, ThemeProvider, useGlobalSearchParams, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { AppState, Platform, View } from "react-native";
 import { Login } from "../components/Login";
 import { ProfilePicker } from "../components/Profiles";
+import { Shell } from "../components/Shell";
 import { C } from "../components/theme";
 import { api } from "../lib/api";
 import { load, pull, useStore } from "../lib/store";
@@ -17,6 +18,8 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
   ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }`;
   document.head.appendChild(css);
 }
+
+const THEME = { ...DarkTheme, colors: { ...DarkTheme.colors, background: "transparent", card: "transparent" } };
 
 export default function Root() {
   const [fonts] = useFonts({ InstrumentSans_400Regular, InstrumentSans_500Medium, InstrumentSans_600SemiBold, InstrumentSans_700Bold });
@@ -39,7 +42,12 @@ export default function Root() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.chrome }, animation: "fade" }} />
+      {/* Thème sombre au fond transparent : le fond flouté de Shell reste visible derrière chaque page. */}
+      <ThemeProvider value={THEME}>
+        <Shell bare={path.startsWith("/play")}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "transparent" }, animation: "none" }} />
+        </Shell>
+      </ThemeProvider>
     </>
   );
 }
