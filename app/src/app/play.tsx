@@ -2,15 +2,19 @@ import { useEvent, useEventListener } from "expo";
 import { router, useLocalSearchParams } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useRef } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../components/Icon";
 import { C, font } from "../components/theme";
+import { WebPlayer, type PlayParams } from "../components/WebPlayer";
 import { saveProgress } from "../lib/store";
 
-type Params = { url: string; id: string; type: string; name: string; poster: string; background: string; videoId: string; label: string; start: string };
-
+/** Sur le web, notre lecteur (pistes audio, sous-titres…) ; ailleurs, le lecteur natif en attendant les applis. */
 export default function Play() {
-  const p = useLocalSearchParams<Params>();
+  const p = useLocalSearchParams<PlayParams>();
+  return Platform.OS === "web" ? <WebPlayer p={p} /> : <NativePlay p={p} />;
+}
+
+function NativePlay({ p }: { p: PlayParams }) {
   const player = useVideoPlayer(p.url, pl => { pl.timeUpdateEventInterval = 5; });
   const { status, error } = useEvent(player, "statusChange", { status: player.status });
   // Sur le web, la vidéo n'existe qu'une fois montée : on se place et on lance quand elle est prête.
