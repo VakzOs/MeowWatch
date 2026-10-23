@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../../../components/Icon";
 import { C, font, genreList } from "../../../components/theme";
-import { describe, fetchMeta, fetchStreams, type FoundStream, type Meta, type Video } from "../../../lib/addons";
+import { describe, fetchMeta, fetchStreamsFor, imdbEquivalent, type FoundStream, type Meta, type Video } from "../../../lib/addons";
 import { api, type Translation } from "../../../lib/api";
 import { getProgress, setAmbiance, useStore } from "../../../lib/store";
 
@@ -50,11 +50,12 @@ export default function Title() {
   useEffect(() => {
     if (!videoId) return;
     let on = true; setStreams(null);
-    fetchStreams(addons, type, videoId).then(s => on && setStreams(s));
+    fetchStreamsFor(addons, type, videoId, imdbEquivalent(meta, isSeries ? video : null)).then(s => on && setStreams(s));
     return () => { on = false; };
-  }, [addons, type, videoId]);
+  }, [addons, type, videoId, meta.imdb_id]);
   const shown = (streams ?? []).filter(s => s.url || s.externalUrl);
   const torrents = (streams ?? []).length - shown.length;
+  const playable = shown.filter(s => s.url).length; // les flux sans vidéo (avis d'addon, lien externe) ne sont jamais « Meilleur »
 
   const play = (s: FoundStream, v: Video | null = video) => {
     if (!s.url) return s.externalUrl && Linking.openURL(s.externalUrl);
@@ -129,13 +130,19 @@ export default function Title() {
             <View style={st.sideHead}>
               {isSeries ? <Pressable onPress={() => setVideo(null)} accessibilityLabel="Épisodes" style={st.iconBtn}><Icon name="back" color={C.ink} size={18} /></Pressable> : null}
               <Text style={[font(600, 14), { flex: 1 }]} numberOfLines={1}>{video ? `${epLabel(video)} ${epName(video) ?? ""}` : "Flux des addons"}</Text>
-              {streams ? <Text style={font(500, 13, C.mute)}>{shown.length}</Text> : null}
+              {streams ? <Text style={font(500, 13, C.mute)}>{playable}</Text> : null}
             </View>
             <ScrollView contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}>
               {!streams ? <ActivityIndicator color={C.red} style={{ marginTop: 24 }} /> : null}
-              {streams && !shown.length ? <Text style={[font(400, 14, C.mute), { padding: 8 }]}>Aucun flux lisible. Ajoute un addon de flux avec ton debrid (Torrentio, AIOStreams, Comet…).</Text> : null}
+              {streams && !playable ? <Text style={[font(400, 14, C.mute), { padding: 8 }]}>Aucun flux lisible. Ajoute un addon de flux avec ton debrid (Torrentio, AIOStreams, Comet…).</Text> : null}
               {shown.map((s, i) => {
                 const d = describe(s);
+                if (!s.url) return ( // avis d'un addon (« aucune source… ») ou lien externe : discret, pas un flux
+                  <Pressable key={i} onPress={() => play(s)} style={({ hovered }: any) => [st.notice, hovered && { opacity: 0.85 }]}>
+                    <Text style={font(600, 12, C.mute)}>{s.addon}</Text>
+                    <Text style={font(400, 12, C.faint)} numberOfLines={3}>{d.source.replace(new RegExp(`^${s.addon} · `), "") || d.quality}</Text>
+                  </Pressable>
+                );
                 return (
                   <Pressable key={i} onPress={() => play(s)} style={({ hovered, focused }: any) => [st.stream, (hovered || focused) && st.streamOn]}>
                     <View style={{ flex: 1 }}>
@@ -225,5 +232,6 @@ const st = StyleSheet.create({
   track: { height: 3, borderRadius: 2, backgroundColor: "#333", marginTop: 6, overflow: "hidden" },
   fill: { height: 3, backgroundColor: C.red },
   stream: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.06)", marginBottom: 8 },
+  notice: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.03)", marginBottom: 8, gap: 2 },
   streamOn: { backgroundColor: "rgba(255,255,255,0.12)", outlineColor: C.red, outlineWidth: 2, outlineStyle: "solid" } as any,
 });
