@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { Link, usePathname, type Href } from "expo-router";
-import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, type ReactNode } from "react";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { leaveProfile, useStore } from "../lib/store";
 import { BrandMark } from "./BrandMark";
 import { ProfileAvatar } from "./Profiles";
@@ -21,11 +21,27 @@ const NAV: { label: string; icon: IconName; href?: Href }[] = [
 export function Shell({ children, bare }: { children: ReactNode; bare?: boolean }) {
   const ambiance = useStore(s => s.ambiance);
   const profile = useStore(s => s.user?.profile);
+  const side = useRef<any>(null), main = useRef<any>(null); // éléments DOM (react-native-web)
+  // Molette sur la barre latérale : c'est la page affichée à droite qui défile.
+  useEffect(() => {
+    const bar = side.current as HTMLElement | null, content = main.current as HTMLElement | null;
+    if (Platform.OS !== "web" || !bar || !content) return;
+    const onWheel = (e: WheelEvent) => {
+      const r = content.getBoundingClientRect();
+      let el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) as HTMLElement | null;
+      while (el && el !== content && !(/(auto|scroll)/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight)) el = el.parentElement;
+      if (!el || el === content) return;
+      e.preventDefault();
+      el.scrollBy({ top: e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY });
+    };
+    bar.addEventListener("wheel", onWheel, { passive: false });
+    return () => bar.removeEventListener("wheel", onWheel);
+  }, []);
   return (
     <View style={st.root}>
       {ambiance ? <Image source={ambiance} style={st.amb} blurRadius={48} contentFit="cover" transition={400} /> : null}
       <View style={st.scrim} pointerEvents="none" />
-      <View style={[st.side, bare && { display: "none" }]}>
+      <View ref={side} style={[st.side, bare && { display: "none" }]}>
         <View style={st.brand}>
           <BrandMark size={32} />
           <Text style={font(700, 18)}>Meow Watch</Text>
@@ -43,7 +59,7 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
           </Pressable>
         ) : null}
       </View>
-      <View style={{ flex: 1 }}>{children}</View>
+      <View ref={main} style={{ flex: 1 }}>{children}</View>
     </View>
   );
 }
