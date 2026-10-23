@@ -6,6 +6,7 @@ export type Resource = string | { name: string; types?: string[]; idPrefixes?: s
 export type Manifest = {
   id: string; name: string; version?: string; description?: string; logo?: string;
   types?: string[]; idPrefixes?: string[]; resources?: Resource[]; catalogs?: Catalog[];
+  behaviorHints?: { configurable?: boolean; configurationRequired?: boolean };
 };
 export type Addon = { url: string; manifest: Manifest };
 
@@ -13,6 +14,7 @@ export type Video = { id: string; title?: string; name?: string; season?: number
 export type Meta = {
   id: string; type: string; name: string; poster?: string; background?: string; logo?: string;
   description?: string; releaseInfo?: string; imdbRating?: string; genres?: string[]; runtime?: string; videos?: Video[];
+  cast?: string[]; director?: string[]; trailerStreams?: { ytId: string; title?: string }[];
 };
 export type Stream = {
   url?: string; infoHash?: string; ytId?: string; externalUrl?: string;
@@ -31,6 +33,8 @@ export function normalizeUrl(input: string): string {
 }
 
 const base = (a: Addon) => a.url.replace(/\/manifest\.json$/, "");
+/** Page de réglages d'un addon configurable (convention Stremio : <base>/configure). */
+export const configureUrl = (a: Addon) => (a.manifest.behaviorHints?.configurable || a.manifest.behaviorHints?.configurationRequired ? `${base(a)}/configure` : null);
 
 /** L'addon sait-il répondre à `resource` pour ce type et cet identifiant ? */
 export function supports(m: Manifest, resource: string, type: string, id?: string): boolean {

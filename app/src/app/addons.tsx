@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Icon } from "../components/Icon";
 import { C, font, TYPE_FR } from "../components/theme";
-import type { Addon } from "../lib/addons";
+import { configureUrl, type Addon } from "../lib/addons";
 import { addAddon, importFromStremio, moveAddon, removeAddon, useStore } from "../lib/store";
 import { createLink, fetchAccount, waitForAuth } from "../lib/stremio";
 
@@ -16,7 +16,7 @@ export default function Addons() {
   const add = async () => {
     if (!url.trim() || busy) return;
     setBusy(true); setMsg(null);
-    try { const a = await addAddon(url); setUrl(""); setMsg({ ok: true, text: `${a.manifest.name} est installé.` }); }
+    try { const { addon: a, updated } = await addAddon(url); setUrl(""); setMsg({ ok: true, text: updated ? `${a.manifest.name} : réglages mis à jour.` : `${a.manifest.name} est installé.` }); }
     catch (e: any) { setMsg({ ok: false, text: /fetch|network|Failed/i.test(e?.message) ? "Impossible de joindre ce lien. Vérifie l'adresse de l'addon." : e?.message ?? "Erreur inconnue." }); }
     setBusy(false);
   };
@@ -25,7 +25,7 @@ export default function Addons() {
     <>
       <ScrollView contentContainerStyle={{ padding: 32, paddingBottom: 80, maxWidth: 880 }}>
         <Text style={[font(700, 28), { marginBottom: 6 }]}>Addons</Text>
-        <Text style={[font(400, 15, C.mute), { marginBottom: 24 }]}>Les mêmes addons que Stremio. Importe-les depuis ton compte, ou colle un lien d'installation (celui qui finit par manifest.json, ou stremio://).</Text>
+        <Text style={[font(400, 15, C.mute), { marginBottom: 24 }]}>Les mêmes addons que Stremio. Importe-les depuis ton compte, ou colle un lien d'installation (celui qui finit par manifest.json, ou stremio://). Après « Configurer », colle le nouveau lien donné par l'addon : il remplace l'ancien.</Text>
         <StremioImport />
 
         <View style={st.add}>
@@ -103,6 +103,8 @@ function StremioImport() {
   );
 }
 
+const openUrl = (url: string) => (Platform.OS === "web" ? window.open(url, "_blank", "noopener") : Linking.openURL(url));
+
 function AddonRow({ a, first, last }: { a: Addon; first: boolean; last: boolean }) {
   const m = a.manifest;
   const res = (m.resources ?? []).map(r => (typeof r === "string" ? r : r.name));
@@ -115,6 +117,11 @@ function AddonRow({ a, first, last }: { a: Addon; first: boolean; last: boolean 
         <Text style={font(400, 13, C.mute)} numberOfLines={1}>{[what, (m.types ?? []).map(t => TYPE_FR[t] ?? t).join(", ")].filter(Boolean).join(" · ")}</Text>
         {m.description ? <Text style={[font(400, 13, C.faint), { marginTop: 2 }]} numberOfLines={2}>{m.description}</Text> : null}
       </View>
+      {configureUrl(a) ? (
+        <Pressable onPress={() => openUrl(configureUrl(a)!)} accessibilityLabel={`Configurer ${m.name}`} style={({ hovered }: any) => [st.cfg, hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}>
+          <Icon name="gear" size={16} color={C.soft} /><Text style={font(600, 13)}>Configurer</Text>
+        </Pressable>
+      ) : null}
       <IconBtn name="up" label="Monter" disabled={first} onPress={() => moveAddon(a.url, -1)} />
       <IconBtn name="down" label="Descendre" disabled={last} onPress={() => moveAddon(a.url, 1)} />
       <IconBtn name="close" label={`Retirer ${m.name}`} onPress={() => removeAddon(a.url)} />
@@ -134,6 +141,7 @@ const st = StyleSheet.create({
   add: { flexDirection: "row", gap: 10 },
   import: { flexDirection: "row", alignItems: "center", gap: 20, padding: 20, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.06)", marginBottom: 20 },
   ghost: { backgroundColor: "rgba(255,255,255,0.09)" },
+  cfg: { flexDirection: "row", alignItems: "center", gap: 6, height: 36, paddingHorizontal: 12, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.08)" },
   input: { flex: 1, height: 48, paddingHorizontal: 16, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.08)", outlineStyle: "none" } as any,
   btn: { height: 48, paddingHorizontal: 22, borderRadius: 10, backgroundColor: C.red, justifyContent: "center", minWidth: 110, alignItems: "center" },
   h: { flexDirection: "row", alignItems: "baseline", gap: 10, marginTop: 36, marginBottom: 12 },

@@ -81,11 +81,13 @@ export async function logout() {
   set({ user: null, addons: [], progress: {} });
 }
 
+/** Installe un addon ; s'il existe déjà (même identifiant), le remplace à sa place : c'est un nouveau réglage. */
 export async function addAddon(input: string) {
   const a = await fetchManifest(input);
-  if (state.addons.some(x => x.url === a.url)) throw new Error("Cet addon est déjà installé.");
-  await saveAddons([...state.addons, a]);
-  return a;
+  if (state.addons.some(x => x.url === a.url)) throw new Error("Cet addon est déjà installé avec ces réglages.");
+  const i = state.addons.findIndex(x => x.manifest.id === a.manifest.id);
+  await saveAddons(i < 0 ? [...state.addons, a] : state.addons.map((x, j) => (j === i ? a : x)));
+  return { addon: a, updated: i >= 0 };
 }
 export const removeAddon = (url: string) => saveAddons(state.addons.filter(a => a.url !== url));
 export function moveAddon(url: string, dir: -1 | 1) {
