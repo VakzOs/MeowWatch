@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, catalogUrl, configureUrl, describe, imdbEquivalent, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -44,7 +44,7 @@ test("describe garde tout le texte de l'addon et ne prend pas un débit pour une
   const d = describe({ addon: "Lumio", url: "https://x", name: "[AD] Lumio", title: "Lumio · 1080p · BluRay · ~5,1 Mb/s\nFrieren.S01E01.MULTi.1080p.mkv\n🔊 FR, JA · AAC 2.0", behaviorHints: { filename: "Frieren.S01E01.MULTi.1080p.mkv" } });
   assert.equal(d.size, "");
   assert.deepEqual(d.details, ["Frieren.S01E01.MULTi.1080p.mkv", "FR, JA · AAC 2.0"]);
-  assert.deepEqual(describe({ addon: "A", url: "https://x", title: "Ligne", behaviorHints: { filename: "f.mkv", videoSize: 2e9 } }), { quality: "Flux", source: "A · Ligne", details: ["f.mkv"], size: "2,0 Go", playable: true, external: false });
+  assert.deepEqual(describe({ addon: "A", url: "https://x", title: "Ligne", behaviorHints: { filename: "f.mkv", videoSize: 2e9 } }), { quality: "Flux", source: "A · Ligne", details: ["f.mkv"], file: "f.mkv", chips: [], langs: [], multi: false, size: "2,0 Go", playable: true, external: false });
 });
 
 test("configureUrl : page de réglages seulement pour les addons configurables", () => {
@@ -70,4 +70,10 @@ test("équivalent IMDb pour les animés Kitsu", () => {
   assert.equal(imdbEquivalent(meta, { id: "kitsu:1:3", episode: 3 }), null); // épisode sans correspondance
   assert.deepEqual(imdbEquivalent({ id: "kitsu:9", imdb_id: "tt0245429" }), { type: "movie", id: "tt0245429" }); // film
   assert.equal(imdbEquivalent({ id: "tt0903747" }), null); // déjà IMDb
+});
+
+test("pastilles et drapeaux d'un flux façon Lumio", () => {
+  const t = streamTags({ name: "[AD] Lumio", title: "Lumio · Salon · 1080p · BluRay REMUX · 29 Mb/s\n🇫🇷 🇯🇵 ✓ · 💾 5,2 Go · 🔍 DMM | YGG\nH264 · DTS-HD MA 2.0", behaviorHints: { filename: "Shingeki.No.Kyojin.S01E01.MULTi.1080p.BluRay.REMUX.AVC.DTS-HDMA.2.0-Psaro.mkv" } });
+  assert.deepEqual(t, { chips: ["1080p", "REMUX", "H264", "DTS-HD MA 2.0", "29 Mb/s"], langs: ["fr", "jp"], multi: true });
+  assert.deepEqual(streamTags({ title: "Film.2160p.WEB-DL.DV.HDR.x265.TrueHD.Atmos.7.1.VFF.mkv" }), { chips: ["4K", "WEB-DL", "Dolby Vision", "HEVC", "Atmos 7.1"], langs: ["fr"], multi: false });
 });

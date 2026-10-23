@@ -143,6 +143,30 @@ export async function fetchStreamsFor(addons: Addon[], type: string, id: string,
 const clean = (s = "") => s.replace(/\p{Extended_Pictographic}|️/gu, "").replace(/[ \t]+/g, " ").trim();
 const SIZE = /(\d+(?:[.,]\d+)?)\s?(GB|MB|Go|Mo|GiB|MiB)\b(?!\/s)/i; // pas un débit (« 29 Mb/s »)
 
+// Repères lus dans le texte et le nom du fichier, dans l'ordre d'affichage. Le premier qui correspond dans un groupe gagne.
+const TAGS: [RegExp, string][][] = [
+  [[/\b(2160p|4k|uhd)\b/i, "4K"], [/\b1440p\b/i, "1440p"], [/\b1080p\b/i, "1080p"], [/\b720p\b/i, "720p"], [/\b(576|480)p\b/i, "SD"]],
+  [[/\bremux\b/i, "REMUX"], [/\bblu-?ray\b/i, "BluRay"], [/\bweb-?dl\b/i, "WEB-DL"], [/\bweb-?rip\b/i, "WEBRip"], [/\bbr-?rip\b/i, "BRRip"], [/\bhdtv\b/i, "HDTV"]],
+  [[/\b(dv|dovi|dolby ?vision)\b/i, "Dolby Vision"], [/\bhdr10\+/i, "HDR10+"], [/\bhdr(10)?\b/i, "HDR"]],
+  [[/\b(hevc|[xh]\.?265)\b/i, "HEVC"], [/\bav1\b/i, "AV1"], [/\b(avc|[xh]\.?264)\b/i, "H264"]],
+  [[/\batmos\b/i, "Atmos"], [/\btrue-?hd\b/i, "TrueHD"], [/\bdts-?hd[ .-]?ma\b/i, "DTS-HD MA"], [/\bdts(-?x)?\b/i, "DTS"], [/\b(ddp|dd\+|e-?ac-?3)/i, "DD+"], [/\b(ac-?3|DD)\b/, "AC3"], [/\bflac\b/i, "FLAC"], [/\b(aac|opus)\b/i, "AAC"]],
+];
+const FR_WORDS = /\b(vff|vfq|vfi|vf2|truefrench|french|vostfr)\b/i;
+
+/** Pastilles (qualité, source, HDR, codec, audio, débit) et langues (codes pays des drapeaux) d'un flux. */
+export function streamTags(s: Pick<Stream, "name" | "title" | "description" | "behaviorHints">) {
+  const raw = [s.name, s.title ?? s.description, s.behaviorHints?.filename].filter(Boolean).join("\n");
+  const chips = TAGS.map(group => group.find(([re]) => re.test(raw))?.[1]).filter((t): t is string => !!t);
+  const ch = raw.match(/\b([257]\.1|2\.0)\b/)?.[1];
+  if (ch && chips.length && /Atmos|TrueHD|DTS|DD|AC3|FLAC|AAC/.test(chips[chips.length - 1])) chips[chips.length - 1] += ` ${ch}`;
+  const rate = raw.match(/~?\d+(?:[.,]\d+)?\s?Mb\/s/i)?.[0];
+  if (rate) chips.push(rate.replace(/\s/, " "));
+  // Drapeaux : deux « lettres régionales » Unicode → code pays (Windows les affiche en lettres, d'où les images).
+  const langs = [...raw.matchAll(/([\u{1F1E6}-\u{1F1FF}])([\u{1F1E6}-\u{1F1FF}])/gu)].map(m => String.fromCharCode(...[m[1], m[2]].map(c => c.codePointAt(0)! - 0x1F1E6 + 97)));
+  if (FR_WORDS.test(raw)) langs.unshift("fr");
+  return { chips, langs: [...new Set(langs)], multi: /\bmulti\b/i.test(raw) };
+}
+
 /** Ce qu'on affiche d'un flux : qualité, source, détails (le reste du texte de l'addon, comme Stremio), taille, et s'il est lisible (debrid/HTTP). */
 export function describe(s: FoundStream) {
   const nameLines = clean(s.name).split("\n").map(l => l.trim()).filter(Boolean);
@@ -154,6 +178,8 @@ export function describe(s: FoundStream) {
     quality: nameLines.slice(1).join(" · ") || nameLines[0] || "Flux",
     source: [nameLines.length > 1 ? nameLines[0] : s.addon, lines[0]].filter(Boolean).join(" · "),
     details: [...lines.slice(1), ...(file && !text.includes(file) ? [file] : [])],
+    file: file ?? lines.find(l => /\.(mkv|mp4|avi|m2ts|ts|webm)$/i.test(l)),
+    ...streamTags(s),
     size,
     playable: !!s.url,
     external: !s.url && !!s.externalUrl,
