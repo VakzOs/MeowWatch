@@ -33,12 +33,13 @@ export function Row({ title, note, load, selected, onSelect, onHover }: {
   );
 }
 
-export function Card({ item: { meta, wide, progress, sub }, selected, onPress, onHover }: { item: Item; selected: boolean; onPress: () => void; onHover: () => void }) {
+export function Card({ item: { meta, wide, progress, sub }, selected, onPress, onHover, width }: { item: Item; selected: boolean; onPress: () => void; onHover: () => void; width?: number }) {
+  const w = width ?? (wide ? 300 : 158);
   return (
-    <Pressable onPress={onPress} onFocus={onHover} onHoverIn={onHover} accessibilityLabel={meta.name} style={({ hovered, focused }: any) => [{ width: wide ? 300 : 158 }, (focused) && { transform: [{ scale: 1.04 }] }, hovered && !selected && { opacity: 0.9 }]}>
+    <Pressable onPress={onPress} onFocus={onHover} onHoverIn={onHover} accessibilityLabel={meta.name} style={({ hovered, focused }: any) => [{ width: w }, (focused) && { transform: [{ scale: 1.04 }] }, hovered && !selected && { opacity: 0.9 }]}>
       {({ hovered, focused }: any) => (
         <>
-          <Image source={wide ? meta.background ?? meta.poster : meta.poster} style={[wide ? st.wide : st.poster, (selected || hovered || focused) && st.ring]} contentFit="cover" transition={200} recyclingKey={meta.id} />
+          <Image source={wide ? meta.background ?? meta.poster : meta.poster} style={[wide ? st.wide : st.poster, { width: w }, (selected || hovered || focused) && st.ring]} contentFit="cover" transition={200} recyclingKey={meta.id} />
           {progress !== undefined ? <View style={st.track}><View style={[st.fill, { width: `${Math.round(progress * 100)}%` }]} /></View> : null}
           <Text style={[font(600, 14), { marginTop: 8 }]} numberOfLines={1}>{meta.name}</Text>
           <Text style={font(400, 13, C.faint)} numberOfLines={1}>{sub ?? [meta.releaseInfo, meta.imdbRating && `IMDb ${meta.imdbRating}`].filter(Boolean).join(" · ")}</Text>
