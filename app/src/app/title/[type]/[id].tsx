@@ -153,8 +153,21 @@ export default function Title() {
                   <Pressable key={i} onPress={() => play(s)} style={({ hovered, focused }: any) => [st.stream, (hovered || focused) && st.streamOn]}>
                     <View style={{ flex: 1 }}>
                       <Text style={font(700, 14)} numberOfLines={1}>{d.quality}{i === 0 ? <Text style={font(600, 12, C.red)}>   Meilleur</Text> : null}</Text>
-                      <Text style={font(400, 12, C.mute)} numberOfLines={2}>{d.external ? "Lien externe · " : ""}{d.source}</Text>
-                      {d.details.map((l, j) => <Text key={j} style={[font(400, 12, C.faint), { marginTop: 2 }]} numberOfLines={2}>{l}</Text>)}
+                      {d.chips.length || d.langs.length ? (
+                        <>
+                          <View style={st.chips}>
+                            {d.chips.map((c, j) => <Text key={c} style={[st.badge, font(j ? 600 : 700, 11, j ? C.soft : C.ink)]}>{c}</Text>)}
+                            {d.langs.map(cc => <Image key={cc} source={`https://flagcdn.com/w40/${cc}.png`} style={st.flag} contentFit="cover" accessibilityLabel={cc.toUpperCase()} />)}
+                            {d.multi ? <Text style={[st.badge, font(600, 11, C.soft)]}>MULTi</Text> : null}
+                          </View>
+                          <Text style={[font(400, 11, C.faint), { marginTop: 6 }]} numberOfLines={1}>{d.file ?? d.source}</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Text style={font(400, 12, C.mute)} numberOfLines={2}>{d.external ? "Lien externe · " : ""}{d.source}</Text>
+                          {d.details.map((l, j) => <Text key={j} style={[font(400, 12, C.faint), { marginTop: 2 }]} numberOfLines={2}>{l}</Text>)}
+                        </>
+                      )}
                     </View>
                     {d.size ? <Text style={font(500, 12, C.soft)}>{d.size}</Text> : null}
                   </Pressable>
@@ -224,6 +237,9 @@ const st = StyleSheet.create({
   tag: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.1)" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 32 },
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
+  chips: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 5, marginTop: 7 },
+  badge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, backgroundColor: "rgba(255,255,255,0.09)", overflow: "hidden" },
+  flag: { width: 20, height: 14, borderRadius: 2 },
   play: { height: 50, paddingHorizontal: 26, borderRadius: 12, backgroundColor: C.red, flexDirection: "row", alignItems: "center", gap: 10 },
   ghost: { height: 50, paddingHorizontal: 22, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.1)", justifyContent: "center" },
   side: { width: 400, backgroundColor: "rgba(8,8,10,0.78)" },
