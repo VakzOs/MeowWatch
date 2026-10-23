@@ -108,7 +108,9 @@ test("profils : PIN, reprise séparée, anti-devinette, modification et suppress
   assert.equal((await (await api("/api/auth/me", c)).json()).profile.name, "Enfant");
   assert.deepEqual((await (await api("/api/sync", c)).json()).progress, []); // reprise propre au profil
 
-  await post("/api/profiles", { pin: null, name: "Enfants", avatar: "chat-vert" }, "PATCH");
+  assert.equal((await post("/api/profiles", { pin: null }, "PATCH")).status, 403); // retirer le code demande le code
+  assert.equal((await post("/api/profiles", { pin: "5555", currentPin: "0000" }, "PATCH")).status, 403);
+  await post("/api/profiles", { pin: null, currentPin: "1234", name: "Enfants", avatar: "chat-vert" }, "PATCH");
   assert.deepEqual((await (await api("/api/auth/me", c)).json()).profile, { id: kid.id, name: "Enfants", color: "#3FA66B", locked: false, main: false, avatar: "chat-vert" });
   assert.equal((await api("/api/admin", c)).status, 403); // un profil secondaire ne gère pas les accès
   await post("/api/profiles/leave", {});

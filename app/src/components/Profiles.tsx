@@ -52,25 +52,42 @@ export function ProfilePicker() {
   const [list, setList] = useState<List | null>(null);
   const [asking, setAsking] = useState<Profile | null>(null);
   const [adding, setAdding] = useState(false);
+  const [manage, setManage] = useState(false);
+  const [editing, setEditing] = useState<Profile | null>(null);
   const refresh = useCallback(() => api<List>("/api/profiles").then(setList), []);
   useEffect(() => { refresh(); }, [refresh]);
 
-  if (asking) return <PinPad face={asking} onCancel={() => setAsking(null)} onPin={pin => selectProfile(asking.id, pin)} />;
+  // En mode gestion, on ouvre le profil côté serveur (code compris) sans entrer dans l'appli.
+  const openEditor = (p: Profile, pin?: string) => api<Profile>("/api/profiles/select", { method: "POST", body: JSON.stringify({ id: p.id, pin }) }).then(fresh => { setAsking(null); setEditing(fresh); });
+  const closeEditor = () => api("/api/profiles/leave", { method: "POST" }).finally(() => { setEditing(null); refresh(); });
+  const choose = (p: Profile) => (manage ? (p.locked ? setAsking(p) : openEditor(p)) : p.locked ? setAsking(p) : selectProfile(p.id));
+
+  if (editing) return (
+    <Screen>
+      <View style={st.panel}>
+        <Text style={[font(700, 30), { marginBottom: 28 }]}>Modifier le profil</Text>
+        <ProfileEditor profile={editing} onChange={setEditing} onDeleted={closeEditor} />
+        <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 28 }}><Btn label="Terminé" onPress={closeEditor} /></View>
+      </View>
+    </Screen>
+  );
+  if (asking) return <PinPad face={asking} onCancel={() => setAsking(null)} onPin={pin => (manage ? openEditor(asking, pin) : selectProfile(asking.id, pin))} />;
   if (adding) return <NewProfile onDone={() => { setAdding(false); refresh(); }} />;
   return (
     <Screen>
-      <Rise i={0}><Text style={[font(700, 44), { textAlign: "center", letterSpacing: -0.5 }]}>Qui regarde ?</Text></Rise>
-      <Rise i={1}><Text style={[font(400, 17, C.mute), { textAlign: "center", marginTop: 10, marginBottom: 56 }]}>Choisis ton profil pour retrouver ta reprise.</Text></Rise>
+      <Rise i={0}><Text style={[font(700, 44), { textAlign: "center", letterSpacing: -0.5 }]}>{manage ? "Gérer les profils" : "Qui regarde ?"}</Text></Rise>
+      <Rise i={1}><Text style={[font(400, 17, C.mute), { textAlign: "center", marginTop: 10, marginBottom: 56 }]}>{manage ? "Choisis le profil à modifier." : "Choisis ton profil pour retrouver ta reprise."}</Text></Rise>
       {!list ? <ActivityIndicator color={C.red} /> : (
         <View style={st.grid}>
           {list.profiles.map((p, i) => (
             <Rise key={p.id} i={i + 2}>
-              <Tile label={p.name} onPress={() => (p.locked ? setAsking(p) : selectProfile(p.id))} badge={p.locked ? <View style={st.badge}><Lock size={15} color={C.ink} /></View> : null}>
+              <Tile label={p.name} onPress={() => choose(p)} badge={p.locked ? <View style={st.badge}><Lock size={15} color={C.ink} /></View> : null}>
                 <ProfileAvatar p={p} size={168} />
+                {manage ? <View style={st.editVeil}><Pencil /></View> : null}
               </Tile>
             </Rise>
           ))}
-          {list.profiles.length < list.max ? (
+          {!manage && list.profiles.length < list.max ? (
             <Rise i={list.profiles.length + 2}>
               <Tile label="Ajouter un profil" muted onPress={() => setAdding(true)}>
                 <View style={st.add}>
@@ -81,9 +98,10 @@ export function ProfilePicker() {
           ) : null}
         </View>
       )}
-      <Pressable onPress={logout} style={({ hovered }: any) => [st.link, hovered && { backgroundColor: "rgba(255,255,255,0.08)" }]}>
-        <Text style={font(500, 14, C.mute)}>Se déconnecter</Text>
-      </Pressable>
+      <View style={{ flexDirection: "row", gap: 12, marginTop: 56 }}>
+        {manage ? <Btn label="Terminé" onPress={() => setManage(false)} /> : <Btn label="Gérer les profils" onPress={() => setManage(true)} ghost />}
+        {!manage ? <Btn label="Se déconnecter" onPress={logout} ghost /> : null}
+      </View>
     </Screen>
   );
 }
@@ -162,6 +180,56 @@ export function AvatarGrid({ value, onChange, size = 88 }: { value?: string | nu
   );
 }
 
+const Pencil = () => (
+  <Svg width={40} height={40} viewBox="0 0 24 24" fill="none" stroke={C.ink} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />
+  </Svg>
+);
+
+type PinStep = { step: "current"; then: "change" | "remove" | "delete" } | { step: "new"; current?: string } | null;
+
+/** Modifier un profil déjà ouvert côté serveur : nom, avatar, code, suppression.
+ *  Changer ou retirer le code, ou supprimer un profil verrouillé, redemande le code actuel. */
+export function ProfileEditor({ profile, onChange, onDeleted }: { profile: Profile; onChange: (p: Profile) => void; onDeleted: () => void }) {
+  const [name, setName] = useState(profile.name);
+  const [pin, setPin] = useState<PinStep>(null);
+  const [confirm, setConfirm] = useState(false);
+  const [msg, setMsg] = useState<string>();
+  const patch = (b: object) => api<Profile>("/api/profiles", { method: "PATCH", body: JSON.stringify(b) }).then(p => { onChange(p); setMsg(undefined); return p; });
+  const remove = (currentPin?: string) => api("/api/profiles", { method: "DELETE", body: JSON.stringify({ currentPin }) }).then(onDeleted);
+  const show = (e: Error) => setMsg(e.message);
+
+  if (pin?.step === "current") return (
+    <PinPad framed={false} face={profile} hint="Entre le code actuel" onCancel={() => setPin(null)} onPin={code =>
+      pin.then === "remove" ? patch({ pin: null, currentPin: code }).then(() => setPin(null))
+        : pin.then === "delete" ? remove(code)
+          : api("/api/profiles/select", { method: "POST", body: JSON.stringify({ id: profile.id, pin: code }) }).then(() => setPin({ step: "new", current: code }))} />
+  );
+  if (pin?.step === "new") return (
+    <PinPad framed={false} face={profile} hint="Choisis un nouveau code à 4 chiffres" onCancel={() => setPin(null)} onPin={code => patch({ pin: code, currentPin: pin.current }).then(() => setPin(null))} />
+  );
+  return (
+    <View style={{ flexDirection: "row", gap: 28, alignItems: "flex-start" }}>
+      <ProfileAvatar p={profile} size={120} />
+      <View style={{ flex: 1, gap: 16 }}>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <TextInput value={name} onChangeText={setName} onSubmitEditing={() => patch({ name }).catch(show)} maxLength={20} style={[font(500, 16), st.input, { flex: 1 }]} accessibilityLabel="Nom du profil" />
+          <Btn label="Renommer" onPress={() => patch({ name }).catch(show)} ghost />
+        </View>
+        <AvatarGrid value={profile.avatar} onChange={a => patch({ avatar: a.key, color: a.color }).catch(show)} size={44} />
+        <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
+          <Btn icon label={profile.locked ? "Changer le code" : "Verrouiller par un code"} onPress={() => setPin(profile.locked ? { step: "current", then: "change" } : { step: "new" })} ghost />
+          {profile.locked ? <Btn label="Retirer le code" onPress={() => setPin({ step: "current", then: "remove" })} ghost /> : null}
+          {profile.main ? null : confirm
+            ? <Btn label="Oui, supprimer (sa reprise aussi)" onPress={() => (profile.locked ? setPin({ step: "current", then: "delete" }) : remove().catch(show))} />
+            : <Btn label="Supprimer ce profil" onPress={() => setConfirm(true)} ghost />}
+        </View>
+        {msg ? <Text style={font(500, 14, "#FF8A94")}>{msg}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
 function NewProfile({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState(AVATARS[1]);
@@ -211,6 +279,7 @@ const st = StyleSheet.create({
   tile: { width: 184, alignItems: "center" },
   ring: { borderRadius: 40, borderWidth: 3, borderColor: "transparent", padding: 5 },
   ringOn: { borderColor: C.ink },
+  editVeil: { position: "absolute", top: 5, left: 5, right: 5, bottom: 5, borderRadius: 34, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" },
   badge: { position: "absolute", right: 0, bottom: 0, width: 38, height: 38, borderRadius: 19, backgroundColor: "#121214", borderWidth: 3, borderColor: "#08080A", alignItems: "center", justifyContent: "center" },
   add: { width: 168, height: 168, borderRadius: 34, backgroundColor: "rgba(255,255,255,0.07)", alignItems: "center", justifyContent: "center" },
   link: { marginTop: 56, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999 },

@@ -15,15 +15,16 @@ const NAV: { label: string; icon: IconName; href?: Href }[] = [
   { label: "Addons", icon: "puzzle", href: "/addons" },
 ];
 
-/** Mise en page C3 : barre latérale + contenu, sur le fond flouté du titre sélectionné. */
-export function Shell({ children }: { children: ReactNode }) {
+/** Mise en page C3 : barre latérale + contenu, sur le fond flouté du titre sélectionné.
+ *  Montée une seule fois dans la mise en page racine (pas de flash entre les pages) ; `bare` pour le lecteur. */
+export function Shell({ children, bare }: { children: ReactNode; bare?: boolean }) {
   const ambiance = useStore(s => s.ambiance);
   const profile = useStore(s => s.user?.profile);
   return (
     <View style={st.root}>
       {ambiance ? <Image source={ambiance} style={st.amb} blurRadius={48} contentFit="cover" transition={400} /> : null}
       <View style={st.scrim} pointerEvents="none" />
-      <View style={st.side}>
+      <View style={[st.side, bare && { display: "none" }]}>
         <View style={st.brand}>
           <Image source={require("../../assets/logo.svg")} style={{ width: 32, height: 32 }} />
           <Text style={font(700, 18)}>MeowWatch</Text>
