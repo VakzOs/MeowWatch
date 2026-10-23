@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MeowWatch",
+    "name": "Meow Watch",
     "slug": "meowwatch",
     "scheme": "meowwatch",
     "version": "0.1.0",
@@ -13,7 +13,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0B0B0C",
+        "backgroundColor": "#D6182A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

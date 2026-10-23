@@ -19,7 +19,7 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
   document.head.appendChild(css);
   // Icône d'onglet : nouvelle adresse versionnée, sinon le navigateur garde l'ancienne en cache.
   document.querySelectorAll('link[rel~="icon"]').forEach(l => l.remove());
-  for (const [rel, href] of [["icon", "/icon-192.png?v=2"], ["apple-touch-icon", "/apple-touch-icon.png?v=2"]]) {
+  for (const [rel, href] of [["icon", "/icon-192.png?v=3"], ["apple-touch-icon", "/apple-touch-icon.png?v=3"]]) {
     const l = document.createElement("link"); l.rel = rel; l.href = href; document.head.appendChild(l);
   }
 }
