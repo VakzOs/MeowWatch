@@ -6,7 +6,7 @@ import { Icon } from "../../../components/Icon";
 import { C, font, genreList } from "../../../components/theme";
 import { describe, fetchMeta, fetchStreamsFor, imdbEquivalent, type FoundStream, type Meta, type Video } from "../../../lib/addons";
 import { api, type Translation } from "../../../lib/api";
-import { getProgress, setAmbiance, useStore } from "../../../lib/store";
+import { getProgress, setAmbiance, toggleLibrary, useStore } from "../../../lib/store";
 
 const epLabel = (v: Video) => `S${v.season} · É${v.episode}`;
 const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
@@ -15,6 +15,7 @@ const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
 export default function Title() {
   const { type, id, name, poster } = useLocalSearchParams<{ type: string; id: string; name?: string; poster?: string }>();
   const addons = useStore(s => s.addons);
+  const inLibrary = useStore(s => !!s.library[id] && !s.library[id].removed);
   const [meta, setMeta] = useState<Meta>({ id, type, name: name ?? "", poster });
   const lang = useStore(s => s.lang);
   const canTranslate = useStore(s => !!s.user?.translate);
@@ -99,6 +100,10 @@ export default function Title() {
           <Pressable onPress={onMain} style={({ hovered }: any) => [st.play, hovered && { opacity: 0.9 }]}>
             <Icon name="play" color={C.ink} />
             <Text style={font(700, 16)}>{mainLabel}</Text>
+          </Pressable>
+          <Pressable onPress={() => toggleLibrary(meta)} accessibilityLabel={inLibrary ? "Retirer de la bibliothèque" : "Ajouter à la bibliothèque"} style={({ hovered }: any) => [st.ghost, st.row, hovered && { backgroundColor: "rgba(255,255,255,0.18)" }]}>
+            <Icon name={inLibrary ? "check" : "plus"} size={18} color={C.ink} />
+            <Text style={font(600, 15)}>{inLibrary ? "Dans la bibliothèque" : "Bibliothèque"}</Text>
           </Pressable>
           {trailer ? (
             <Pressable onPress={() => Linking.openURL(`https://www.youtube.com/watch?v=${trailer}`)} style={({ hovered }: any) => [st.ghost, hovered && { backgroundColor: "rgba(255,255,255,0.18)" }]}>
@@ -215,7 +220,8 @@ const st = StyleSheet.create({
   imdb: { ...font(700, 11, "#000"), backgroundColor: "#F5C518", paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3 },
   label: { ...font(600, 12, C.mute), marginTop: 14, marginBottom: 8 },
   tag: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.1)" },
-  actions: { flexDirection: "row", gap: 12, marginTop: 32 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 32 },
+  row: { flexDirection: "row", alignItems: "center", gap: 8 },
   play: { height: 50, paddingHorizontal: 26, borderRadius: 12, backgroundColor: C.red, flexDirection: "row", alignItems: "center", gap: 10 },
   ghost: { height: 50, paddingHorizontal: 22, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.1)", justifyContent: "center" },
   side: { width: 400, backgroundColor: "rgba(8,8,10,0.78)" },

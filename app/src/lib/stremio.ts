@@ -1,7 +1,7 @@
 // Import d'un compte Stremio : connexion « link » (comme les applis TV de Stremio), puis addons et reprise.
 // Formats vérifiés dans stremio-core (types/api, types/library) ; les deux services renvoient CORS « * ».
 import type { Addon, Manifest } from "./addons";
-import type { Progress } from "./sync";
+import type { LibraryItem as Item, Progress } from "./sync";
 
 const LINK = "https://link.stremio.com/api";
 const API = "https://api.strem.io/api";
@@ -32,7 +32,7 @@ export async function waitForAuth(code: string, { signal, timeoutMs = 5 * 60e3 }
 
 type Descriptor = { transportUrl: string; manifest: Manifest; flags?: { official?: boolean; protected?: boolean } };
 type LibraryItem = {
-  _id: string; name: string; type: string; poster?: string | null; removed: boolean; temp: boolean; _mtime: string;
+  _id: string; name: string; type: string; poster?: string | null; removed: boolean; temp: boolean; _ctime?: string; _mtime: string;
   state: { lastWatched?: string | null; timeOffset: number; duration?: number; video_id?: string | null };
 };
 
@@ -42,7 +42,7 @@ export async function fetchAccount(authKey: string) {
     post<{ addons: Descriptor[] }>("addonCollectionGet", { type: "AddonCollectionGet", authKey, update: true }),
     post<LibraryItem[]>("datastoreGet", { authKey, collection: "libraryItem", ids: [], all: true }),
   ]);
-  return { addons: toAddons(addons), progress: toProgress(library) };
+  return { addons: toAddons(addons), progress: toProgress(library), library: toLibrary(library) };
 }
 
 /** Addons Stremio → addons Meow Watch (sans les addons locaux de l'appli Stremio, injoignables d'ici). */
@@ -65,6 +65,14 @@ export const toProgress = (items: LibraryItem[]): Progress[] =>
       duration: (i.state.duration || 0) / 1000,
       updatedAt: Date.parse(i.state.lastWatched || i._mtime) || Date.now(),
     }));
+
+/** Bibliothèque Stremio → bibliothèque Meow Watch : les titres ajoutés et pas retirés (« temp » = seulement vus). */
+export const toLibrary = (items: LibraryItem[]): Item[] =>
+  items.filter(i => i.type !== "other" && !i.removed && !i.temp)
+    .map(i => {
+      const addedAt = Date.parse(i._ctime || i._mtime) || Date.now();
+      return { meta: { id: i._id, type: i.type, name: i.name, poster: i.poster || undefined }, addedAt, updatedAt: addedAt };
+    });
 
 /** Ajoute les addons importés après ceux déjà installés, sans doublon. */
 export const mergeAddons = (mine: Addon[], theirs: Addon[]) => {

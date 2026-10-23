@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mergeAddons, toAddons, toProgress } from "./stremio.ts";
+import { mergeAddons, toAddons, toLibrary, toProgress } from "./stremio.ts";
 
 test("addons Stremio : on garde les addons en ligne, pas l'addon local", () => {
   const m = (id: string) => ({ id, name: id });
@@ -35,4 +35,11 @@ test("bibliothèque Stremio → reprise, règle de « Continuer à regarder » d
     time: 1200, duration: 3000, updatedAt: Date.parse("2026-10-20T21:00:00Z"),
   });
   assert.equal(p[3].duration, 0);
+});
+
+test("bibliothèque Stremio : titres ajoutés, ni retirés ni seulement vus", () => {
+  const item = (id: string, extra: object = {}) => ({ _id: id, name: id, type: "movie", poster: "", removed: false, temp: false, _ctime: "2026-09-01T10:00:00Z", _mtime: "2026-10-01T10:00:00Z", state: { timeOffset: 0 }, ...extra });
+  const lib = toLibrary([item("tt1"), item("tt2", { removed: true }), item("tt3", { temp: true }), item("tt4", { type: "other" })]);
+  assert.deepEqual(lib.map(i => i.meta.id), ["tt1"]);
+  assert.equal(lib[0].addedAt, Date.parse("2026-09-01T10:00:00Z"));
 });

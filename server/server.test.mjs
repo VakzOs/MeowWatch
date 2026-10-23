@@ -85,7 +85,7 @@ test("synchro par compte : addons, reprise la plus récente, comptes séparés",
   const [, eric] = await login("code-eric");
   const put = (path, cookie, body) => api(path, cookie, { method: "PUT", body: JSON.stringify(body) });
   assert.equal((await api("/api/sync")).status, 401);
-  assert.deepEqual(await (await api("/api/sync", eric)).json(), { addons: null, progress: [] });
+  assert.deepEqual(await (await api("/api/sync", eric)).json(), { addons: null, progress: [], library: [] });
 
   const addons = [{ url: "https://x/manifest.json", manifest: { id: "x", name: "X" } }];
   assert.equal((await put("/api/sync/addons", eric, { addons })).status, 200);
@@ -101,9 +101,16 @@ test("synchro par compte : addons, reprise la plus récente, comptes séparés",
   assert.deepEqual(sync.addons, addons);
   assert.deepEqual(sync.progress.map(p => p.time), [300]);
 
+  const item = (id, updatedAt, removed) => ({ meta: { id, type: "movie", name: id }, addedAt: 1, updatedAt, removed });
+  assert.equal((await put("/api/sync/library", eric, [{ nope: 1 }])).status, 400);
+  await put("/api/sync/library", eric, [item("tt1", 1000), item("tt2", 1000)]);
+  await put("/api/sync/library", eric, [item("tt1", 3000, true), item("tt2", 500, true)]); // tt2 : retrait plus ancien, ignoré
+  const lib = (await (await api("/api/sync", eric)).json()).library;
+  assert.deepEqual(lib.map(i => [i.meta.id, !!i.removed]), [["tt1", true], ["tt2", false]]);
+
   const { code } = await (await api("/api/admin/invites", eric, { method: "POST", body: "{}" })).json(); // eric a ouvert son profil principal plus haut
   const [, ami] = await login("code-ami", code);
-  assert.deepEqual(await (await api("/api/sync", ami)).json(), { addons: null, progress: [] });
+  assert.deepEqual(await (await api("/api/sync", ami)).json(), { addons: null, progress: [], library: [] });
 });
 
 test("profils : PIN, reprise séparée, anti-devinette, modification et suppression", async () => {
