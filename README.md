@@ -32,4 +32,4 @@ cd .. && cp .env.example .env                              # PUBLIC_URL=http://l
 node --env-file=.env server/server.mjs                     # http://localhost:3500
 ```
 
-Tests : `npm test` dans `app/` (protocole des addons), `node --test server/` (connexion et invitations).
+Tests : `npm test` dans `app/` (protocole des addons), `node --test server/*.test.mjs` (connexion et invitations).
