@@ -19,6 +19,8 @@ export function start(env = process.env) {
     clientSecret: env.DISCORD_CLIENT_SECRET ?? "",
     owner: env.OWNER_DISCORD_ID ?? "",
     discord: (env.DISCORD_URL ?? "https://discord.com").replace(/\/$/, ""), // remplaçable pour les tests
+    tmdbKey: env.TMDB_API_KEY ?? "", // facultatif : fiches traduites (clé v3 ou jeton de lecture v4)
+    tmdb: (env.TMDB_URL ?? "https://api.themoviedb.org").replace(/\/$/, ""),
     web: env.WEB_DIR ?? join(dirname(fileURLToPath(import.meta.url)), "../app/dist"),
     db: env.DB_PATH ?? "./data/meowwatch.db",
   };
@@ -83,7 +85,7 @@ export function start(env = process.env) {
   const profileView = p => p && { id: p.id, name: p.name, color: p.color, locked: !!p.pin, main: p.id === mainId(p.user_id), avatar: p.avatar };
   // Les images des avatars sont dans l'appli ; le serveur ne garde que leur nom.
   const avatarKey = a => (typeof a === "string" && /^[a-z0-9-]{1,40}$/.test(a) ? a : null);
-  const view = u => u && { id: u.id, name: u.name, avatar: u.avatar, owner: u.id === cfg.owner, profile: u.profile_id ? profileView(q.profile.get(u.profile_id, u.id)) ?? null : null };
+  const view = u => u && { id: u.id, name: u.name, avatar: u.avatar, owner: u.id === cfg.owner, translate: !!cfg.tmdbKey, profile: u.profile_id ? profileView(q.profile.get(u.profile_id, u.id)) ?? null : null };
   /** Les profils du compte ; le premier est créé au nom Discord et récupère l'ancienne reprise. */
   function profilesOf(u) {
     let list = q.profiles.all(u.id);
@@ -98,6 +100,35 @@ export function start(env = process.env) {
   const pinHash = pin => { const salt = randomBytes(16); return `${salt.toString("hex")}:${scryptSync(pin, salt, 32).toString("hex")}`; };
   const pinOk = (pin, stored) => { const [salt, h] = stored.split(":"); return timingSafeEqual(scryptSync(String(pin), Buffer.from(salt, "hex"), 32), Buffer.from(h, "hex")); };
   const validPin = pin => /^\d{4}$/.test(pin);
+  // Fiches traduites par TMDB, à partir de l'identifiant IMDb (tt…) que donnent Cinemeta et les addons de flux.
+  // ponytail: cache en mémoire (7 jours, 2000 fiches max, perdu au redémarrage) ; passer en table SQLite si besoin.
+  const tmdbCache = new Map();
+  async function tmdb(path, lang) {
+    const v4 = cfg.tmdbKey.length > 40; // jeton de lecture v4 (long) ou clé v3
+    const u = `${cfg.tmdb}/3${path}${path.includes("?") ? "&" : "?"}language=${lang}${v4 ? "" : `&api_key=${cfg.tmdbKey}`}`;
+    const r = await fetch(u, { headers: v4 ? { authorization: `Bearer ${cfg.tmdbKey}` } : {} });
+    if (!r.ok) throw new Error(`TMDB ${r.status}`);
+    return r.json();
+  }
+  async function translated(type, imdb, lang) {
+    const key = `${lang}:${type}:${imdb}`, hit = tmdbCache.get(key);
+    if (hit && hit.at > Date.now() - 7 * 864e5) return hit.data;
+    const found = await tmdb(`/find/${imdb}?external_source=imdb_id`, lang);
+    const item = (type === "series" ? found.tv_results : found.movie_results)?.[0];
+    let data = null;
+    if (item) {
+      const d = await tmdb(type === "series" ? `/tv/${item.id}` : `/movie/${item.id}`, lang);
+      data = { name: d.title ?? d.name, description: d.overview || undefined, genres: (d.genres ?? []).map(g => g.name), episodes: {} };
+      if (type === "series") {
+        const seasons = (d.seasons ?? []).map(x => x.season_number).slice(0, 40);
+        const lists = await Promise.all(seasons.map(n => tmdb(`/tv/${item.id}/season/${n}`, lang).catch(() => null)));
+        for (const l of lists) for (const e of l?.episodes ?? []) data.episodes[`${e.season_number}:${e.episode_number}`] = { name: e.name, overview: e.overview || undefined };
+      }
+    }
+    if (tmdbCache.size > 2000) tmdbCache.delete(tmdbCache.keys().next().value);
+    tmdbCache.set(key, { at: Date.now(), data });
+    return data;
+  }
   // Anti-devinette : 5 mauvais codes bloquent le profil 5 minutes.
   const fails = new Map();
   /** Vérifie le code d'un profil verrouillé ; renvoie [statut, message] en cas de refus. */
@@ -151,6 +182,13 @@ export function start(env = process.env) {
     },
     "GET /api/auth/me": (req, res) => { const u = me(req); u ? json(res, 200, view(u)) : json(res, 401, { error: "non connecté" }); },
     "POST /api/auth/logout": (req, res) => { const t = cookies(req).mw_session; if (t) q.deleteSession.run(hash(t)); json(res, 200, { ok: true }, { "set-cookie": cookie("mw_session", "", 0) }); },
+    "GET /api/translate": member(async (req, res, url) => {
+      if (!cfg.tmdbKey) return json(res, 404, { error: "Traduction non configurée (TMDB_API_KEY)." });
+      const type = url.searchParams.get("type"), id = url.searchParams.get("id") ?? "", lang = url.searchParams.get("lang") ?? "fr-FR";
+      if (!["movie", "series"].includes(type) || !/^tt\d{5,10}$/.test(id) || !/^[a-z]{2}-[A-Z]{2}$/.test(lang)) return json(res, 400, { error: "requête invalide" });
+      try { const data = await translated(type, id, lang); data ? json(res, 200, data, { "cache-control": "private, max-age=86400" }) : json(res, 404, { error: "introuvable sur TMDB" }); }
+      catch (e) { console.error("TMDB :", e.message); json(res, 502, { error: "TMDB indisponible" }); }
+    }),
     "GET /api/invite": (req, res, url) => json(res, q.invite.get(url.searchParams.get("code") ?? "", Date.now()) ? 200 : 404, {}),
 
     // Profils (façon Netflix) : la reprise est propre à chaque profil, les addons sont communs au compte.

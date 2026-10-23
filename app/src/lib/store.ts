@@ -9,10 +9,11 @@ export type { Progress };
 
 // Les addons (communs au compte) et la reprise (propre au profil) vivent sur le serveur ;
 // l'appareil en garde une copie pour démarrer vite et tenir si le réseau saute.
-type State = { ready: boolean; addons: Addon[]; progress: Record<string, Progress>; ambiance?: string; user?: User | null; lastSync?: number };
+export type Lang = "fr-FR" | "en";
+type State = { lang: Lang; ready: boolean; addons: Addon[]; progress: Record<string, Progress>; ambiance?: string; user?: User | null; lastSync?: number };
 
 const LEGACY_KEY = "meowwatch:v1"; // avant la synchro : données sans compte
-let state: State = { ready: false, addons: [], progress: {} };
+let state: State = { lang: "fr-FR", ready: false, addons: [], progress: {} };
 const listeners = new Set<() => void>();
 const key = () => `meowwatch:v1:${state.user?.id}:${state.user?.profile?.id}`;
 
@@ -29,7 +30,12 @@ export function useStore<T>(pick: (s: State) => T): T {
 
 const readJSON = async (k: string) => { try { return JSON.parse((await AsyncStorage.getItem(k)) ?? "null"); } catch { return null; } };
 
+/** Langue des fiches (choix de l'appareil) : français via TMDB, ou anglais (Cinemeta tel quel). */
+export function setLang(lang: Lang) { set({ lang }); AsyncStorage.setItem("meowwatch:lang", lang).catch(() => {}); }
+
 export async function load() {
+  const lang = await AsyncStorage.getItem("meowwatch:lang").catch(() => null);
+  if (lang === "en" || lang === "fr-FR") state.lang = lang;
   const user = await api<User>("/api/auth/me").catch(() => null);
   if (user?.profile) await open(user);
   set({ ready: true, user, ...(!user?.profile && { addons: [], progress: {} }) });

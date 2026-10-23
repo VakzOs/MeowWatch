@@ -4,7 +4,7 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, T
 import { C, font } from "../components/theme";
 import { api, type Admin } from "../lib/api";
 import { ProfileEditor } from "../components/Profiles";
-import { leaveProfile, logout, pull, updateProfile, useStore } from "../lib/store";
+import { leaveProfile, logout, pull, setLang, updateProfile, useStore } from "../lib/store";
 
 const day = (t: number) => new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
 
@@ -25,6 +25,7 @@ export default function Reglages() {
         </View>
         <ProfileSettings />
         <Sync />
+        <Language />
         {user.owner && user.profile?.main ? <Access /> : null}
       </ScrollView>
     </>
@@ -39,6 +40,28 @@ function ProfileSettings() {
       <Text style={[font(600, 18), st.h]}>Profil</Text>
       <View style={[st.row, { padding: 20 }]}>
         <View style={{ flex: 1 }}><ProfileEditor key={profile.id} profile={profile} onChange={updateProfile} onDeleted={leaveProfile} /></View>
+      </View>
+    </>
+  );
+}
+
+/** Langue des titres, résumés et épisodes sur les pages des titres. */
+function Language() {
+  const lang = useStore(s => s.lang);
+  const user = useStore(s => s.user)!;
+  return (
+    <>
+      <Text style={[font(600, 18), st.h]}>Langue des fiches</Text>
+      <View style={st.row}>
+        <View style={{ flex: 1 }}>
+          <Text style={font(600, 15)}>{lang === "en" ? "Anglais (Cinemeta)" : "Français"}</Text>
+          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>
+            {user.translate ? "Titres, résumés, genres et épisodes traduits par TMDB. Les affiches et les flux ne changent pas."
+              : user.owner ? "Pas encore disponible : ajoute TMDB_API_KEY dans le .env du serveur (clé gratuite sur themoviedb.org)." : "Pas encore disponible sur ce serveur."}
+          </Text>
+        </View>
+        <Btn label="Français" onPress={() => setLang("fr-FR")} ghost={lang === "en"} />
+        <Btn label="English" onPress={() => setLang("en")} ghost={lang !== "en"} />
       </View>
     </>
   );
@@ -59,7 +82,7 @@ function Sync() {
       <View style={st.row}>
         <View style={{ flex: 1 }}>
           <Text style={font(600, 15)}>{failed ? "Serveur injoignable, la copie de cet appareil est utilisée" : `Synchronisé ${ago}`}</Text>
-          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>Automatique : tes {addons} addons (communs au compte) et la reprise de ce profil sont enregistrés sur le serveur et suivent sur tous tes appareils.</Text>
+          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>Automatique : {addons > 1 ? `tes ${addons} addons` : addons === 1 ? "ton addon" : "tes addons"} (communs au compte) et la reprise de ce profil sont enregistrés sur le serveur et suivent sur tous tes appareils.</Text>
         </View>
         <Btn label={busy ? "Synchro…" : "Synchroniser maintenant"} onPress={() => { setBusy(true); pull().then(ok => setFailed(!ok)).finally(() => setBusy(false)); }} ghost />
       </View>

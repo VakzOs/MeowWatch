@@ -5,6 +5,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet
 import { Icon } from "../../../components/Icon";
 import { C, font, genreList } from "../../../components/theme";
 import { describe, fetchMeta, fetchStreams, type FoundStream, type Meta, type Video } from "../../../lib/addons";
+import { api, type Translation } from "../../../lib/api";
 import { getProgress, setAmbiance, useStore } from "../../../lib/store";
 
 const epLabel = (v: Video) => `S${v.season} · É${v.episode}`;
@@ -15,7 +16,17 @@ export default function Title() {
   const { type, id, name, poster } = useLocalSearchParams<{ type: string; id: string; name?: string; poster?: string }>();
   const addons = useStore(s => s.addons);
   const [meta, setMeta] = useState<Meta>({ id, type, name: name ?? "", poster });
+  const lang = useStore(s => s.lang);
+  const canTranslate = useStore(s => !!s.user?.translate);
+  const [fr, setFr] = useState<Translation | null>(null);
   useEffect(() => { fetchMeta(addons, type, id).then(m => m && setMeta(p => ({ ...p, ...m }))); }, [addons, type, id]);
+  useEffect(() => {
+    setFr(null);
+    if (canTranslate && lang !== "en" && /^tt\d+$/.test(id)) api<Translation>(`/api/translate?type=${type}&id=${id}&lang=${lang}`).then(setFr, () => {});
+  }, [type, id, lang, canTranslate]);
+  // Les textes traduits remplacent ceux de l'addon quand ils existent ; images et identifiants ne changent pas.
+  const t = (key: "name" | "description") => fr?.[key] || meta[key];
+  const epName = (e: Video) => fr?.episodes[`${e.season}:${e.episode}`]?.name || e.name || e.title;
   useEffect(() => { setAmbiance(undefined); }, []);
   useEffect(() => {
     if (Platform.OS !== "web") return;
@@ -68,17 +79,17 @@ export default function Title() {
           <Icon name="back" color={C.ink} size={22} />
         </Pressable>
         {meta.logo ? <Image source={meta.logo} style={st.logo} contentFit="contain" contentPosition="left" accessibilityLabel={meta.name} />
-          : <Text style={[font(700, 44), { marginBottom: 24 }]}>{meta.name}</Text>}
+          : <Text style={[font(700, 44), { marginBottom: 24 }]}>{t("name")}</Text>}
         <View style={st.facts}>
           {[meta.runtime, meta.releaseInfo].filter(Boolean).map(t => <Text key={t} style={font(600, 16)}>{t}</Text>)}
           {meta.imdbRating ? <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}><Text style={font(600, 16)}>{meta.imdbRating}</Text><Text style={st.imdb}>IMDb</Text></View> : null}
         </View>
-        {meta.genres?.length ? <Chips title="Genres" items={genreList(meta.genres)} /> : null}
+        {fr?.genres?.length || meta.genres?.length ? <Chips title="Genres" items={fr?.genres?.length ? fr.genres : genreList(meta.genres)} /> : null}
         {meta.cast?.length ? <Chips title="Distribution" items={meta.cast.slice(0, 6)} /> : null}
-        {meta.description ? (
+        {t("description") ? (
           <>
             <Text style={st.label}>Résumé</Text>
-            <Text style={[font(400, 16, C.soft), { lineHeight: 24, maxWidth: 720 }]}>{meta.description}</Text>
+            <Text style={[font(400, 16, C.soft), { lineHeight: 24, maxWidth: 720 }]}>{t("description")}</Text>
           </>
         ) : null}
         <View style={st.actions}>
@@ -109,7 +120,7 @@ export default function Title() {
                 <Pressable key={e.id} onPress={() => setVideo(e)} style={({ hovered }: any) => [st.ep, hovered && st.epHover]}>
                   {e.thumbnail ? <Image source={e.thumbnail} style={st.thumb} contentFit="cover" /> : <View style={[st.thumb, { backgroundColor: C.raised }]} />}
                   <View style={{ flex: 1 }}>
-                    <Text style={font(600, 14)} numberOfLines={2}>{e.episode}. {e.name ?? e.title ?? `Épisode ${e.episode}`}</Text>
+                    <Text style={font(600, 14)} numberOfLines={2}>{e.episode}. {epName(e) ?? `Épisode ${e.episode}`}</Text>
                     {e.released ? <Text style={font(400, 12, C.faint)}>{new Date(e.released).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</Text> : null}
                     {saved?.videoId === e.id && saved.duration ? <View style={st.track}><View style={[st.fill, { width: `${Math.round((saved.time / saved.duration) * 100)}%` }]} /></View> : null}
                   </View>
@@ -121,7 +132,7 @@ export default function Title() {
           <>
             <View style={st.sideHead}>
               {isSeries ? <Pressable onPress={() => setVideo(null)} accessibilityLabel="Épisodes" style={st.iconBtn}><Icon name="back" color={C.ink} size={18} /></Pressable> : null}
-              <Text style={[font(600, 14), { flex: 1 }]} numberOfLines={1}>{video ? `${epLabel(video)} ${video.name ?? video.title ?? ""}` : "Flux des addons"}</Text>
+              <Text style={[font(600, 14), { flex: 1 }]} numberOfLines={1}>{video ? `${epLabel(video)} ${epName(video) ?? ""}` : "Flux des addons"}</Text>
               {streams ? <Text style={font(500, 13, C.mute)}>{shown.length}</Text> : null}
             </View>
             <ScrollView contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}>
