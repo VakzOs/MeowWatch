@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Meta } from "../lib/addons";
 import { setAmbiance } from "../lib/store";
 
@@ -9,6 +9,8 @@ import { setAmbiance } from "../lib/store";
 export const openTitle = (m: Meta, season?: number) => router.push({ pathname: "/title/[type]/[id]", params: { type: m.type, id: m.id, name: m.name, poster: m.poster ?? "", ...(season !== undefined && { season: String(season) }) } });
 export const hoverTitle = (m: Meta) => setAmbiance(m.background ?? m.poster);
 import { C, font } from "./theme";
+
+const MAX = 10; // titres par rangée (Vakz) ; Découvrir montre tout
 
 export type Item = { meta: Meta; wide?: boolean; progress?: number; sub?: string };
 
@@ -18,6 +20,7 @@ export function Row({ title, note, load, selected, onSelect, onHover }: {
 }) {
   const [items, setItems] = useState<Item[] | null>(null);
   useEffect(() => { let on = true; load().then(i => on && setItems(i), () => on && setItems([])); return () => { on = false; }; }, [load]);
+  const scroll = useWheelScroll();
   if (items && !items.length) return null;
   return (
     <View style={{ marginTop: 24 }}>
@@ -25,12 +28,31 @@ export function Row({ title, note, load, selected, onSelect, onHover }: {
         <Text style={font(600, 18)}>{title}</Text>
         {note ? <Text style={font(500, 13, C.faint)}>{note}</Text> : null}
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.scroll}>
-        {items ? items.map(i => <Card key={i.meta.id} item={i} selected={selected === i.meta.id} onPress={() => onSelect(i.meta)} onHover={() => onHover?.(i.meta)} />)
+      <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.scroll}>
+        {items ? items.slice(0, MAX).map(i => <Card key={i.meta.id} item={i} selected={selected === i.meta.id} onPress={() => onSelect(i.meta)} onHover={() => onHover?.(i.meta)} />)
           : Array.from({ length: 6 }, (_, k) => <View key={k} style={[st.poster, st.ghost]} />)}
       </ScrollView>
     </View>
   );
+}
+
+/** Web : la molette fait défiler la rangée de côté ; au bout de la rangée, elle fait défiler la page. */
+function useWheelScroll() {
+  const ref = useRef<any>(null); // ScrollView de react-native-web (getScrollableNode)
+  useEffect(() => {
+    const el = ref.current?.getScrollableNode?.() as HTMLElement | undefined;
+    if (Platform.OS !== "web" || !el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return; // pavé tactile : défilement de côté déjà natif
+      const max = el.scrollWidth - el.clientWidth;
+      if ((e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1)) return;
+      e.preventDefault();
+      el.scrollBy({ left: e.deltaY * 2.5, behavior: "smooth" });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  });
+  return ref;
 }
 
 export function Card({ item: { meta, wide, progress, sub }, selected, onPress, onHover, width }: { item: Item; selected: boolean; onPress: () => void; onHover: () => void; width?: number }) {

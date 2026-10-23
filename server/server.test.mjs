@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { test } from "node:test";
-import { isPrivate, start, toVtt } from "./server.mjs";
+import { decodeSubtitle, isPrivate, start, toVtt } from "./server.mjs";
 
 const PEOPLE = { "code-eric": { id: "1", username: "eric" }, "code-ami": { id: "2", username: "ami", global_name: "Ami", avatar: "abc" }, "code-x": { id: "3", username: "x" } };
 const discord = createServer((req, res) => {
@@ -178,6 +178,12 @@ test("préférences de langue du profil et relais des sous-titres", async () => 
   assert.ok(isPrivate("192.168.1.10") && isPrivate("::1") && isPrivate("fd00::1") && !isPrivate("1.1.1.1"));
   assert.equal(toVtt("\uFEFF1\r\n00:00:01,000 --> 00:00:02,500\r\nSalut\r\n"), "WEBVTT\n\n1\n00:00:01.000 --> 00:00:02.500\nSalut\n");
   assert.throws(() => toVtt("[Script Info]"), /non reconnu/);
+  // Encodages : UTF-8, UTF-8 avec un octet abîmé, Windows-1252, et UTF-8 doublement encodé (« MajestÃ© »).
+  const phrase = "Sa Majesté va ériger notre statue";
+  assert.equal(decodeSubtitle(Buffer.from(phrase)), phrase);
+  assert.equal(decodeSubtitle(Buffer.concat([Buffer.from(phrase), Buffer.from([0xff])])), phrase + "\uFFFD");
+  assert.equal(decodeSubtitle(Buffer.from(phrase, "latin1")), phrase);
+  assert.equal(decodeSubtitle(Buffer.from(Buffer.from(phrase).toString("latin1"))), phrase);
 });
 
 test.after(async () => { await app.close(); discord.close(); tmdbSrv.close(); });

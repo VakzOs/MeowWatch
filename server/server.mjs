@@ -13,6 +13,24 @@ const SESSION_DAYS = 60, INVITE_DAYS = 7, MAX_PROFILES = 6;
 export const COLORS = ["#D6182A", "#E8833A", "#E5B92E", "#3FA66B", "#2F8FD8", "#8B5CF6"];
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".ttf": "font/ttf", ".woff2": "font/woff2" };
 
+const MOJIBAKE = /Ã[\u0080-\u00BF]|Â[\u00A0-\u00BF]/g; // « Ã© » : de l'UTF-8 lu comme du Latin-1 / Windows-1252
+/** Texte d'un fichier de sous-titres : UTF-8 (même avec quelques octets abîmés), sinon Windows-1252 ; répare aussi
+ *  les fichiers doublement encodés (« MajestÃ© »), fréquents sur OpenSubtitles. */
+export function decodeSubtitle(buf) {
+  const utf8 = new TextDecoder("utf-8").decode(buf);
+  const bad = (utf8.match(/\uFFFD/g) ?? []).length;
+  let text = utf8;
+  if (bad) {
+    const cp1252 = new TextDecoder("windows-1252").decode(buf);
+    // Vrai Windows-1252 : ses accents ne forment pas de « Ã© » ; UTF-8 abîmé : relu en 1252, il en est plein.
+    if ((cp1252.match(MOJIBAKE) ?? []).length < bad) text = cp1252;
+  }
+  if ((text.match(MOJIBAKE) ?? []).length >= 2 && !/[^\u0000-\u00FF]/.test(text)) {
+    try { text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.from(text, "latin1")); } catch { }
+  }
+  return text;
+}
+
 /** SRT (ou WebVTT) → WebVTT, que lisent le navigateur et libmedia. */
 export function toVtt(text) {
   const t = text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").trim();
@@ -172,9 +190,7 @@ export function start(env = process.env) {
     if (!r.ok) throw new Error(`sous-titres indisponibles (${r.status})`);
     const buf = Buffer.from(await r.arrayBuffer());
     if (buf.length > 5e6) throw new Error("fichier trop gros");
-    // Beaucoup de sous-titres sont encore en Windows-1252 : si l'UTF-8 ne colle pas, on relit dans cet encodage.
-    const utf8 = new TextDecoder("utf-8").decode(buf);
-    return utf8.includes("\uFFFD") ? new TextDecoder("windows-1252").decode(buf) : utf8;
+    return decodeSubtitle(buf);
   }
 
   // Anti-devinette : 5 mauvais codes bloquent le profil 5 minutes.
