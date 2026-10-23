@@ -99,7 +99,7 @@ test("profils : PIN, reprise séparée, anti-devinette, modification et suppress
   assert.equal(profiles[0].name, "eric");
 
   const kid = await (await post("/api/profiles", { name: "Enfant", color: "#3FA66B", pin: "1234" })).json();
-  assert.deepEqual({ ...kid, id: 0 }, { id: 0, name: "Enfant", color: "#3FA66B", locked: true, main: false });
+  assert.deepEqual({ ...kid, id: 0 }, { id: 0, name: "Enfant", color: "#3FA66B", locked: true, main: false, avatar: null });
   assert.equal((await post("/api/profiles", { name: "X", pin: "12" })).status, 400);
 
   assert.equal((await post("/api/profiles/select", { id: kid.id })).status, 403);
@@ -108,8 +108,8 @@ test("profils : PIN, reprise séparée, anti-devinette, modification et suppress
   assert.equal((await (await api("/api/auth/me", c)).json()).profile.name, "Enfant");
   assert.deepEqual((await (await api("/api/sync", c)).json()).progress, []); // reprise propre au profil
 
-  await post("/api/profiles", { pin: null, name: "Enfants" }, "PATCH");
-  assert.deepEqual((await (await api("/api/auth/me", c)).json()).profile, { id: kid.id, name: "Enfants", color: "#3FA66B", locked: false, main: false });
+  await post("/api/profiles", { pin: null, name: "Enfants", avatar: "chat-vert" }, "PATCH");
+  assert.deepEqual((await (await api("/api/auth/me", c)).json()).profile, { id: kid.id, name: "Enfants", color: "#3FA66B", locked: false, main: false, avatar: "chat-vert" });
   assert.equal((await api("/api/admin", c)).status, 403); // un profil secondaire ne gère pas les accès
   await post("/api/profiles/leave", {});
   assert.equal((await (await api("/api/auth/me", c)).json()).profile, null);

@@ -4,7 +4,7 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, T
 import { Shell } from "../components/Shell";
 import { C, font } from "../components/theme";
 import { api, type Admin } from "../lib/api";
-import { PinPad, ProfileAvatar } from "../components/Profiles";
+import { AvatarGrid, PinPad, ProfileAvatar } from "../components/Profiles";
 import { leaveProfile, logout, updateProfile, useStore } from "../lib/store";
 import type { Profile } from "../lib/api";
 
@@ -35,31 +35,27 @@ export default function Reglages() {
 function ProfileSettings() {
   const profile = useStore(s => s.user?.profile)!;
   const [name, setName] = useState(profile.name);
-  const [colors, setColors] = useState<string[]>([]);
   const [pinMode, setPinMode] = useState(false);
   const [msg, setMsg] = useState<string>();
   const [confirm, setConfirm] = useState(false);
-  useEffect(() => { api<{ colors: string[] }>("/api/profiles").then(r => setColors(r.colors)); }, []);
   const patch = (b: object) => api<Profile>("/api/profiles", { method: "PATCH", body: JSON.stringify(b) }).then(updateProfile).catch((e: Error) => setMsg(e.message));
   const remove = () => api("/api/profiles", { method: "DELETE" }).then(leaveProfile).catch((e: Error) => setMsg(e.message));
   if (pinMode) return (
-    <View style={{ height: 620, marginTop: 24, borderRadius: 12, overflow: "hidden" }}>
-      <PinPad title={profile.name} hint="Choisis un code à 4 chiffres" onPin={pin => patch({ pin }).then(() => setPinMode(false))} onCancel={() => setPinMode(false)} />
+    <View style={[st.row, { justifyContent: "center", paddingVertical: 32, marginTop: 24 }]}>
+      <PinPad framed={false} face={profile} hint="Choisis un code à 4 chiffres" onPin={pin => patch({ pin }).then(() => setPinMode(false))} onCancel={() => setPinMode(false)} />
     </View>
   );
   return (
     <>
       <Text style={[font(600, 18), st.h]}>Profil</Text>
       <View style={[st.row, { alignItems: "flex-start" }]}>
-        <ProfileAvatar p={profile} size={64} />
+        <ProfileAvatar p={profile} size={96} />
         <View style={{ flex: 1, gap: 14 }}>
           <View style={{ flexDirection: "row", gap: 10 }}>
             <TextInput value={name} onChangeText={setName} onSubmitEditing={() => patch({ name })} maxLength={20} style={[font(500, 15), st.input]} accessibilityLabel="Nom du profil" />
             <Btn label="Renommer" onPress={() => patch({ name })} ghost />
           </View>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            {colors.map(c => <Pressable key={c} onPress={() => patch({ color: c })} accessibilityLabel={`Couleur ${c}`} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c, borderWidth: 3, borderColor: c === profile.color ? C.ink : "transparent" }} />)}
-          </View>
+          <AvatarGrid value={profile.avatar} onChange={a => patch({ avatar: a.key, color: a.color })} size={48} />
           <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
             <Btn label={profile.locked ? "Changer le code" : "Verrouiller par un code"} onPress={() => setPinMode(true)} ghost />
             {profile.locked ? <Btn label="Retirer le code" onPress={() => patch({ pin: null })} ghost /> : null}

@@ -40,6 +40,7 @@ export function start(env = process.env) {
     PRAGMA foreign_keys = ON;`);
   // Bases créées avant les profils : la session retient le profil choisi.
   try { db.exec("ALTER TABLE sessions ADD COLUMN profile_id TEXT"); } catch { }
+  try { db.exec("ALTER TABLE profiles ADD COLUMN avatar TEXT"); } catch { }
   const q = Object.fromEntries(Object.entries({
     user: "SELECT * FROM users WHERE id = ?",
     upsertUser: "INSERT INTO users (id, name, avatar, created_at, invited_by) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar = excluded.avatar",
@@ -60,8 +61,8 @@ export function start(env = process.env) {
     progress: "SELECT data FROM profile_progress WHERE profile_id = ? ORDER BY updated_at DESC LIMIT 500",
     profiles: "SELECT * FROM profiles WHERE user_id = ? ORDER BY created_at",
     profile: "SELECT * FROM profiles WHERE id = ? AND user_id = ?",
-    addProfile: "INSERT INTO profiles (id, user_id, name, color, pin, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-    editProfile: "UPDATE profiles SET name = ?, color = ?, pin = ? WHERE id = ? AND user_id = ?",
+    addProfile: "INSERT INTO profiles (id, user_id, name, color, pin, created_at, avatar) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    editProfile: "UPDATE profiles SET name = ?, color = ?, pin = ?, avatar = ? WHERE id = ? AND user_id = ?",
     deleteProfile: "DELETE FROM profiles WHERE id = ? AND user_id = ?",
     selectProfile: "UPDATE sessions SET profile_id = ? WHERE hash = ?",
     leaveProfile: "UPDATE sessions SET profile_id = NULL WHERE profile_id = ?",
@@ -79,14 +80,16 @@ export function start(env = process.env) {
   const redirect = (res, to, headers = {}) => { res.writeHead(302, { location: to, "cache-control": "no-store", ...headers }); res.end(); };
   // Le premier profil du compte est le principal : lui seul gère les accès, et il ne se supprime pas.
   const mainId = userId => q.profiles.get(userId)?.id;
-  const profileView = p => p && { id: p.id, name: p.name, color: p.color, locked: !!p.pin, main: p.id === mainId(p.user_id) };
+  const profileView = p => p && { id: p.id, name: p.name, color: p.color, locked: !!p.pin, main: p.id === mainId(p.user_id), avatar: p.avatar };
+  // Les images des avatars sont dans l'appli ; le serveur ne garde que leur nom.
+  const avatarKey = a => (typeof a === "string" && /^[a-z0-9-]{1,40}$/.test(a) ? a : null);
   const view = u => u && { id: u.id, name: u.name, avatar: u.avatar, owner: u.id === cfg.owner, profile: u.profile_id ? profileView(q.profile.get(u.profile_id, u.id)) ?? null : null };
   /** Les profils du compte ; le premier est créé au nom Discord et récupère l'ancienne reprise. */
   function profilesOf(u) {
     let list = q.profiles.all(u.id);
     if (!list.length) {
       const id = token(9);
-      q.addProfile.run(id, u.id, u.name.slice(0, 20), COLORS[0], null, Date.now());
+      q.addProfile.run(id, u.id, u.name.slice(0, 20), COLORS[0], null, Date.now(), "chat-rouge");
       q.adoptProgress.run(id, u.id);
       list = q.profiles.all(u.id);
     }
@@ -157,12 +160,12 @@ export function start(env = process.env) {
     }),
     "POST /api/profiles/leave": member((req, res) => { q.selectProfile.run(null, hash(cookies(req).mw_session)); json(res, 200, { ok: true }); }),
     "POST /api/profiles": member(async (req, res, url, u) => {
-      const { name, color, pin } = await body(req);
+      const { name, color, pin, avatar } = await body(req);
       if (profilesOf(u).length >= MAX_PROFILES) return json(res, 400, { error: `${MAX_PROFILES} profils au maximum.` });
       if (!String(name ?? "").trim()) return json(res, 400, { error: "Donne un nom au profil." });
       if (pin && !validPin(pin)) return json(res, 400, { error: "Le code doit faire 4 chiffres." });
       const id = token(9);
-      q.addProfile.run(id, u.id, String(name).trim().slice(0, 20), COLORS.includes(color) ? color : COLORS[0], pin ? pinHash(pin) : null, Date.now());
+      q.addProfile.run(id, u.id, String(name).trim().slice(0, 20), COLORS.includes(color) ? color : COLORS[0], pin ? pinHash(pin) : null, Date.now(), avatarKey(avatar));
       json(res, 201, profileView(q.profile.get(id, u.id)));
     }),
     // Modifier ou supprimer : seulement le profil ouvert (déjà déverrouillé).
@@ -173,7 +176,7 @@ export function start(env = process.env) {
       if (b.pin && !validPin(b.pin)) return json(res, 400, { error: "Le code doit faire 4 chiffres." });
       const name = b.name !== undefined ? String(b.name).trim().slice(0, 20) : p.name;
       if (!name) return json(res, 400, { error: "Donne un nom au profil." });
-      q.editProfile.run(name, COLORS.includes(b.color) ? b.color : p.color, b.pin === null ? null : b.pin ? pinHash(b.pin) : p.pin, p.id, u.id);
+      q.editProfile.run(name, COLORS.includes(b.color) ? b.color : p.color, b.pin === null ? null : b.pin ? pinHash(b.pin) : p.pin, b.avatar !== undefined ? avatarKey(b.avatar) : p.avatar, p.id, u.id);
       json(res, 200, profileView(q.profile.get(p.id, u.id)));
     }),
     "DELETE /api/profiles": member((req, res, url, u) => {

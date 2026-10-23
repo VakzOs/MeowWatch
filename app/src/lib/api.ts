@@ -1,7 +1,7 @@
 // API du serveur MeowWatch (même origine sur le web ; adresse explicite pour les applis natives plus tard).
 export const API = process.env.EXPO_PUBLIC_API_URL ?? "";
 
-export type Profile = { id: string; name: string; color: string; locked: boolean; main: boolean };
+export type Profile = { id: string; name: string; color: string; locked: boolean; main: boolean; avatar: string | null };
 export type User = { id: string; name: string; avatar: string | null; owner: boolean; profile: Profile | null };
 export type Admin = {
   users: (User & { createdAt: number })[];
