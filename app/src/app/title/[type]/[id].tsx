@@ -4,11 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../../../components/Icon";
 import { C, font, genreList } from "../../../components/theme";
-import { describe, fetchMeta, fetchStreamsFor, imdbEquivalent, type FoundStream, type Meta, type Video } from "../../../lib/addons";
+import { describe, epLabel, fetchMeta, fetchStreamsFor, imdbEquivalent, sortedEpisodes, type FoundStream, type Meta, type Video } from "../../../lib/addons";
 import { api, type Translation } from "../../../lib/api";
 import { getProgress, setAmbiance, toggleLibrary, useStore } from "../../../lib/store";
 
-const epLabel = (v: Video) => `S${v.season} · É${v.episode}`;
 const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
 /** Page d'un titre, façon Stremio : grande image, infos à gauche, épisodes puis flux dans la colonne de droite. */
@@ -41,8 +40,7 @@ export default function Title() {
 
   const saved = getProgress(id);
   // Animés (Kitsu…) : épisodes souvent numérotés sans saison → saison 1.
-  const episodes = useMemo(() => (meta.videos ?? []).filter(v => v.season !== undefined || v.episode !== undefined)
-    .map(v => (v.season === undefined ? { ...v, season: 1 } : v)).sort((a, b) => a.season! - b.season! || (a.episode ?? 0) - (b.episode ?? 0)), [meta.videos]);
+  const episodes = useMemo(() => sortedEpisodes(meta.videos), [meta.videos]);
   const seasons = [...new Set(episodes.map(v => v.season!))].sort((a, b) => (a || 99) - (b || 99)); // spéciaux (saison 0) en dernier
   const isSeries = type !== "movie" && episodes.length > 0; // séries, animés, chaînes à épisodes
   const resumeEp = episodes.find(e => e.id === saved?.videoId);
@@ -68,7 +66,7 @@ export default function Title() {
     const vid = v?.id ?? id;
     const alt = imdbEquivalent(meta, v);
     router.push({ pathname: "/play", params: {
-      url: s.url, file: s.behaviorHints?.filename ?? "", subType: alt?.type ?? type, subVid: alt?.id ?? vid, anime: isAnime ? "1" : "", id, type, name: meta.name, poster: meta.poster ?? "", background: meta.background ?? "",
+      url: s.url, file: s.behaviorHints?.filename ?? "", binge: s.behaviorHints?.bingeGroup ?? "", addon: s.addon, subType: alt?.type ?? type, subVid: alt?.id ?? vid, anime: isAnime ? "1" : "", id, type, name: meta.name, poster: meta.poster ?? "", background: meta.background ?? "",
       videoId: vid, label: v ? epLabel(v) : "", start: String(saved?.videoId === vid ? Math.floor(saved!.time) : 0),
     } });
   };
