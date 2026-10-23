@@ -24,6 +24,8 @@ Connexion Discord, réservée au propriétaire et aux personnes qu'il invite.
 
 Mise à jour : `cd ~/MeowWatch && git pull && docker compose up -d --build`.
 
+Fiches en français (facultatif) : créer un compte sur https://www.themoviedb.org, demander une clé dans Paramètres > API, la mettre dans `TMDB_API_KEY` du `.env`, puis `docker compose up -d`.
+
 ## Développement
 
 ```bash

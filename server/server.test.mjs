@@ -14,7 +14,21 @@ const discord = createServer((req, res) => {
   });
 }).listen(0);
 const D = `http://localhost:${discord.address().port}`;
-const app = await start({ PORT: "0", DB_PATH: ":memory:", DISCORD_CLIENT_ID: "id", DISCORD_CLIENT_SECRET: "s", OWNER_DISCORD_ID: "1", DISCORD_URL: D, WEB_DIR: "/nonexistent" });
+// Faux TMDB : un film et une série d'une saison, en français.
+const tmdbCalls = [];
+const tmdbSrv = createServer((req, res) => {
+  const u = new URL(req.url, "http://x"); tmdbCalls.push(u.pathname);
+  res.setHeader("content-type", "application/json");
+  const send = o => res.end(JSON.stringify(o));
+  if (u.searchParams.get("api_key") !== "cle" || u.searchParams.get("language") !== "fr-FR") { res.statusCode = 401; return send({}); }
+  if (u.pathname === "/3/find/tt0460681") return send({ movie_results: [], tv_results: [{ id: 1622 }] });
+  if (u.pathname === "/3/find/tt0120737") return send({ movie_results: [{ id: 120 }], tv_results: [] });
+  if (u.pathname === "/3/tv/1622") return send({ name: "Supernatural", overview: "Deux frères chassent le surnaturel.", genres: [{ name: "Drame" }], seasons: [{ season_number: 1 }] });
+  if (u.pathname === "/3/tv/1622/season/1") return send({ episodes: [{ season_number: 1, episode_number: 1, name: "La Dame blanche", overview: "Sam et Dean…" }] });
+  if (u.pathname === "/3/movie/120") return send({ title: "Le Seigneur des anneaux : La Communauté de l'anneau", overview: "Un hobbit…", genres: [{ name: "Aventure" }] });
+  res.statusCode = 404; send({});
+}).listen(0);
+const app = await start({ PORT: "0", DB_PATH: ":memory:", DISCORD_CLIENT_ID: "id", DISCORD_CLIENT_SECRET: "s", OWNER_DISCORD_ID: "1", DISCORD_URL: D, WEB_DIR: "/nonexistent", TMDB_API_KEY: "cle", TMDB_URL: `http://localhost:${tmdbSrv.address().port}` });
 const A = `http://localhost:${app.server.address().port}`;
 
 const setCookies = r => r.headers.getSetCookie().map(c => c.split(";")[0]);
@@ -30,7 +44,7 @@ const api = (path, cookie, init = {}) => fetch(A + path, { ...init, headers: { c
 test("connexion Discord réservée au propriétaire et à ses invités", async () => {
   const [to, eric] = await login("code-eric");
   assert.equal(to, "/");
-  assert.deepEqual(await (await api("/api/auth/me", eric)).json(), { id: "1", name: "eric", avatar: null, owner: true, profile: null });
+  assert.deepEqual(await (await api("/api/auth/me", eric)).json(), { id: "1", name: "eric", avatar: null, owner: true, translate: true, profile: null });
 
   assert.equal((await api("/api/admin", eric)).status, 403); // pas encore de profil ouvert
   const main = (await (await api("/api/profiles", eric)).json()).profiles[0];
@@ -127,4 +141,18 @@ test("profils : PIN, reprise séparée, anti-devinette, modification et suppress
   assert.equal((await (await api("/api/profiles", c)).json()).profiles.length, 2);
 });
 
-test.after(async () => { await app.close(); discord.close(); });
+test("fiches traduites par TMDB, avec cache", async () => {
+  const [, c] = await login("code-eric");
+  assert.equal((await api("/api/translate?type=series&id=tt0460681")).status, 401);
+  const tv = await (await api("/api/translate?type=series&id=tt0460681&lang=fr-FR", c)).json();
+  assert.equal(tv.description, "Deux frères chassent le surnaturel.");
+  assert.deepEqual(tv.episodes["1:1"], { name: "La Dame blanche", overview: "Sam et Dean…" });
+  const film = await (await api("/api/translate?type=movie&id=tt0120737", c)).json();
+  assert.equal(film.name, "Le Seigneur des anneaux : La Communauté de l'anneau");
+  const n = tmdbCalls.length;
+  await api("/api/translate?type=movie&id=tt0120737", c);
+  assert.equal(tmdbCalls.length, n); // servi par le cache
+  assert.equal((await api("/api/translate?type=movie&id=pas-un-id", c)).status, 400);
+});
+
+test.after(async () => { await app.close(); discord.close(); tmdbSrv.close(); });
