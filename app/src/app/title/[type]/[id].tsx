@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../../../components/Icon";
 import { C, font, genreList } from "../../../components/theme";
@@ -29,11 +29,12 @@ export default function Title() {
   const t = (key: "name" | "description") => fr?.[key] || meta[key];
   const epName = (e: Video) => fr?.episodes[`${e.season}:${e.episode}`]?.name || e.name || e.title;
   useEffect(() => { setAmbiance(undefined); }, []);
-  useEffect(() => {
+  // Échap : retour, seulement quand la page est affichée (elle reste montée sous le lecteur).
+  useFocusEffect(useCallback(() => {
     if (Platform.OS !== "web") return;
     const h = (e: KeyboardEvent) => e.key === "Escape" && back();
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
-  }, []);
+  }, []));
 
   const saved = getProgress(id);
   // Animés (Kitsu…) : épisodes souvent numérotés sans saison → saison 1.
@@ -63,7 +64,7 @@ export default function Title() {
     if (!s.url) return s.externalUrl && Linking.openURL(s.externalUrl);
     const vid = v?.id ?? id;
     router.push({ pathname: "/play", params: {
-      url: s.url, id, type, name: meta.name, poster: meta.poster ?? "", background: meta.background ?? "",
+      url: s.url, file: s.behaviorHints?.filename ?? "", id, type, name: meta.name, poster: meta.poster ?? "", background: meta.background ?? "",
       videoId: vid, label: v ? epLabel(v) : "", start: String(saved?.videoId === vid ? Math.floor(saved!.time) : 0),
     } });
   };
