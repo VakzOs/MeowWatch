@@ -30,8 +30,12 @@ const api = (path, cookie, init = {}) => fetch(A + path, { ...init, headers: { c
 test("connexion Discord réservée au propriétaire et à ses invités", async () => {
   const [to, eric] = await login("code-eric");
   assert.equal(to, "/");
-  assert.deepEqual(await (await api("/api/auth/me", eric)).json(), { id: "1", name: "eric", avatar: null, owner: true });
+  assert.deepEqual(await (await api("/api/auth/me", eric)).json(), { id: "1", name: "eric", avatar: null, owner: true, profile: null });
 
+  assert.equal((await api("/api/admin", eric)).status, 403); // pas encore de profil ouvert
+  const main = (await (await api("/api/profiles", eric)).json()).profiles[0];
+  assert.equal(main.main, true);
+  await api("/api/profiles/select", eric, { method: "POST", body: JSON.stringify({ id: main.id }) });
   assert.deepEqual(await login("code-ami"), ["/?erreur=non-invite", undefined]);
   assert.equal((await api("/api/admin", eric.replace(/=.*/, "=faux"))).status, 403);
 
@@ -73,6 +77,9 @@ test("synchro par compte : addons, reprise la plus récente, comptes séparés",
   assert.equal((await put("/api/sync/addons", eric, { addons })).status, 200);
   assert.equal((await put("/api/sync/addons", eric, { addons: [{ nope: 1 }] })).status, 400);
 
+  assert.equal((await put("/api/sync/progress", eric, { meta: { id: "tt1" }, time: 1, updatedAt: 1 })).status, 409); // aucun profil ouvert
+  const { profiles } = await (await api("/api/profiles", eric)).json();
+  await api("/api/profiles/select", eric, { method: "POST", body: JSON.stringify({ id: profiles[0].id }) });
   const prog = (time, updatedAt) => ({ meta: { id: "tt1", type: "movie", name: "Film" }, videoId: "tt1", time, duration: 6000, updatedAt });
   await put("/api/sync/progress", eric, prog(300, 2000));
   await put("/api/sync/progress", eric, prog(100, 1000)); // appareil en retard : ignoré
@@ -80,9 +87,42 @@ test("synchro par compte : addons, reprise la plus récente, comptes séparés",
   assert.deepEqual(sync.addons, addons);
   assert.deepEqual(sync.progress.map(p => p.time), [300]);
 
-  const { code } = await (await api("/api/admin/invites", eric, { method: "POST", body: "{}" })).json();
+  const { code } = await (await api("/api/admin/invites", eric, { method: "POST", body: "{}" })).json(); // eric a ouvert son profil principal plus haut
   const [, ami] = await login("code-ami", code);
   assert.deepEqual(await (await api("/api/sync", ami)).json(), { addons: null, progress: [] });
+});
+
+test("profils : PIN, reprise séparée, anti-devinette, modification et suppression", async () => {
+  const [, c] = await login("code-eric");
+  const post = (path, body, method = "POST") => api(path, c, { method, body: JSON.stringify(body) });
+  const { profiles } = await (await api("/api/profiles", c)).json();
+  assert.equal(profiles[0].name, "eric");
+
+  const kid = await (await post("/api/profiles", { name: "Enfant", color: "#3FA66B", pin: "1234" })).json();
+  assert.deepEqual({ ...kid, id: 0 }, { id: 0, name: "Enfant", color: "#3FA66B", locked: true, main: false });
+  assert.equal((await post("/api/profiles", { name: "X", pin: "12" })).status, 400);
+
+  assert.equal((await post("/api/profiles/select", { id: kid.id })).status, 403);
+  assert.equal((await post("/api/profiles/select", { id: kid.id, pin: "0000" })).status, 403);
+  assert.equal((await post("/api/profiles/select", { id: kid.id, pin: "1234" })).status, 200);
+  assert.equal((await (await api("/api/auth/me", c)).json()).profile.name, "Enfant");
+  assert.deepEqual((await (await api("/api/sync", c)).json()).progress, []); // reprise propre au profil
+
+  await post("/api/profiles", { pin: null, name: "Enfants" }, "PATCH");
+  assert.deepEqual((await (await api("/api/auth/me", c)).json()).profile, { id: kid.id, name: "Enfants", color: "#3FA66B", locked: false, main: false });
+  assert.equal((await api("/api/admin", c)).status, 403); // un profil secondaire ne gère pas les accès
+  await post("/api/profiles/leave", {});
+  assert.equal((await (await api("/api/auth/me", c)).json()).profile, null);
+
+  const lock = await (await post("/api/profiles", { name: "Coffre", pin: "4321" })).json();
+  for (let i = 0; i < 5; i++) await post("/api/profiles/select", { id: lock.id, pin: "9999" });
+  assert.equal((await post("/api/profiles/select", { id: lock.id, pin: "4321" })).status, 429); // bloqué même avec le bon code
+
+  await post("/api/profiles/select", { id: profiles[0].id });
+  assert.equal((await api("/api/profiles", c, { method: "DELETE" })).status, 400); // principal
+  await post("/api/profiles/select", { id: kid.id });
+  assert.equal((await api("/api/profiles", c, { method: "DELETE" })).status, 200);
+  assert.equal((await (await api("/api/profiles", c)).json()).profiles.length, 2);
 });
 
 test.after(async () => { await app.close(); discord.close(); });
