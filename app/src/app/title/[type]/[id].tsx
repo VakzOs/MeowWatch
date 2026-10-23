@@ -71,8 +71,8 @@ export default function Title() {
   return (
     <View style={st.root}>
       {meta.background ? <Image source={meta.background.replace("/medium/", "/large/")} style={StyleSheet.absoluteFill} contentFit="cover" transition={400} /> : null}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(8,8,10,0.55)" }]} />
-      <View style={st.fadeLeft} />
+      {/* Voile uniforme sur toute la largeur (un dégradé partiel laissait une cassure sur grand écran). */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(8,8,10,0.62)" }]} />
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={st.info}>
         <Pressable onPress={back} accessibilityLabel="Retour" style={({ hovered }: any) => [st.back, hovered && { backgroundColor: "rgba(255,255,255,0.12)" }]}>
@@ -108,13 +108,7 @@ export default function Title() {
       <View style={st.side}>
         {isSeries && !video ? (
           <>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, padding: 16 }}>
-              {seasons.map(n => (
-                <Pressable key={n} onPress={() => setSeason(n)} style={[st.chip, season === n && st.chipOn]}>
-                  <Text style={font(600, 13, season === n ? C.ink : C.mute)}>{n ? `Saison ${n}` : "Spéciaux"}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <SeasonPicker seasons={seasons} value={season} onChange={setSeason} />
             <ScrollView contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}>
               {episodes.filter(e => e.season === season).map(e => (
                 <Pressable key={e.id} onPress={() => setVideo(e)} style={({ hovered }: any) => [st.ep, hovered && st.epHover]}>
@@ -159,6 +153,37 @@ export default function Title() {
   );
 }
 
+const seasonName = (n: number) => (n ? `Saison ${n}` : "Spéciaux");
+
+/** ‹ Saison 5 › ; un clic sur le nom déplie toutes les saisons (pratique au-delà de quelques saisons). */
+function SeasonPicker({ seasons, value, onChange }: { seasons: number[]; value?: number; onChange: (n: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const i = Math.max(0, seasons.indexOf(value ?? seasons[0]));
+  const go = (d: number) => seasons[i + d] !== undefined && onChange(seasons[i + d]);
+  return (
+    <View style={st.picker}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Pressable onPress={() => go(-1)} disabled={i === 0} accessibilityLabel="Saison précédente" style={[st.iconBtn, i === 0 && { opacity: 0.3 }]}><Icon name="back" color={C.ink} size={18} /></Pressable>
+        <Pressable onPress={() => setOpen(o => !o)} style={({ hovered }: any) => [st.pickerName, hovered && { backgroundColor: "rgba(255,255,255,0.1)" }]}>
+          <Text style={font(700, 15)}>{seasonName(seasons[i])}</Text>
+          <Icon name={open ? "up" : "down"} color={C.mute} size={16} />
+        </Pressable>
+        <Pressable onPress={() => go(1)} disabled={i === seasons.length - 1} accessibilityLabel="Saison suivante" style={[st.iconBtn, i === seasons.length - 1 && { opacity: 0.3 }]}><Icon name="next" color={C.ink} size={18} /></Pressable>
+        <Text style={[font(500, 13, C.faint), { marginLeft: "auto" as any }]}>{seasons.filter(Boolean).length} saisons</Text>
+      </View>
+      {open ? (
+        <View style={st.grid}>
+          {seasons.map(n => (
+            <Pressable key={n} onPress={() => { onChange(n); setOpen(false); }} style={({ hovered }: any) => [st.chip, n === seasons[i] ? st.chipOn : hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}>
+              <Text style={font(600, 13, n === seasons[i] ? C.ink : C.soft)}>{n || "Sp."}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function Chips({ title, items }: { title: string; items: string[] }) {
   return (
     <>
@@ -172,7 +197,6 @@ function Chips({ title, items }: { title: string; items: string[] }) {
 
 const st = StyleSheet.create({
   root: { flex: 1, flexDirection: "row", backgroundColor: "#08080A" },
-  fadeLeft: { ...StyleSheet.absoluteFill, right: "35%", backgroundColor: "rgba(8,8,10,0.35)" },
   info: { padding: 40, paddingTop: 28, paddingBottom: 48, minHeight: "100%" as any, justifyContent: "flex-end" },
   back: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", marginBottom: "auto" as any },
   logo: { width: 420, height: 150, marginTop: 32, marginBottom: 28 },
@@ -186,7 +210,10 @@ const st = StyleSheet.create({
   side: { width: 400, backgroundColor: "rgba(8,8,10,0.78)" },
   sideHead: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 18 },
   iconBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)" },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.08)" },
+  chip: { minWidth: 44, alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.08)" },
+  picker: { padding: 16, gap: 12 },
+  pickerName: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, height: 36, borderRadius: 10 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chipOn: { backgroundColor: C.red },
   ep: { flexDirection: "row", gap: 12, padding: 8, borderRadius: 10, alignItems: "center" },
   epHover: { backgroundColor: "rgba(255,255,255,0.07)" },

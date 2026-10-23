@@ -10,6 +10,7 @@ const SHAPES = {
   search: <><Circle cx="11" cy="11" r="7" /><Path d="m20 20-3.5-3.5" /></>,
   play: <Path d="M7 4v16l13-8z" fill="currentColor" />,
   back: <Path d="M15 5l-7 7 7 7" />,
+  next: <Path d="M9 5l7 7-7 7" />,
   close: <Path d="M6 6l12 12M18 6 6 18" />,
   up: <Path d="m6 15 6-6 6 6" />,
   down: <Path d="m6 9 6 6 6-6" />,
