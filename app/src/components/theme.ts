@@ -22,6 +22,9 @@ const GENRE_FR: Record<string, string> = {
   Drama: "Drame", Action: "Action", Adventure: "Aventure", Comedy: "Comédie", Thriller: "Thriller", Horror: "Horreur",
   Crime: "Policier", "Sci-Fi": "SF", Fantasy: "Fantastique", Mystery: "Mystère", Animation: "Animation", Biography: "Biopic",
   History: "Histoire", Documentary: "Documentaire", Family: "Famille", War: "Guerre", Romance: "Romance", Music: "Musique", Western: "Western",
+  // Genres des addons d'animés (Kitsu…)
+  Space: "Espace", "Slice of Life": "Tranche de vie", Supernatural: "Surnaturel", Sports: "Sport", Psychological: "Psychologique",
+  Magic: "Magie", School: "École", Military: "Militaire", Historical: "Historique", Mecha: "Mecha", Ecchi: "Ecchi", Shounen: "Shōnen", Shoujo: "Shōjo", Seinen: "Seinen", Josei: "Josei", Isekai: "Isekai",
 };
 // Noms des catalogues de Cinemeta (en anglais) ; ceux des autres addons restent tels quels.
 const CATALOG_FR: Record<string, string> = { Popular: "Populaires", New: "Nouveautés", Featured: "À la une", Top: "Les mieux notés", Trending: "Tendances" };

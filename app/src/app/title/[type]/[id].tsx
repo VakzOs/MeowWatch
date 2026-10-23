@@ -35,9 +35,11 @@ export default function Title() {
   }, []);
 
   const saved = getProgress(id);
-  const episodes = useMemo(() => (meta.videos ?? []).filter(v => v.season !== undefined).sort((a, b) => a.season! - b.season! || a.episode! - b.episode!), [meta.videos]);
+  // Animés (Kitsu…) : épisodes souvent numérotés sans saison → saison 1.
+  const episodes = useMemo(() => (meta.videos ?? []).filter(v => v.season !== undefined || v.episode !== undefined)
+    .map(v => (v.season === undefined ? { ...v, season: 1 } : v)).sort((a, b) => a.season! - b.season! || (a.episode ?? 0) - (b.episode ?? 0)), [meta.videos]);
   const seasons = [...new Set(episodes.map(v => v.season!))].sort((a, b) => (a || 99) - (b || 99)); // spéciaux (saison 0) en dernier
-  const isSeries = type === "series" && episodes.length > 0;
+  const isSeries = type !== "movie" && episodes.length > 0; // séries, animés, chaînes à épisodes
   const resumeEp = episodes.find(e => e.id === saved?.videoId);
   const [season, setSeason] = useState<number>();
   const [video, setVideo] = useState<Video | null>(null); // épisode ouvert dans la colonne (sinon : liste des épisodes)
@@ -160,6 +162,8 @@ function SeasonPicker({ seasons, value, onChange }: { seasons: number[]; value?:
   const [open, setOpen] = useState(false);
   const i = Math.max(0, seasons.indexOf(value ?? seasons[0]));
   const go = (d: number) => seasons[i + d] !== undefined && onChange(seasons[i + d]);
+  const n = seasons.filter(Boolean).length;
+  if (seasons.length < 2) return <View style={st.picker}><Text style={font(700, 15)}>Épisodes</Text></View>;
   return (
     <View style={st.picker}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -169,7 +173,7 @@ function SeasonPicker({ seasons, value, onChange }: { seasons: number[]; value?:
           <Icon name={open ? "up" : "down"} color={C.mute} size={16} />
         </Pressable>
         <Pressable onPress={() => go(1)} disabled={i === seasons.length - 1} accessibilityLabel="Saison suivante" style={[st.iconBtn, i === seasons.length - 1 && { opacity: 0.3 }]}><Icon name="next" color={C.ink} size={18} /></Pressable>
-        <Text style={[font(500, 13, C.faint), { marginLeft: "auto" as any }]}>{seasons.filter(Boolean).length} saisons</Text>
+        <Text style={[font(500, 13, C.faint), { marginLeft: "auto" as any }]}>{n} saison{n > 1 ? "s" : ""}</Text>
       </View>
       {open ? (
         <View style={st.grid}>
