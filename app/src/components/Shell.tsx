@@ -11,7 +11,7 @@ import { C, font } from "./theme";
 const NAV: { label: string; icon: IconName; href?: Href }[] = [
   { label: "Accueil", icon: "home", href: "/" },
   { label: "Découvrir", icon: "compass", href: "/decouvrir" },
-  { label: "Bibliothèque", icon: "library" },
+  { label: "Bibliothèque", icon: "library", href: "/bibliotheque" },
   { label: "Calendrier", icon: "calendar" },
   { label: "Addons", icon: "puzzle", href: "/addons" },
 ];

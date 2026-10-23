@@ -46,9 +46,9 @@ export default function Addons() {
   );
 }
 
-type Step = { s: "idle" } | { s: "code"; code: string; link: string; qrcode: string } | { s: "import" } | { s: "done"; addons: number; progress: number } | { s: "error"; text: string };
+type Step = { s: "idle" } | { s: "code"; code: string; link: string; qrcode: string } | { s: "import" } | { s: "done"; addons: number; progress: number; library: number } | { s: "error"; text: string };
 
-/** Connexion « link » de Stremio : on ouvre leur page, on valide, et Meow Watch récupère addons et reprise.
+/** Connexion « link » de Stremio : on ouvre leur page, on valide, et Meow Watch récupère addons, reprise et bibliothèque.
  *  Meow Watch ne voit jamais le mot de passe, et la clé Stremio n'est gardée nulle part. */
 function StremioImport() {
   const [step, setStep] = useState<Step>({ s: "idle" });
@@ -70,7 +70,7 @@ function StremioImport() {
       <View style={{ flex: 1, gap: 6 }}>
         <Text style={font(700, 17)}>Importer depuis Stremio</Text>
         {step.s === "idle" || step.s === "error" ? (
-          <Text style={font(400, 14, step.s === "error" ? "#FF8A94" : C.mute)}>{step.s === "error" ? step.text : "Récupère tes addons (avec ton debrid déjà configuré) et ta reprise depuis ton compte Stremio. Ton mot de passe reste chez Stremio."}</Text>
+          <Text style={font(400, 14, step.s === "error" ? "#FF8A94" : C.mute)}>{step.s === "error" ? step.text : "Récupère tes addons (avec ton debrid déjà configuré) ta reprise et ta bibliothèque depuis ton compte Stremio. Ton mot de passe reste chez Stremio."}</Text>
         ) : step.s === "code" ? (
           <>
             <Text style={font(400, 14, C.soft)}>Ouvre la page Stremio, connecte-toi et valide le code :</Text>
@@ -83,7 +83,7 @@ function StremioImport() {
         ) : step.s === "import" ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}><ActivityIndicator color={C.red} size="small" /><Text style={font(400, 14, C.soft)}>Import en cours…</Text></View>
         ) : (
-          <Text style={font(500, 14, C.soft)}>{step.addons ? `${step.addons} addon${step.addons > 1 ? "s" : ""} ajouté${step.addons > 1 ? "s" : ""}` : "Aucun nouvel addon (déjà tous là)"} · {step.progress} reprise{step.progress > 1 ? "s" : ""} importée{step.progress > 1 ? "s" : ""} dans ce profil.</Text>
+          <Text style={font(500, 14, C.soft)}>{step.addons ? `${step.addons} addon${step.addons > 1 ? "s" : ""} ajouté${step.addons > 1 ? "s" : ""}` : "Aucun nouvel addon (déjà tous là)"} · {step.progress} reprise{step.progress > 1 ? "s" : ""} importée{step.progress > 1 ? "s" : ""} · {step.library} titre{step.library > 1 ? "s" : ""} ajouté{step.library > 1 ? "s" : ""} à la bibliothèque de ce profil.</Text>
         )}
       </View>
       {step.s === "code" ? (

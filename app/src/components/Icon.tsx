@@ -14,6 +14,8 @@ const SHAPES = {
   close: <Path d="M6 6l12 12M18 6 6 18" />,
   up: <Path d="m6 15 6-6 6 6" />,
   down: <Path d="m6 9 6 6 6-6" />,
+  plus: <Path d="M12 5v14M5 12h14" />,
+  check: <Path d="m5 12.5 4.5 4.5L19 7" />,
   link: <Path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />,
 };
 export type IconName = keyof typeof SHAPES;

@@ -39,6 +39,7 @@ export function start(env = process.env) {
     CREATE TABLE IF NOT EXISTS progress (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, meta_id TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (user_id, meta_id));
     CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, name TEXT NOT NULL, color TEXT NOT NULL, pin TEXT, created_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS profile_progress (profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE, meta_id TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (profile_id, meta_id));
+    CREATE TABLE IF NOT EXISTS profile_library (profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE, meta_id TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (profile_id, meta_id));
     PRAGMA foreign_keys = ON;`);
   // Bases créées avant les profils : la session retient le profil choisi.
   try { db.exec("ALTER TABLE sessions ADD COLUMN profile_id TEXT"); } catch { }
@@ -72,6 +73,9 @@ export function start(env = process.env) {
     adoptProgress: "INSERT OR IGNORE INTO profile_progress SELECT ?, meta_id, data, updated_at FROM progress WHERE user_id = ?",
     // La plus récente gagne : un appareil en retard n'écrase pas une position plus neuve.
     saveProgress: "INSERT INTO profile_progress (profile_id, meta_id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(profile_id, meta_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at WHERE excluded.updated_at > profile_progress.updated_at",
+    // Bibliothèque : même règle ; un titre retiré reste en base (removed) pour que les autres appareils l'apprennent.
+    library: "SELECT data FROM profile_library WHERE profile_id = ? ORDER BY updated_at DESC LIMIT 5000",
+    saveLibrary: "INSERT INTO profile_library (profile_id, meta_id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(profile_id, meta_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at WHERE excluded.updated_at > profile_library.updated_at",
   }).map(([k, sql]) => [k, db.prepare(sql)]));
 
   const hash = t => createHash("sha256").update(t).digest("hex");
@@ -235,10 +239,11 @@ export function start(env = process.env) {
       json(res, 200, { ok: true });
     }),
 
-    // Synchro : addons du compte, reprise du profil ouvert.
+    // Synchro : addons du compte, reprise et bibliothèque du profil ouvert.
     "GET /api/sync": member((req, res, url, u) => json(res, 200, {
       addons: (r => (r ? JSON.parse(r.data) : null))(q.addons.get(u.id)),
       progress: u.profile_id ? q.progress.all(u.profile_id).map(r => JSON.parse(r.data)) : [],
+      library: u.profile_id ? q.library.all(u.profile_id).map(r => JSON.parse(r.data)) : [],
     })),
     "PUT /api/sync/addons": member(async (req, res, url, u) => {
       const { addons } = await body(req, 2e6);
@@ -251,6 +256,13 @@ export function start(env = process.env) {
       if (typeof p?.meta?.id !== "string" || typeof p.updatedAt !== "number" || typeof p.time !== "number") return json(res, 400, { error: "reprise invalide" });
       if (!u.profile_id) return json(res, 409, { error: "Choisis d'abord un profil." });
       q.saveProgress.run(u.profile_id, p.meta.id.slice(0, 200), JSON.stringify(p), Math.min(p.updatedAt, Date.now() + 6e4));
+      json(res, 200, { ok: true });
+    }),
+    "PUT /api/sync/library": member(async (req, res, url, u) => {
+      const items = await body(req, 2e6);
+      if (!Array.isArray(items) || items.length > 5000 || !items.every(i => typeof i?.meta?.id === "string" && typeof i.updatedAt === "number")) return json(res, 400, { error: "bibliothèque invalide" });
+      if (!u.profile_id) return json(res, 409, { error: "Choisis d'abord un profil." });
+      for (const i of items) q.saveLibrary.run(u.profile_id, i.meta.id.slice(0, 200), JSON.stringify(i), Math.min(i.updatedAt, Date.now() + 6e4));
       json(res, 200, { ok: true });
     }),
 
