@@ -32,6 +32,8 @@ export function start(env = process.env) {
     CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL, avatar TEXT, created_at INTEGER NOT NULL, invited_by TEXT);
     CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS invites (code TEXT PRIMARY KEY, note TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_by TEXT, used_at INTEGER);
+    CREATE TABLE IF NOT EXISTS addons (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, data TEXT NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS progress (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, meta_id TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (user_id, meta_id));
     PRAGMA foreign_keys = ON;`);
   const q = Object.fromEntries(Object.entries({
     user: "SELECT * FROM users WHERE id = ?",
@@ -48,6 +50,11 @@ export function start(env = process.env) {
     useInvite: "UPDATE invites SET used_by = ?, used_at = ? WHERE code = ? AND used_by IS NULL",
     invites: "SELECT * FROM invites WHERE used_by IS NULL AND expires_at > ? ORDER BY created_at DESC",
     deleteInvite: "DELETE FROM invites WHERE code = ? AND used_by IS NULL",
+    addons: "SELECT data FROM addons WHERE user_id = ?",
+    saveAddons: "INSERT INTO addons (user_id, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
+    progress: "SELECT data FROM progress WHERE user_id = ? ORDER BY updated_at DESC LIMIT 500",
+    // La plus récente gagne : un appareil en retard n'écrase pas une position plus neuve.
+    saveProgress: "INSERT INTO progress (user_id, meta_id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, meta_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at WHERE excluded.updated_at > progress.updated_at",
   }).map(([k, sql]) => [k, db.prepare(sql)]));
 
   const hash = t => createHash("sha256").update(t).digest("hex");
@@ -58,7 +65,7 @@ export function start(env = process.env) {
   const redirect = (res, to, headers = {}) => { res.writeHead(302, { location: to, "cache-control": "no-store", ...headers }); res.end(); };
   const view = u => u && { id: u.id, name: u.name, avatar: u.avatar, owner: u.id === cfg.owner };
   const me = req => { const t = cookies(req).mw_session; return t ? q.session.get(hash(t), Date.now()) : undefined; };
-  const body = req => new Promise((ok, ko) => { let d = ""; req.on("data", c => { d += c; if (d.length > 1e4) ko(new Error("trop gros")); }).on("end", () => { try { ok(d ? JSON.parse(d) : {}); } catch (e) { ko(e); } }); });
+  const body = (req, max = 1e4) => new Promise((ok, ko) => { let d = ""; req.on("data", c => { d += c; if (d.length > max) { ko(Object.assign(new Error("trop gros"), { status: 413 })); req.destroy(); } }).on("end", () => { try { ok(d ? JSON.parse(d) : {}); } catch (e) { ko(e); } }); });
 
   async function discordUser(code) {
     const t = await fetch(`${cfg.discord}/api/oauth2/token`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -98,6 +105,24 @@ export function start(env = process.env) {
     "POST /api/auth/logout": (req, res) => { const t = cookies(req).mw_session; if (t) q.deleteSession.run(hash(t)); json(res, 200, { ok: true }, { "set-cookie": cookie("mw_session", "", 0) }); },
     "GET /api/invite": (req, res, url) => json(res, q.invite.get(url.searchParams.get("code") ?? "", Date.now()) ? 200 : 404, {}),
 
+    // Synchro des addons et de la reprise, par compte.
+    "GET /api/sync": member((req, res, url, u) => json(res, 200, {
+      addons: (r => (r ? JSON.parse(r.data) : null))(q.addons.get(u.id)),
+      progress: q.progress.all(u.id).map(r => JSON.parse(r.data)),
+    })),
+    "PUT /api/sync/addons": member(async (req, res, url, u) => {
+      const { addons } = await body(req, 2e6);
+      if (!Array.isArray(addons) || addons.length > 100 || !addons.every(a => typeof a?.url === "string" && a.manifest?.id)) return json(res, 400, { error: "liste d'addons invalide" });
+      q.saveAddons.run(u.id, JSON.stringify(addons), Date.now());
+      json(res, 200, { ok: true });
+    }),
+    "PUT /api/sync/progress": member(async (req, res, url, u) => {
+      const p = await body(req, 2e4);
+      if (typeof p?.meta?.id !== "string" || typeof p.updatedAt !== "number" || typeof p.time !== "number") return json(res, 400, { error: "reprise invalide" });
+      q.saveProgress.run(u.id, p.meta.id.slice(0, 200), JSON.stringify(p), Math.min(p.updatedAt, Date.now() + 6e4));
+      json(res, 200, { ok: true });
+    }),
+
     // Réservé au propriétaire.
     "GET /api/admin": owner((req, res) => json(res, 200, {
       users: q.users.all().map(u => ({ ...view(u), createdAt: u.created_at })),
@@ -115,6 +140,7 @@ export function start(env = process.env) {
       q.deleteSessionsOf.run(id); q.deleteUser.run(id); json(res, 200, { ok: true });
     }),
   };
+  function member(fn) { return (req, res, url) => { const u = me(req); return u ? fn(req, res, url, u) : json(res, 401, { error: "non connecté" }); }; }
   function owner(fn) { return (req, res, url) => (me(req)?.id === cfg.owner ? fn(req, res, url) : json(res, 403, { error: "réservé au propriétaire" })); }
 
   function serveStatic(req, res, path) {
@@ -135,7 +161,10 @@ export function start(env = process.env) {
       if (url.pathname.startsWith("/api/")) return json(res, 404, { error: "introuvable" });
       if (req.method === "GET" || req.method === "HEAD") return serveStatic(req, res, url.pathname);
       json(res, 405, {});
-    } catch (e) { console.error(e); if (!res.headersSent) json(res, 500, { error: "erreur serveur" }); }
+    } catch (e) {
+      if (e.status === 413 || e instanceof SyntaxError) return res.headersSent || json(res, e.status ?? 400, { error: e.message });
+      console.error(e); if (!res.headersSent) json(res, 500, { error: "erreur serveur" });
+    }
   });
   return new Promise(ok => server.listen(cfg.port, () => ok({ server, db, close: () => new Promise(r => server.close(() => { db.close(); r(); })) })));
 }

@@ -63,4 +63,26 @@ test("état anti-CSRF obligatoire", async () => {
   assert.equal(r.headers.get("location"), "/?erreur=etat");
 });
 
+test("synchro par compte : addons, reprise la plus récente, comptes séparés", async () => {
+  const [, eric] = await login("code-eric");
+  const put = (path, cookie, body) => api(path, cookie, { method: "PUT", body: JSON.stringify(body) });
+  assert.equal((await api("/api/sync")).status, 401);
+  assert.deepEqual(await (await api("/api/sync", eric)).json(), { addons: null, progress: [] });
+
+  const addons = [{ url: "https://x/manifest.json", manifest: { id: "x", name: "X" } }];
+  assert.equal((await put("/api/sync/addons", eric, { addons })).status, 200);
+  assert.equal((await put("/api/sync/addons", eric, { addons: [{ nope: 1 }] })).status, 400);
+
+  const prog = (time, updatedAt) => ({ meta: { id: "tt1", type: "movie", name: "Film" }, videoId: "tt1", time, duration: 6000, updatedAt });
+  await put("/api/sync/progress", eric, prog(300, 2000));
+  await put("/api/sync/progress", eric, prog(100, 1000)); // appareil en retard : ignoré
+  const sync = await (await api("/api/sync", eric)).json();
+  assert.deepEqual(sync.addons, addons);
+  assert.deepEqual(sync.progress.map(p => p.time), [300]);
+
+  const { code } = await (await api("/api/admin/invites", eric, { method: "POST", body: "{}" })).json();
+  const [, ami] = await login("code-ami", code);
+  assert.deepEqual(await (await api("/api/sync", ami)).json(), { addons: null, progress: [] });
+});
+
 test.after(async () => { await app.close(); discord.close(); });
