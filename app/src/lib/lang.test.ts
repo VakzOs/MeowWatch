@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chooseTracks, flagOf, parseVtt, langCode, langName, trackLabel } from "./lang.ts";
+import { chooseTracks, flagOf, isAnime, parseVtt, langCode, langName, trackLabel } from "./lang.ts";
 
 test("codes de langue des pistes", () => {
   assert.equal(langCode("fre"), "fr");
@@ -37,4 +37,12 @@ test("pistes choisies au lancement selon les préférences", () => {
 test("répliques d'un WebVTT", () => {
   const cues = parseVtt("WEBVTT\n\n1\n00:00:01.500 --> 00:00:03.000 align:center\n<i>Salut</i>\nça va ?\n\n2\n01:02.000 --> 01:04.250\nFin\n");
   assert.deepEqual(cues, [{ start: 1.5, end: 3, text: "Salut\nça va ?" }, { start: 62, end: 64.25, text: "Fin" }]);
+});
+
+test("reconnaître un animé", () => {
+  assert.ok(isAnime("series", "tt0112159", ["Animation", "Drama"], "Japan"));
+  assert.ok(isAnime("anime", "kitsu:1"));
+  assert.ok(isAnime("series", "tt1", ["Animation"], "", "ja"));
+  assert.ok(!isAnime("series", "tt11126994", ["Animation"], "United States")); // Arcane
+  assert.equal(langCode("pob"), "pt");
 });

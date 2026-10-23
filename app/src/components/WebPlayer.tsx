@@ -14,9 +14,9 @@ import { C, font } from "./theme";
 export type PlayParams = { url: string; file?: string; binge?: string; addon?: string; subType?: string; subVid?: string; anime?: string; id: string; type: string; name: string; poster: string; background: string; videoId: string; label: string; start: string };
 
 // Réglages du lecteur, retenus sur l'appareil.
-type Prefs = { volume: number; muted: boolean; size: number; color: string; bg: string; autoNext: boolean };
+type Prefs = { volume: number; muted: boolean; size: number; color: string; bg: string; blur: boolean; autoNext: boolean };
 const PREFS_KEY = "meowwatch:lecteur";
-const DEFAULT: Prefs = { volume: 1, muted: false, size: 1, color: "", bg: "", autoNext: true };
+const DEFAULT: Prefs = { volume: 1, muted: false, size: 1, color: "", bg: "", blur: false, autoNext: true };
 const SIZES = [{ k: 0.8, label: "Petit" }, { k: 1, label: "Normal" }, { k: 1.3, label: "Grand" }, { k: 1.6, label: "Très grand" }];
 const COLORS = [{ k: "", label: "D'origine" }, { k: "#FFFFFF", label: "Blanc" }, { k: "#FFE14D", label: "Jaune" }];
 const BGS = [{ k: "", label: "Aucun" }, { k: "rgba(0,0,0,0.55)", label: "Léger" }, { k: "rgba(0,0,0,0.9)", label: "Noir" }];
@@ -46,13 +46,16 @@ function useCss(prefs: Prefs) {
       .mw-player [data-subs="off"] .ASS-box { visibility: hidden; }
       .mw-player .mw-cues { position: absolute; left: 5%; right: 5%; bottom: 5vh; display: flex; flex-direction: column; align-items: center; gap: 0.15em; pointer-events: none; transform: translateY(calc(var(--mw-lift, 0px) + 3vh)); transition: transform 250ms; }
       .mw-player .mw-cues span { font: 500 calc(3.6vh * ${prefs.size}) "InstrumentSans_500Medium", "Instrument Sans", Arial, sans-serif; color: ${prefs.color || "#fff"}; text-align: center; white-space: pre-wrap;
-        ${prefs.bg ? `background: ${prefs.bg}; padding: 0.05em 0.35em; border-radius: 4px;` : "text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 0 0 4px rgba(0,0,0,0.8);"} }
+        ${prefs.blur ? "backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);" : ""}
+        ${prefs.bg || prefs.blur ? `background: ${prefs.bg || "transparent"}; padding: 0.05em 0.35em; border-radius: 6px;` : ""}
+        ${prefs.bg ? "" : "text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 0 0 4px rgba(0,0,0,0.8);"} }
       .mw-player .ASS-box { transform: translateY(var(--mw-lift, 0px)); transition: transform 250ms; }
       .mw-player .ASS-dialogue span { font-size: calc(var(--ass-scale) * var(--ass-real-fs) * ${prefs.size}px) !important;
         ${prefs.color ? `--ass-fill-color: ${prefs.color} !important;` : ""}
-        ${prefs.bg ? `background: ${prefs.bg} !important; padding: 0.05em 0.3em; border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone;` : ""} }
+        ${prefs.bg ? `background: ${prefs.bg} !important;` : ""} ${prefs.blur ? "backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: inline-block;" : ""}
+        ${prefs.bg || prefs.blur ? "padding: 0.05em 0.3em; border-radius: 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone;" : ""} }
     `;
-  }, [prefs.size, prefs.color, prefs.bg]);
+  }, [prefs.size, prefs.color, prefs.bg, prefs.blur]);
 }
 
 function Range({ value, max, onChange, label, width }: { value: number; max: number; onChange: (v: number) => void; label: string; width?: number | string }) {
@@ -109,9 +112,10 @@ export function WebPlayer({ p }: { p: PlayParams }) {
       const saved = await AsyncStorage.getItem(PREFS_KEY).then(r => (r ? { ...DEFAULT, ...JSON.parse(r) } : DEFAULT), () => DEFAULT);
       setPrefsState(saved);
       const subsP = fetchSubtitles(addons, p.subType || p.type, p.subVid || p.videoId, p.file || undefined).then(list => {
-        const choice = p.anime === "1" ? langPrefs.animes : langPrefs.films, rank = (l: string) => (l === choice.subs ? 0 : l === "fr" ? 1 : l === "en" ? 2 : 3);
+        const choice = p.anime === "1" ? langPrefs.animes : langPrefs.films, rank = (l: string) => (l === choice.subs ? 0 : l === choice.subs2 ? 1 : l === "fr" ? 2 : l === "en" ? 3 : 4);
         const n: Record<string, number> = {};
-        const out = list.map(x => ({ ...x, lang: langCode(x.lang) })).sort((a, b) => rank(a.lang) - rank(b.lang)).slice(0, 60)
+        // Langue inconnue : écartés (Vakz) ; ceux des langues voulues d'abord.
+        const out = list.map(x => ({ ...x, lang: langCode(x.lang) })).filter(x => x.lang).sort((a, b) => rank(a.lang) - rank(b.lang)).slice(0, 60)
           .map(x => ({ url: `/api/subtitle.vtt?url=${encodeURIComponent(x.url)}`, lang: x.lang, label: `${langName(x.lang)} · ${x.addon} ${(n[x.lang + x.addon] = (n[x.lang + x.addon] ?? 0) + 1)}` }));
         if (!dead) setExt(out);
         return out;
@@ -125,15 +129,18 @@ export function WebPlayer({ p }: { p: PlayParams }) {
       if (x.suspended()) setBlocked(true);
       x.resize();
       setEng(x);
-      // Langues préférées du profil (règle à part pour les animés) : audio tout de suite, sous-titres une fois ceux des addons connus.
+      // Langues préférées du profil (règle à part pour les animés) : audio et sous-titres du fichier tout de suite ; sinon
+      // sous-titres des addons dès qu'ils arrivent (OpenSubtitles peut être lent), sauf si on en a choisi entre-temps.
       const choice = p.anime === "1" ? langPrefs.animes : langPrefs.films;
-      const extList = await Promise.race([subsP, new Promise<Ext[]>(ok => setTimeout(() => ok([]), 6000))]);
-      if (dead) return;
-      const pick = chooseTracks(choice, x.audio, x.audioId, x.subs, extList);
-      if (pick.audio !== undefined) await x.selectAudio(pick.audio);
-      if (pick.sub && "id" in pick.sub) await x.selectSub(pick.sub.id);
-      else if (pick.sub) await useExt(x, extList[pick.sub.ext]);
+      const first = chooseTracks(choice, x.audio, x.audioId, x.subs, []);
+      if (first.audio !== undefined) await x.selectAudio(first.audio);
+      if (first.sub && "id" in first.sub) await x.selectSub(first.sub.id);
       refresh();
+      if (first.sub || !choice.subs) return;
+      const extList = await subsP;
+      if (dead || picked.current) return;
+      const late = chooseTracks(choice, x.audio, x.audioId, x.subs, extList).sub;
+      if (late && "ext" in late) { await useExt(x, extList[late.ext]); refresh(); }
     })().catch(err => !dead && setError(err?.message ?? String(err)));
     return () => { dead = true; e?.destroy(); };
   }, [p.url]);
@@ -194,13 +201,14 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   const volume = (v: number) => { const x = Math.max(0, Math.min(1, v)); eng?.setVolume(x); setPrefs({ volume: x, muted: x === 0 }); };
   const mute = () => { const m = !prefs.muted; eng?.setVolume(m ? 0 : prefs.volume || 1); setPrefs({ muted: m, volume: prefs.volume || 1 }); };
   const pickAudio = async (t: Track) => { await eng?.selectAudio(t.id); refresh(); };
-  const pickSub = async (id: number) => { await eng?.selectSub(id); refresh(); };
+  const picked = useRef(false); // choix fait à la main : le choix automatique n'y touche plus
+  const pickSub = async (id: number) => { picked.current = true; await eng?.selectSub(id); refresh(); };
   async function useExt(e: Engine, s: Ext) {
     let id = loaded.current.get(s.url);
     if (id === undefined) { id = await e.addSub(s.url, s.lang, s.label); loaded.current.set(s.url, id); }
     await e.selectSub(id);
   }
-  const pickExt = async (s: Ext) => { if (eng) { await useExt(eng, s).catch(() => {}); refresh(); } };
+  const pickExt = async (s: Ext) => { picked.current = true; if (eng) { await useExt(eng, s).catch(() => {}); refresh(); } };
   const lastSub = useRef(-1);
   const toggleSubs = () => { if (!eng?.subs.length) return; if (eng.subId >= 0) { lastSub.current = eng.subId; pickSub(-1); } else pickSub(lastSub.current >= 0 ? lastSub.current : eng.subs[0].id); };
   const changeDelay = (d: number) => { const x = Math.round(d * 10) / 10; setDelay(x); eng?.setSubDelay(x); };
@@ -320,6 +328,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
                   </View>
                 ) : null}
                 <Item label="Apparence des sous-titres" chevron onPress={() => setMenu("style")} />
+                <Text style={st.empty}>Choix automatique : règle « {p.anime === "1" ? "Animés" : "Films et séries"} » (Réglages &gt; Lecture).</Text>
               </>
             ) : null}
             {menu === "style" ? (
@@ -328,6 +337,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
                 <Choice title="Taille" items={SIZES} value={prefs.size} onChange={size => setPrefs({ size })} />
                 <Choice title="Couleur" items={COLORS} value={prefs.color} onChange={color => setPrefs({ color })} />
                 <Choice title="Fond" items={BGS} value={prefs.bg} onChange={bg => setPrefs({ bg })} />
+                <Choice title="Flou derrière le texte" items={[{ k: 0, label: "Non" }, { k: 1, label: "Léger" }]} value={prefs.blur ? 1 : 0} onChange={b => setPrefs({ blur: !!b })} />
               </>
             ) : null}
             {menu === "streams" ? (

@@ -6,6 +6,7 @@ import { Icon } from "../../../components/Icon";
 import { C, font, genreList } from "../../../components/theme";
 import { describe, epLabel, fetchMeta, fetchStreamsFor, imdbEquivalent, sortedEpisodes, type FoundStream, type Meta, type Video } from "../../../lib/addons";
 import { api, type Translation } from "../../../lib/api";
+import { isAnime } from "../../../lib/lang";
 import { getProgress, setAmbiance, toggleLibrary, useStore } from "../../../lib/store";
 
 const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
@@ -27,8 +28,8 @@ export default function Title() {
   // Les textes traduits remplacent ceux de l'addon quand ils existent ; images et identifiants ne changent pas.
   const t = (key: "name" | "description") => fr?.[key] || meta[key];
   const [fullText, setFullText] = useState(false);
-  // Animé (règle de langues à part) : addon d'animés, ou animation d'origine japonaise (TMDB).
-  const isAnime = type === "anime" || id.startsWith("kitsu:") || (fr?.originalLanguage === "ja" && (meta.genres ?? []).some(g => /anim/i.test(g)));
+  // Animé : règle de langues à part (Réglages > Lecture).
+  const anime = isAnime(type, id, meta.genres, meta.country, fr?.originalLanguage);
   const epName = (e: Video) => fr?.episodes[`${e.season}:${e.episode}`]?.name || e.name || e.title;
   useEffect(() => { setAmbiance(undefined); }, []);
   // Échap : retour, seulement quand la page est affichée (elle reste montée sous le lecteur).
@@ -66,7 +67,7 @@ export default function Title() {
     const vid = v?.id ?? id;
     const alt = imdbEquivalent(meta, v);
     router.push({ pathname: "/play", params: {
-      url: s.url, file: s.behaviorHints?.filename ?? "", binge: s.behaviorHints?.bingeGroup ?? "", addon: s.addon, subType: alt?.type ?? type, subVid: alt?.id ?? vid, anime: isAnime ? "1" : "", id, type, name: meta.name, poster: meta.poster ?? "", background: meta.background ?? "",
+      url: s.url, file: s.behaviorHints?.filename ?? "", binge: s.behaviorHints?.bingeGroup ?? "", addon: s.addon, subType: alt?.type ?? type, subVid: alt?.id ?? vid, anime: anime ? "1" : "", id, type, name: meta.name, poster: meta.poster ?? "", background: meta.background ?? "",
       videoId: vid, label: v ? epLabel(v) : "", start: String(saved?.videoId === vid ? Math.floor(saved!.time) : 0),
     } });
   };
