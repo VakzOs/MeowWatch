@@ -233,5 +233,5 @@ const st = StyleSheet.create({
   fill: { height: 3, backgroundColor: C.red },
   stream: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.06)", marginBottom: 8 },
   notice: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.03)", marginBottom: 8, gap: 2 },
-  streamOn: { backgroundColor: "rgba(255,255,255,0.12)", outlineColor: C.red, outlineWidth: 2, outlineStyle: "solid" } as any,
+  streamOn: { backgroundColor: "rgba(255,255,255,0.12)", outlineColor: C.red, outlineWidth: 2, outlineOffset: -2, outlineStyle: "solid" } as any,
 });
