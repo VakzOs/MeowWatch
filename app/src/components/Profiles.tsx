@@ -6,6 +6,7 @@ import { api, type Profile } from "../lib/api";
 import { logout, selectProfile } from "../lib/store";
 import { AVATARS, avatarSrc } from "./avatars";
 import { Backdrop } from "./Backdrop";
+import { BrandMark } from "./BrandMark";
 import { C, font } from "./theme";
 
 type List = { profiles: Profile[]; max: number };
@@ -39,7 +40,7 @@ function Screen({ children }: { children: React.ReactNode }) {
     <View style={st.root}>
       <Backdrop />
       <View style={st.brand}>
-        <Image source={require("../../assets/avatars/chat-rouge.png")} style={{ width: 30, height: 30, borderRadius: 7 }} />
+        <BrandMark size={30} />
         <Text style={font(700, 18)}>Meow Watch</Text>
       </View>
       {children}
