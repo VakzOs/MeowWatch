@@ -154,6 +154,7 @@ export default function Title() {
                     <View style={{ flex: 1 }}>
                       <Text style={font(700, 14)} numberOfLines={1}>{d.quality}{i === 0 ? <Text style={font(600, 12, C.red)}>   Meilleur</Text> : null}</Text>
                       <Text style={font(400, 12, C.mute)} numberOfLines={2}>{d.external ? "Lien externe · " : ""}{d.source}</Text>
+                      {d.details.map((l, j) => <Text key={j} style={[font(400, 12, C.faint), { marginTop: 2 }]} numberOfLines={2}>{l}</Text>)}
                     </View>
                     {d.size ? <Text style={font(500, 12, C.soft)}>{d.size}</Text> : null}
                   </Pressable>
