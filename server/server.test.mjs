@@ -184,6 +184,13 @@ test("préférences de langue du profil et relais des sous-titres", async () => 
   assert.equal(decodeSubtitle(Buffer.concat([Buffer.from(phrase), Buffer.from([0xff])])), phrase + "\uFFFD");
   assert.equal(decodeSubtitle(Buffer.from(phrase, "latin1")), phrase);
   assert.equal(decodeSubtitle(Buffer.from(Buffer.from(phrase).toString("latin1"))), phrase);
+  // Double encodage passé par Windows-1252 (« € », « ’ ») avec une espace fine avant « ? ».
+  const fr = "Tu parles du voyage\u202F? Il a duré dix ans. C’est fini.";
+  const CP = "€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008DŽ\u008F\u0090‘’“”•–—˜™š›œ\u009DžŸ";
+  const twice = Buffer.from(Array.from(Buffer.from(fr), b => (b >= 0x80 && b <= 0x9f ? CP[b - 0x80] : String.fromCharCode(b))).join(""));
+  assert.equal(decodeSubtitle(Buffer.from([0x43, 0x92, 0x65, 0x73, 0x74, 0x20, 0xe9, 0x74, 0xe9])), "C’est été"); // vrai Windows-1252
+  assert.equal(decodeSubtitle(twice), fr);
+  assert.equal(decodeSubtitle(twice), fr); // deux fois de suite : pas d'état gardé entre deux fichiers
 });
 
 test.after(async () => { await app.close(); discord.close(); tmdbSrv.close(); });

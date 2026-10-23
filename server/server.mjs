@@ -13,7 +13,7 @@ const SESSION_DAYS = 60, INVITE_DAYS = 7, MAX_PROFILES = 6;
 export const COLORS = ["#D6182A", "#E8833A", "#E5B92E", "#3FA66B", "#2F8FD8", "#8B5CF6"];
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".ttf": "font/ttf", ".woff2": "font/woff2" };
 
-const MOJIBAKE = /Ã[\u0080-\u00BF]|Â[\u00A0-\u00BF]/g; // « Ã© » : de l'UTF-8 lu comme du Latin-1 / Windows-1252
+const MOJIBAKE = /[ÃÂâ][\u0080-\u00BF\u0152-\u2122]/g; // « Ã© », « â€™ » : de l'UTF-8 lu comme du Latin-1 / Windows-1252
 /** Texte d'un fichier de sous-titres : UTF-8 (même avec quelques octets abîmés), sinon Windows-1252 ; répare aussi
  *  les fichiers doublement encodés (« MajestÃ© »), fréquents sur OpenSubtitles. */
 export function decodeSubtitle(buf) {
@@ -21,14 +21,30 @@ export function decodeSubtitle(buf) {
   const bad = (utf8.match(/\uFFFD/g) ?? []).length;
   let text = utf8;
   if (bad) {
-    const cp1252 = new TextDecoder("windows-1252").decode(buf);
+    const cp1252 = fromCp1252(buf);
     // Vrai Windows-1252 : ses accents ne forment pas de « Ã© » ; UTF-8 abîmé : relu en 1252, il en est plein.
     if ((cp1252.match(MOJIBAKE) ?? []).length < bad) text = cp1252;
   }
-  if ((text.match(MOJIBAKE) ?? []).length >= 2 && !/[^\u0000-\u00FF]/.test(text)) {
-    try { text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.from(text, "latin1")); } catch { }
+  // Une seule séquence suffit : relu en octets, un vrai texte français ne forme presque jamais de l'UTF-8 valide.
+  if (text.search(MOJIBAKE) >= 0) {
+    const bytes = toCp1252(text);
+    if (bytes) try { text = new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch { }
   }
   return text;
+}
+
+// Caractères de Windows-1252 entre 0x80 et 0x9F (le reste correspond au Latin-1).
+const CP1252 = "€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008DŽ\u008F\u0090‘’“”•–—˜™š›œ\u009DžŸ";
+/** Octets Windows-1252 → texte (le décodeur « windows-1252 » de Node se comporte en Latin-1 pour 0x80-0x9F). */
+const fromCp1252 = buf => Array.from(buf, b => (b >= 0x80 && b <= 0x9f ? CP1252[b - 0x80] : String.fromCharCode(b))).join("");
+/** Texte → octets Windows-1252 (null si un caractère n'y existe pas) : défait un double encodage. */
+function toCp1252(text) {
+  const out = Buffer.alloc(text.length);
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i), j = CP1252.indexOf(text[i]);
+    if (j >= 0) out[i] = 0x80 + j; else if (c <= 0xff) out[i] = c; else return null;
+  }
+  return out;
 }
 
 /** SRT (ou WebVTT) → WebVTT, que lisent le navigateur et libmedia. */

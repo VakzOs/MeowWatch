@@ -116,7 +116,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
         const n: Record<string, number> = {};
         // Langue inconnue : écartés (Vakz) ; ceux des langues voulues d'abord.
         const out = list.map(x => ({ ...x, lang: langCode(x.lang) })).filter(x => x.lang).sort((a, b) => rank(a.lang) - rank(b.lang)).slice(0, 60)
-          .map(x => ({ url: `/api/subtitle.vtt?url=${encodeURIComponent(x.url)}`, lang: x.lang, label: `${langName(x.lang)} · ${x.addon} ${(n[x.lang + x.addon] = (n[x.lang + x.addon] ?? 0) + 1)}` }));
+          .map(x => ({ url: `/api/subtitle.vtt?v=2&url=${encodeURIComponent(x.url)}` /* v : change quand la conversion change (cache du navigateur) */, lang: x.lang, label: `${langName(x.lang)} · ${x.addon} ${(n[x.lang + x.addon] = (n[x.lang + x.addon] ?? 0) + 1)}` }));
         if (!dead) setExt(out);
         return out;
       }, () => [] as Ext[]);
