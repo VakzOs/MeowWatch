@@ -3,6 +3,7 @@ import { Link, usePathname, type Href } from "expo-router";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { leaveProfile, useStore } from "../lib/store";
+import { BrandMark } from "./BrandMark";
 import { ProfileAvatar } from "./Profiles";
 import { Icon, type IconName } from "./Icon";
 import { C, font } from "./theme";
@@ -26,7 +27,7 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
       <View style={st.scrim} pointerEvents="none" />
       <View style={[st.side, bare && { display: "none" }]}>
         <View style={st.brand}>
-          <Image source={require("../../assets/avatars/chat-rouge.png")} style={{ width: 32, height: 32, borderRadius: 7 }} />
+          <BrandMark size={32} />
           <Text style={font(700, 18)}>Meow Watch</Text>
         </View>
         {NAV.map(n => <NavItem key={n.label} {...n} />)}

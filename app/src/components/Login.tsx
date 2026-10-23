@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { CINEMETA, fetchManifest, fetchCatalog } from "../lib/addons";
 import { LOGIN_ERRORS, loginUrl } from "../lib/api";
+import { BrandMark } from "./BrandMark";
 import { C, font } from "./theme";
 
 const go = (url: string) => (Platform.OS === "web" ? window.location.assign(url) : Linking.openURL(url));
@@ -19,7 +20,7 @@ export function Login({ error, invite }: { error?: string; invite?: { code: stri
       {bg ? <Image source={bg} style={st.amb} blurRadius={48} contentFit="cover" transition={600} /> : null}
       <View style={st.scrim} />
       <View style={st.card}>
-        <Image source={require("../../assets/avatars/chat-rouge.png")} style={{ width: 72, height: 72, borderRadius: 16, marginBottom: 20 }} />
+        <View style={{ marginBottom: 20 }}><BrandMark size={72} /></View>
         <Text style={[font(700, 32), { marginBottom: 10 }]}>Meow Watch</Text>
         <Text style={[font(400, 16, C.soft), st.lead]}>
           {invite ? (invalid ? "Ce lien d'invitation a déjà servi ou a expiré. Demande-en un nouveau à Vakz." : "Tu es invité sur Meow Watch. Connecte-toi avec Discord pour accepter l'invitation.")
