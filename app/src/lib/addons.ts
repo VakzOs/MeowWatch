@@ -61,6 +61,16 @@ export const homeCatalogs = (addons: Addon[]) =>
 export const searchCatalogs = (addons: Addon[]) =>
   addons.flatMap(a => (a.manifest.catalogs ?? []).filter(c => hasExtra(c, "search") && required(c).every(n => n === "search")).map(c => ({ addon: a, catalog: c })));
 
+/** Catalogues parcourables dans Découvrir : sans paramètre obligatoire, ou avec seulement un genre à choisir. */
+export const discoverCatalogs = (addons: Addon[]) =>
+  addons.flatMap(a => (a.manifest.catalogs ?? []).filter(c => {
+    const req = required(c);
+    return req.every(n => n === "genre") && (!req.length || genreOptions(c).length > 0);
+  }).map(c => ({ addon: a, catalog: c })));
+export const genreOptions = (c: Catalog) => (c.extra ?? []).find(e => e.name === "genre")?.options ?? [];
+export const genreRequired = (c: Catalog) => required(c).includes("genre");
+export const canSkip = (c: Catalog) => hasExtra(c, "skip");
+
 export function catalogUrl(a: Addon, c: Catalog, extra?: Record<string, string>): string {
   const e = extra && Object.entries(extra).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
   return `${base(a)}/catalog/${c.type}/${encodeURIComponent(c.id)}${e ? "/" + e : ""}.json`;

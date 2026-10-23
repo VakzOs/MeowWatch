@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, catalogUrl, configureUrl, describe, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, catalogUrl, configureUrl, describe, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -43,4 +43,16 @@ test("describe lit les flux façon Torrentio, sans emojis", () => {
 test("configureUrl : page de réglages seulement pour les addons configurables", () => {
   assert.equal(configureUrl({ url: "https://t.dev/opts/manifest.json", manifest: { id: "t", name: "T", behaviorHints: { configurable: true } } }), "https://t.dev/opts/configure");
   assert.equal(configureUrl(cinemeta), null);
+});
+
+test("Découvrir : catalogues sans paramètre ou à genre obligatoire (avec choix)", () => {
+  const a: Addon = { url: "https://x/manifest.json", manifest: { id: "x", name: "X", catalogs: [
+    { type: "movie", id: "top", extra: [{ name: "genre", options: ["Action"] }, { name: "skip" }] },
+    { type: "movie", id: "year", extra: [{ name: "genre", isRequired: true, options: ["2026", "2025"] }] },
+    { type: "movie", id: "vide", extra: [{ name: "genre", isRequired: true }] },
+    { type: "series", id: "search", extraRequired: ["search"] },
+  ] } };
+  assert.deepEqual(discoverCatalogs([a]).map(c => c.catalog.id), ["top", "year"]);
+  assert.deepEqual(genreOptions(a.manifest.catalogs![1]), ["2026", "2025"]);
+  assert.equal(catalogUrl(a, a.manifest.catalogs![0], { genre: "Sci-Fi", skip: "100" }), "https://x/catalog/movie/top/genre=Sci-Fi&skip=100.json");
 });

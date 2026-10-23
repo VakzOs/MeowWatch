@@ -1,14 +1,12 @@
-import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Icon } from "../components/Icon";
-import { Row, type Item } from "../components/Row";
-import { C, font, TYPE_FR } from "../components/theme";
+import { hoverTitle, openTitle, Row, type Item } from "../components/Row";
+import { C, catalogName, font, TYPE_FR } from "../components/theme";
 import { fetchCatalog, homeCatalogs, searchCatalogs, type Meta } from "../lib/addons";
-import { setAmbiance, useStore } from "../lib/store";
+import { useStore } from "../lib/store";
 
-const open = (m: Meta) => router.push({ pathname: "/title/[type]/[id]", params: { type: m.type, id: m.id, name: m.name, poster: m.poster ?? "" } });
-const hover = (m: Meta) => setAmbiance(m.background ?? m.poster);
+const open = openTitle, hover = hoverTitle;
 
 export default function Home() {
   const addons = useStore(s => s.addons);
@@ -23,7 +21,7 @@ export default function Home() {
     const list = search ? searchCatalogs(addons) : homeCatalogs(addons);
     return list.map(({ addon, catalog }) => ({
       key: `${addon.url}|${catalog.type}|${catalog.id}|${search}`,
-      title: search ? `${TYPE_FR[catalog.type] ?? catalog.type} : « ${search} »` : `${catalog.name ?? catalog.id} · ${TYPE_FR[catalog.type] ?? catalog.type}`,
+      title: search ? `${TYPE_FR[catalog.type] ?? catalog.type} : « ${search} »` : `${catalogName(catalog.name, catalog.id)} · ${TYPE_FR[catalog.type] ?? catalog.type}`,
       note: addon.manifest.name,
       load: async (): Promise<Item[]> => {
         const metas = await fetchCatalog(addon, catalog, search ? { search } : undefined);

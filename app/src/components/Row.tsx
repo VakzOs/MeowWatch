@@ -1,7 +1,13 @@
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Meta } from "../lib/addons";
+import { setAmbiance } from "../lib/store";
+
+/** Clic sur une vignette : page du titre. Survol : le fond flouté prend son image. */
+export const openTitle = (m: Meta) => router.push({ pathname: "/title/[type]/[id]", params: { type: m.type, id: m.id, name: m.name, poster: m.poster ?? "" } });
+export const hoverTitle = (m: Meta) => setAmbiance(m.background ?? m.poster);
 import { C, font } from "./theme";
 
 export type Item = { meta: Meta; wide?: boolean; progress?: number; sub?: string };
@@ -27,7 +33,7 @@ export function Row({ title, note, load, selected, onSelect, onHover }: {
   );
 }
 
-function Card({ item: { meta, wide, progress, sub }, selected, onPress, onHover }: { item: Item; selected: boolean; onPress: () => void; onHover: () => void }) {
+export function Card({ item: { meta, wide, progress, sub }, selected, onPress, onHover }: { item: Item; selected: boolean; onPress: () => void; onHover: () => void }) {
   return (
     <Pressable onPress={onPress} onFocus={onHover} onHoverIn={onHover} accessibilityLabel={meta.name} style={({ hovered, focused }: any) => [{ width: wide ? 300 : 158 }, (focused) && { transform: [{ scale: 1.04 }] }, hovered && !selected && { opacity: 0.9 }]}>
       {({ hovered, focused }: any) => (
