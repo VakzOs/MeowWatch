@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSyncExternalStore } from "react";
 import { CINEMETA, fetchManifest, type Addon } from "./addons";
 import { api, type Profile, type User } from "./api";
+import { mergeAddons } from "./stremio";
 import { isDone, mergeProgress, type Progress } from "./sync";
 
 export type { Progress };
@@ -99,6 +100,15 @@ export function saveProgress(p: Progress) {
   const entry = { ...p, done: isDone(p) };
   set({ progress: { ...state.progress, [p.meta.id]: entry } });
   push(entry);
+}
+/** Import Stremio : addons ajoutés au compte, reprises plus récentes ajoutées au profil ouvert. */
+export async function importFromStremio(data: { addons: Addon[]; progress: Progress[] }) {
+  const { addons, added } = mergeAddons(state.addons, data.addons);
+  if (added.length) await saveAddons(addons);
+  const { merged, toPush } = mergeProgress(Object.fromEntries(data.progress.map(p => [p.meta.id, p])), Object.values(state.progress));
+  set({ progress: merged });
+  await Promise.all(toPush.map(push));
+  return { addons: added.length, progress: toPush.length };
 }
 /** Image floutée derrière toute l'appli (titre sélectionné). */
 export const setAmbiance = (ambiance?: string) => ambiance !== state.ambiance && set({ ambiance });
