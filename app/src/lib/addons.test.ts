@@ -40,6 +40,13 @@ test("describe lit les flux façon Torrentio, sans emojis", () => {
   assert.ok(!describe({ addon: "T", infoHash: "abc" }).playable);
 });
 
+test("describe garde tout le texte de l'addon et ne prend pas un débit pour une taille", () => {
+  const d = describe({ addon: "Lumio", url: "https://x", name: "[AD] Lumio", title: "Lumio · 1080p · BluRay · ~5,1 Mb/s\nFrieren.S01E01.MULTi.1080p.mkv\n🔊 FR, JA · AAC 2.0", behaviorHints: { filename: "Frieren.S01E01.MULTi.1080p.mkv" } });
+  assert.equal(d.size, "");
+  assert.deepEqual(d.details, ["Frieren.S01E01.MULTi.1080p.mkv", "FR, JA · AAC 2.0"]);
+  assert.deepEqual(describe({ addon: "A", url: "https://x", title: "Ligne", behaviorHints: { filename: "f.mkv", videoSize: 2e9 } }), { quality: "Flux", source: "A · Ligne", details: ["f.mkv"], size: "2,0 Go", playable: true, external: false });
+});
+
 test("configureUrl : page de réglages seulement pour les addons configurables", () => {
   assert.equal(configureUrl({ url: "https://t.dev/opts/manifest.json", manifest: { id: "t", name: "T", behaviorHints: { configurable: true } } }), "https://t.dev/opts/configure");
   assert.equal(configureUrl(cinemeta), null);

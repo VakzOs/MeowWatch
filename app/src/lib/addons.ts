@@ -141,17 +141,19 @@ export async function fetchStreamsFor(addons: Addon[], type: string, id: string,
 // --- Présentation d'un flux ---------------------------------------------------
 
 const clean = (s = "") => s.replace(/\p{Extended_Pictographic}|️/gu, "").replace(/[ \t]+/g, " ").trim();
-const SIZE = /(\d+(?:[.,]\d+)?)\s?(GB|MB|Go|Mo|GiB|MiB)\b/i;
+const SIZE = /(\d+(?:[.,]\d+)?)\s?(GB|MB|Go|Mo|GiB|MiB)\b(?!\/s)/i; // pas un débit (« 29 Mb/s »)
 
-/** Ce qu'on affiche d'un flux : qualité, source, taille, et s'il est lisible (debrid/HTTP). */
+/** Ce qu'on affiche d'un flux : qualité, source, détails (le reste du texte de l'addon, comme Stremio), taille, et s'il est lisible (debrid/HTTP). */
 export function describe(s: FoundStream) {
   const nameLines = clean(s.name).split("\n").map(l => l.trim()).filter(Boolean);
   const text = clean(s.title ?? s.description);
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
   const size = (s.behaviorHints?.videoSize ? formatSize(s.behaviorHints.videoSize) : text.match(SIZE)?.slice(1).join(" ").replace(/GB|GiB/i, "Go").replace(/MB|MiB/i, "Mo")) || "";
+  const file = s.behaviorHints?.filename;
   return {
     quality: nameLines.slice(1).join(" · ") || nameLines[0] || "Flux",
     source: [nameLines.length > 1 ? nameLines[0] : s.addon, lines[0]].filter(Boolean).join(" · "),
+    details: [...lines.slice(1), ...(file && !text.includes(file) ? [file] : [])],
     size,
     playable: !!s.url,
     external: !s.url && !!s.externalUrl,
