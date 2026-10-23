@@ -36,21 +36,32 @@ export function Row({ title, note, load, selected, onSelect, onHover }: {
   );
 }
 
-/** Web : la molette fait défiler la rangée de côté ; au bout de la rangée, elle fait défiler la page. */
+/** Web : la molette fait défiler la rangée de côté. Au bout, la page ne reprend qu'après une pause (pas d'élan qui
+ *  file vers le bas). Les bords qui cachent des affiches se fondent. */
 function useWheelScroll() {
   const ref = useRef<any>(null); // ScrollView de react-native-web (getScrollableNode)
   useEffect(() => {
     const el = ref.current?.getScrollableNode?.() as HTMLElement | undefined;
     if (Platform.OS !== "web" || !el) return;
+    const fade = () => {
+      const l = el.scrollLeft > 4 ? 80 : 0, r = el.scrollLeft < el.scrollWidth - el.clientWidth - 4 ? 80 : 0;
+      el.style.maskImage = el.style.webkitMaskImage = l || r ? `linear-gradient(to right, transparent 0, #000 ${l}px, #000 calc(100% - ${r}px), transparent 100%)` : "";
+    };
+    let last = 0; // dernier coup de molette pris par la rangée
     const onWheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return; // pavé tactile : défilement de côté déjà natif
-      const max = el.scrollWidth - el.clientWidth;
-      if ((e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1)) return;
+      const max = el.scrollWidth - el.clientWidth, now = Date.now();
+      const atEdge = (e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1);
+      if (atEdge && now - last > 400) return; // nouveau geste au bout : la page défile
       e.preventDefault();
-      el.scrollBy({ left: e.deltaY * 2.5, behavior: "smooth" });
+      last = now;
+      if (!atEdge) el.scrollBy({ left: e.deltaY * 2.5, behavior: "smooth" });
     };
+    fade();
+    el.addEventListener("scroll", fade, { passive: true });
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    window.addEventListener("resize", fade);
+    return () => { el.removeEventListener("scroll", fade); el.removeEventListener("wheel", onWheel); window.removeEventListener("resize", fade); };
   });
   return ref;
 }
