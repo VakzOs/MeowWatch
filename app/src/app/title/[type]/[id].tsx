@@ -13,7 +13,7 @@ const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
 /** Page d'un titre, façon Stremio : grande image, infos à gauche, épisodes puis flux dans la colonne de droite. */
 export default function Title() {
-  const { type, id, name, poster } = useLocalSearchParams<{ type: string; id: string; name?: string; poster?: string }>();
+  const { type, id, name, poster, season: askedSeason } = useLocalSearchParams<{ type: string; id: string; name?: string; poster?: string; season?: string }>();
   const addons = useStore(s => s.addons);
   const inLibrary = useStore(s => !!s.library[id] && !s.library[id].removed);
   const [meta, setMeta] = useState<Meta>({ id, type, name: name ?? "", poster });
@@ -44,7 +44,8 @@ export default function Title() {
   const resumeEp = episodes.find(e => e.id === saved?.videoId);
   const [season, setSeason] = useState<number>();
   const [video, setVideo] = useState<Video | null>(null); // épisode ouvert dans la colonne (sinon : liste des épisodes)
-  useEffect(() => { if (isSeries && season === undefined) setSeason(resumeEp?.season ?? seasons[0]); }, [isSeries]);
+  // Saison demandée (depuis le calendrier), sinon celle de la reprise, sinon la première.
+  useEffect(() => { if (isSeries && season === undefined) setSeason(seasons.includes(Number(askedSeason)) ? Number(askedSeason) : resumeEp?.season ?? seasons[0]); }, [isSeries]);
 
   const videoId = isSeries ? video?.id : id;
   const [streams, setStreams] = useState<FoundStream[] | null>(null);

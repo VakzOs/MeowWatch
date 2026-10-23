@@ -6,7 +6,7 @@ import type { Meta } from "../lib/addons";
 import { setAmbiance } from "../lib/store";
 
 /** Clic sur une vignette : page du titre. Survol : le fond flouté prend son image. */
-export const openTitle = (m: Meta) => router.push({ pathname: "/title/[type]/[id]", params: { type: m.type, id: m.id, name: m.name, poster: m.poster ?? "" } });
+export const openTitle = (m: Meta, season?: number) => router.push({ pathname: "/title/[type]/[id]", params: { type: m.type, id: m.id, name: m.name, poster: m.poster ?? "", ...(season !== undefined && { season: String(season) }) } });
 export const hoverTitle = (m: Meta) => setAmbiance(m.background ?? m.poster);
 import { C, font } from "./theme";
 
