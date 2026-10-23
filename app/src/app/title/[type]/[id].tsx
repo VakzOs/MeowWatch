@@ -27,6 +27,7 @@ export default function Title() {
   }, [type, id, lang, canTranslate]);
   // Les textes traduits remplacent ceux de l'addon quand ils existent ; images et identifiants ne changent pas.
   const t = (key: "name" | "description") => fr?.[key] || meta[key];
+  const [fullText, setFullText] = useState(false);
   const epName = (e: Video) => fr?.episodes[`${e.season}:${e.episode}`]?.name || e.name || e.title;
   useEffect(() => { setAmbiance(undefined); }, []);
   // Échap : retour, seulement quand la page est affichée (elle reste montée sous le lecteur).
@@ -95,7 +96,13 @@ export default function Title() {
         {t("description") ? (
           <>
             <Text style={st.label}>Résumé</Text>
-            <Text style={[font(400, 16, C.soft), { lineHeight: 24, maxWidth: 720 }]}>{t("description")}</Text>
+            {/* Résumé limité à 4 lignes : un long texte poussait les boutons hors de l'écran. */}
+            <Text style={[font(400, 16, C.soft), { lineHeight: 24, maxWidth: 720 }]} numberOfLines={fullText ? undefined : 4}>{t("description")}</Text>
+            {(t("description")?.length ?? 0) > 280 ? (
+              <Pressable onPress={() => setFullText(!fullText)} style={{ alignSelf: "flex-start", marginTop: 6 }}>
+                {({ hovered }: any) => <Text style={[font(600, 14, hovered ? C.ink : C.mute), { textDecorationLine: "underline" }]}>{fullText ? "Réduire" : "Lire la suite"}</Text>}
+              </Pressable>
+            ) : null}
           </>
         ) : null}
         <View style={st.actions}>
