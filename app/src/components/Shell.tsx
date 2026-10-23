@@ -2,7 +2,8 @@ import { Image } from "expo-image";
 import { Link, usePathname, type Href } from "expo-router";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useStore } from "../lib/store";
+import { leaveProfile, useStore } from "../lib/store";
+import { ProfileAvatar } from "./Profiles";
 import { Icon, type IconName } from "./Icon";
 import { C, font } from "./theme";
 
@@ -17,6 +18,7 @@ const NAV: { label: string; icon: IconName; href?: Href }[] = [
 /** Mise en page C3 : barre latérale + contenu, sur le fond flouté du titre sélectionné. */
 export function Shell({ children }: { children: ReactNode }) {
   const ambiance = useStore(s => s.ambiance);
+  const profile = useStore(s => s.user?.profile);
   return (
     <View style={st.root}>
       {ambiance ? <Image source={ambiance} style={st.amb} blurRadius={48} contentFit="cover" transition={400} /> : null}
@@ -29,6 +31,15 @@ export function Shell({ children }: { children: ReactNode }) {
         {NAV.map(n => <NavItem key={n.label} {...n} />)}
         <View style={{ flex: 1 }} />
         <NavItem label="Réglages" icon="gear" href="/reglages" />
+        {profile ? (
+          <Pressable onPress={leaveProfile} accessibilityLabel="Changer de profil" style={({ hovered }: any) => [st.item, { marginTop: 8 }, hovered && st.itemHover]}>
+            <ProfileAvatar p={profile} size={28} />
+            <View style={{ flex: 1 }}>
+              <Text style={font(600, 14)} numberOfLines={1}>{profile.name}</Text>
+              <Text style={font(400, 12, C.faint)}>Changer de profil</Text>
+            </View>
+          </Pressable>
+        ) : null}
       </View>
       <View style={{ flex: 1 }}>{children}</View>
     </View>

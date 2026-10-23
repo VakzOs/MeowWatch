@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { AppState, Platform, View } from "react-native";
 import { Login } from "../components/Login";
+import { ProfilePicker } from "../components/Profiles";
 import { C } from "../components/theme";
 import { api } from "../lib/api";
 import { load, pull, useStore } from "../lib/store";
@@ -34,6 +35,7 @@ export default function Root() {
 
   if (!fonts || !ready) return <View style={{ flex: 1, backgroundColor: C.chrome }} />;
   if (!user) return <Login error={erreur} invite={code ? { code, valid } : undefined} />;
+  if (!user.profile) return <ProfilePicker />;
   return (
     <>
       <StatusBar style="light" />

@@ -1,24 +1,24 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSyncExternalStore } from "react";
 import { CINEMETA, fetchManifest, type Addon } from "./addons";
-import { api, type User } from "./api";
+import { api, type Profile, type User } from "./api";
 import { isDone, mergeProgress, type Progress } from "./sync";
 
 export type { Progress };
 
-// Les addons et la reprise vivent sur le serveur (un jeu par compte Discord) ;
+// Les addons (communs au compte) et la reprise (propre au profil) vivent sur le serveur ;
 // l'appareil en garde une copie pour démarrer vite et tenir si le réseau saute.
 type State = { ready: boolean; addons: Addon[]; progress: Record<string, Progress>; ambiance?: string; user?: User | null };
 
 const LEGACY_KEY = "meowwatch:v1"; // avant la synchro : données sans compte
 let state: State = { ready: false, addons: [], progress: {} };
 const listeners = new Set<() => void>();
-const key = () => `meowwatch:v1:${state.user?.id}`;
+const key = () => `meowwatch:v1:${state.user?.id}:${state.user?.profile?.id}`;
 
 function set(patch: Partial<State>) {
   state = { ...state, ...patch };
   listeners.forEach(l => l());
-  if (state.user && ("addons" in patch || "progress" in patch))
+  if (state.user?.profile && ("addons" in patch || "progress" in patch))
     AsyncStorage.setItem(key(), JSON.stringify({ addons: state.addons, progress: state.progress })).catch(() => {});
 }
 
@@ -30,19 +30,34 @@ const readJSON = async (k: string) => { try { return JSON.parse((await AsyncStor
 
 export async function load() {
   const user = await api<User>("/api/auth/me").catch(() => null);
-  if (!user) return set({ ready: true, user: null, addons: [], progress: {} });
+  if (user?.profile) await open(user);
+  set({ ready: true, user, ...(!user?.profile && { addons: [], progress: {} }) });
+}
+
+/** Ouvre le profil de `user` : copie locale d'abord, puis le serveur. */
+async function open(user: User) {
   state.user = user;
   let local = await readJSON(key());
   if (!local) { local = await readJSON(LEGACY_KEY); AsyncStorage.removeItem(LEGACY_KEY).catch(() => {}); }
   set({ user, addons: local?.addons ?? [], progress: local?.progress ?? {} });
   await pull(true);
   if (!state.addons.length) await saveAddons([await fetchManifest(CINEMETA).catch(() => null)].filter((a): a is Addon => !!a));
-  set({ ready: true });
 }
+
+/** « Qui regarde ? » : ouvre un profil (avec son code s'il est verrouillé). */
+export async function selectProfile(id: string, pin?: string) {
+  const profile = await api<Profile>("/api/profiles/select", { method: "POST", body: JSON.stringify({ id, pin }) });
+  await open({ ...state.user!, profile });
+}
+export async function leaveProfile() {
+  await api("/api/profiles/leave", { method: "POST" }).catch(() => {});
+  set({ user: { ...state.user!, profile: null }, addons: [], progress: {}, ambiance: undefined });
+}
+export const updateProfile = (profile: Profile) => set({ user: { ...state.user!, profile } });
 
 /** Récupère l'état du serveur et y renvoie ce que cet appareil a de plus récent. */
 export async function pull(first = false) {
-  if (!state.user) return;
+  if (!state.user?.profile) return;
   let remote: { addons: Addon[] | null; progress: Progress[] };
   try { remote = await api("/api/sync"); } catch { return; } // hors ligne : on garde la copie locale
   // Première synchro de ce compte : les addons de l'appareil deviennent ceux du compte.
