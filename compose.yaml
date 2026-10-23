@@ -1,0 +1,10 @@
+services:
+  meowwatch:
+    build: .
+    container_name: meowwatch
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${BIND_IP:-127.0.0.1}:3500:3500"
+    volumes:
+      - ./data:/data

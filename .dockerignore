@@ -1,0 +1,8 @@
+**/node_modules
+app/dist
+app/.expo
+data
+.env
+.git
+maquettes
+docs
