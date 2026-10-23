@@ -17,6 +17,11 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
   ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }`;
   document.head.appendChild(css);
+  // Icône d'onglet : nouvelle adresse versionnée, sinon le navigateur garde l'ancienne en cache.
+  document.querySelectorAll('link[rel~="icon"]').forEach(l => l.remove());
+  for (const [rel, href] of [["icon", "/icon-192.png?v=2"], ["apple-touch-icon", "/apple-touch-icon.png?v=2"]]) {
+    const l = document.createElement("link"); l.rel = rel; l.href = href; document.head.appendChild(l);
+  }
 }
 
 const THEME = { ...DarkTheme, colors: { ...DarkTheme.colors, background: "transparent", card: "transparent" } };
