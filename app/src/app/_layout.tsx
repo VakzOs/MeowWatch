@@ -2,11 +2,20 @@ import { InstrumentSans_400Regular, InstrumentSans_500Medium, InstrumentSans_600
 import { Stack, useGlobalSearchParams, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { AppState, Platform, View } from "react-native";
 import { Login } from "../components/Login";
 import { C } from "../components/theme";
 import { api } from "../lib/api";
-import { load, useStore } from "../lib/store";
+import { load, pull, useStore } from "../lib/store";
+
+// Barres de défilement fines et sombres sur le web (celles de Windows sont blanches).
+if (Platform.OS === "web" && typeof document !== "undefined") {
+  const css = document.createElement("style");
+  css.textContent = `* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }`;
+  document.head.appendChild(css);
+}
 
 export default function Root() {
   const [fonts] = useFonts({ InstrumentSans_400Regular, InstrumentSans_500Medium, InstrumentSans_600SemiBold, InstrumentSans_700Bold });
@@ -15,6 +24,8 @@ export default function Root() {
   const path = usePathname();
   const { erreur } = useGlobalSearchParams<{ erreur?: string }>();
   useEffect(() => { load(); }, []);
+  // Retour sur l'appli (autre onglet, autre appareil entre-temps) : on resynchronise.
+  useEffect(() => { const sub = AppState.addEventListener("change", s => s === "active" && pull()); return () => sub.remove(); }, []);
 
   // /invite/<code> : on vérifie le lien avant de proposer la connexion.
   const code = path.match(/^\/invite\/([\w-]+)/)?.[1];

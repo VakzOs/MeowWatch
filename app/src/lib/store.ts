@@ -1,65 +1,89 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSyncExternalStore } from "react";
-import { CINEMETA, fetchManifest, type Addon, type Meta } from "./addons";
+import { CINEMETA, fetchManifest, type Addon } from "./addons";
 import { api, type User } from "./api";
+import { isDone, mergeProgress, type Progress } from "./sync";
 
-// Données locales à l'appareil. Elles passeront par le backend (comptes, synchro) en phase 2.
+export type { Progress };
 
-export type Progress = {
-  meta: Pick<Meta, "id" | "type" | "name" | "poster" | "background">;
-  videoId: string; label?: string; time: number; duration: number; updatedAt: number;
-};
+// Les addons et la reprise vivent sur le serveur (un jeu par compte Discord) ;
+// l'appareil en garde une copie pour démarrer vite et tenir si le réseau saute.
 type State = { ready: boolean; addons: Addon[]; progress: Record<string, Progress>; ambiance?: string; user?: User | null };
 
-const KEY = "meowwatch:v1";
+const LEGACY_KEY = "meowwatch:v1"; // avant la synchro : données sans compte
 let state: State = { ready: false, addons: [], progress: {} };
 const listeners = new Set<() => void>();
+const key = () => `meowwatch:v1:${state.user?.id}`;
 
 function set(patch: Partial<State>) {
   state = { ...state, ...patch };
   listeners.forEach(l => l());
-  if (state.ready) AsyncStorage.setItem(KEY, JSON.stringify({ addons: state.addons, progress: state.progress })).catch(() => {});
+  if (state.user && ("addons" in patch || "progress" in patch))
+    AsyncStorage.setItem(key(), JSON.stringify({ addons: state.addons, progress: state.progress })).catch(() => {});
 }
 
 export function useStore<T>(pick: (s: State) => T): T {
   return useSyncExternalStore(l => (listeners.add(l), () => listeners.delete(l)), () => pick(state), () => pick(state));
 }
 
+const readJSON = async (k: string) => { try { return JSON.parse((await AsyncStorage.getItem(k)) ?? "null"); } catch { return null; } };
+
 export async function load() {
-  let saved: Partial<State> = {};
-  try { saved = JSON.parse((await AsyncStorage.getItem(KEY)) ?? "{}"); } catch { }
-  let addons = saved.addons ?? [];
-  if (!addons.length) addons = [await fetchManifest(CINEMETA).catch(() => null)].filter((a): a is Addon => !!a);
   const user = await api<User>("/api/auth/me").catch(() => null);
-  set({ ready: true, addons, progress: saved.progress ?? {}, user });
+  if (!user) return set({ ready: true, user: null, addons: [], progress: {} });
+  state.user = user;
+  let local = await readJSON(key());
+  if (!local) { local = await readJSON(LEGACY_KEY); AsyncStorage.removeItem(LEGACY_KEY).catch(() => {}); }
+  set({ user, addons: local?.addons ?? [], progress: local?.progress ?? {} });
+  await pull(true);
+  if (!state.addons.length) await saveAddons([await fetchManifest(CINEMETA).catch(() => null)].filter((a): a is Addon => !!a));
+  set({ ready: true });
+}
+
+/** Récupère l'état du serveur et y renvoie ce que cet appareil a de plus récent. */
+export async function pull(first = false) {
+  if (!state.user) return;
+  let remote: { addons: Addon[] | null; progress: Progress[] };
+  try { remote = await api("/api/sync"); } catch { return; } // hors ligne : on garde la copie locale
+  // Première synchro de ce compte : les addons de l'appareil deviennent ceux du compte.
+  if (remote.addons === null) { if (first && state.addons.length) await saveAddons(state.addons); }
+  else if (JSON.stringify(remote.addons) !== JSON.stringify(state.addons)) set({ addons: remote.addons });
+  const { merged, toPush } = mergeProgress(state.progress, remote.progress);
+  set({ progress: merged });
+  toPush.forEach(push);
+}
+
+const push = (p: Progress) => api("/api/sync/progress", { method: "PUT", body: JSON.stringify(p) }).catch(() => {});
+async function saveAddons(addons: Addon[]) {
+  set({ addons });
+  await api("/api/sync/addons", { method: "PUT", body: JSON.stringify({ addons }) }).catch(() => {});
 }
 
 export async function logout() {
   await api("/api/auth/logout", { method: "POST" }).catch(() => {});
-  set({ user: null });
+  set({ user: null, addons: [], progress: {} });
 }
 
 export async function addAddon(input: string) {
   const a = await fetchManifest(input);
   if (state.addons.some(x => x.url === a.url)) throw new Error("Cet addon est déjà installé.");
-  set({ addons: [...state.addons, a] });
+  await saveAddons([...state.addons, a]);
   return a;
 }
-export const removeAddon = (url: string) => set({ addons: state.addons.filter(a => a.url !== url) });
+export const removeAddon = (url: string) => saveAddons(state.addons.filter(a => a.url !== url));
 export function moveAddon(url: string, dir: -1 | 1) {
   const list = [...state.addons], i = list.findIndex(a => a.url === url), j = i + dir;
   if (i < 0 || j < 0 || j >= list.length) return;
   [list[i], list[j]] = [list[j], list[i]];
-  set({ addons: list });
+  saveAddons(list);
 }
 
-/** Une fois vu à 95 %, le titre sort de « Reprendre ». */
+/** Enregistre la position (toutes les 5 s pendant la lecture) ; à 95 %, le titre sort de « Reprendre ». */
 export function saveProgress(p: Progress) {
-  const progress = { ...state.progress };
-  if (p.duration > 0 && p.time / p.duration > 0.95) delete progress[p.meta.id];
-  else progress[p.meta.id] = p;
-  set({ progress });
+  const entry = { ...p, done: isDone(p) };
+  set({ progress: { ...state.progress, [p.meta.id]: entry } });
+  push(entry);
 }
 /** Image floutée derrière toute l'appli (titre sélectionné). */
 export const setAmbiance = (ambiance?: string) => ambiance !== state.ambiance && set({ ambiance });
-export const getProgress = (id: string): Progress | undefined => state.progress[id];
+export const getProgress = (id: string): Progress | undefined => { const p = state.progress[id]; return p && !p.done ? p : undefined; };

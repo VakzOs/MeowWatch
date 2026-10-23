@@ -16,7 +16,7 @@ export default function Home() {
   const [sel, setSel] = useState<Meta | null>(null);
   useEffect(() => { const t = setTimeout(() => setSearch(query.trim()), 400); return () => clearTimeout(t); }, [query]);
 
-  const resume = useMemo(() => Object.values(progress).sort((a, b) => b.updatedAt - a.updatedAt), [progress]);
+  const resume = useMemo(() => Object.values(progress).filter(p => !p.done).sort((a, b) => b.updatedAt - a.updatedAt), [progress]);
   // Les chargeurs sont mémorisés : une rangée ne recharge que si ses addons ou la recherche changent.
   const rows = useMemo(() => {
     const list = search ? searchCatalogs(addons) : homeCatalogs(addons);
@@ -42,7 +42,7 @@ export default function Home() {
             <Icon name="search" color={C.faint} />
             <TextInput value={query} onChangeText={setQuery} placeholder="Rechercher un film, une série" placeholderTextColor={C.faint} style={[font(400, 15), st.input]} accessibilityLabel="Rechercher" />
           </View>
-          {!search && resume.length ? <Row title="Reprendre" note="sur cet appareil" load={loadResume} selected={sel?.id} onSelect={setSel} /> : null}
+          {!search && resume.length ? <Row title="Reprendre" note="sur tous tes appareils" load={loadResume} selected={sel?.id} onSelect={setSel} /> : null}
           {rows.map(r => <Row key={r.key} title={r.title} note={r.note} load={r.load} selected={sel?.id} onSelect={setSel} />)}
           {!rows.length ? <Text style={[font(400, 15, C.mute), { padding: 32 }]}>{search ? "Aucun addon installé ne sait chercher." : "Aucun catalogue : ajoute un addon dans la page Addons."}</Text> : null}
         </ScrollView>
