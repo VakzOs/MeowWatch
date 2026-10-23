@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSyncExternalStore } from "react";
 import { CINEMETA, fetchManifest, type Addon, type Meta } from "./addons";
+import { api, type User } from "./api";
 
 // Données locales à l'appareil. Elles passeront par le backend (comptes, synchro) en phase 2.
 
@@ -8,7 +9,7 @@ export type Progress = {
   meta: Pick<Meta, "id" | "type" | "name" | "poster" | "background">;
   videoId: string; label?: string; time: number; duration: number; updatedAt: number;
 };
-type State = { ready: boolean; addons: Addon[]; progress: Record<string, Progress>; ambiance?: string };
+type State = { ready: boolean; addons: Addon[]; progress: Record<string, Progress>; ambiance?: string; user?: User | null };
 
 const KEY = "meowwatch:v1";
 let state: State = { ready: false, addons: [], progress: {} };
@@ -29,7 +30,13 @@ export async function load() {
   try { saved = JSON.parse((await AsyncStorage.getItem(KEY)) ?? "{}"); } catch { }
   let addons = saved.addons ?? [];
   if (!addons.length) addons = [await fetchManifest(CINEMETA).catch(() => null)].filter((a): a is Addon => !!a);
-  set({ ready: true, addons, progress: saved.progress ?? {} });
+  const user = await api<User>("/api/auth/me").catch(() => null);
+  set({ ready: true, addons, progress: saved.progress ?? {}, user });
+}
+
+export async function logout() {
+  await api("/api/auth/logout", { method: "POST" }).catch(() => {});
+  set({ user: null });
 }
 
 export async function addAddon(input: string) {

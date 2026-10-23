@@ -28,7 +28,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </View>
         {NAV.map(n => <NavItem key={n.label} {...n} />)}
         <View style={{ flex: 1 }} />
-        <NavItem label="Réglages" icon="gear" />
+        <NavItem label="Réglages" icon="gear" href="/reglages" />
       </View>
       <View style={{ flex: 1 }}>{children}</View>
     </View>
