@@ -23,5 +23,8 @@ const GENRE_FR: Record<string, string> = {
   Crime: "Policier", "Sci-Fi": "SF", Fantasy: "Fantastique", Mystery: "Mystère", Animation: "Animation", Biography: "Biopic",
   History: "Histoire", Documentary: "Documentaire", Family: "Famille", War: "Guerre", Romance: "Romance", Music: "Musique", Western: "Western",
 };
+// Noms des catalogues de Cinemeta (en anglais) ; ceux des autres addons restent tels quels.
+const CATALOG_FR: Record<string, string> = { Popular: "Populaires", New: "Nouveautés", Featured: "À la une", Top: "Les mieux notés", Trending: "Tendances" };
+export const catalogName = (name?: string, id?: string) => CATALOG_FR[name ?? ""] ?? name ?? id ?? "";
 export const genreList = (g?: string[]) => (g ?? []).map(x => GENRE_FR[x] ?? x);
 export const genres = (g?: string[]) => genreList(g).slice(0, 2).join(", ");
