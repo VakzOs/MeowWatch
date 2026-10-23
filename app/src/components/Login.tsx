@@ -19,10 +19,10 @@ export function Login({ error, invite }: { error?: string; invite?: { code: stri
       {bg ? <Image source={bg} style={st.amb} blurRadius={48} contentFit="cover" transition={600} /> : null}
       <View style={st.scrim} />
       <View style={st.card}>
-        <Image source={require("../../assets/logo.svg")} style={{ width: 72, height: 72, marginBottom: 20 }} />
-        <Text style={[font(700, 32), { marginBottom: 10 }]}>MeowWatch</Text>
+        <Image source={require("../../assets/avatars/chat-rouge.png")} style={{ width: 72, height: 72, borderRadius: 16, marginBottom: 20 }} />
+        <Text style={[font(700, 32), { marginBottom: 10 }]}>Meow Watch</Text>
         <Text style={[font(400, 16, C.soft), st.lead]}>
-          {invite ? (invalid ? "Ce lien d'invitation a déjà servi ou a expiré. Demande-en un nouveau à Vakz." : "Tu es invité sur MeowWatch. Connecte-toi avec Discord pour accepter l'invitation.")
+          {invite ? (invalid ? "Ce lien d'invitation a déjà servi ou a expiré. Demande-en un nouveau à Vakz." : "Tu es invité sur Meow Watch. Connecte-toi avec Discord pour accepter l'invitation.")
             : "Tes films et séries, avec tes addons Stremio. Réservé à Vakz et à ses invités."}
         </Text>
         {error && LOGIN_ERRORS[error] ? <Text style={[font(500, 14, "#FF8A94"), st.lead]}>{LOGIN_ERRORS[error]}</Text> : null}

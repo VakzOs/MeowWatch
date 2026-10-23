@@ -43,7 +43,7 @@ export default function Play() {
         <View style={st.error}>
           <Text style={[font(700, 20), { marginBottom: 8 }]}>Ce flux ne se lit pas ici</Text>
           <Text style={[font(400, 15, C.soft), { lineHeight: 22, marginBottom: 20 }]}>
-            Le navigateur ne connaît pas toujours le format (MKV, HEVC, audio DTS ou TrueHD). Essaie un autre flux, ou ouvre le lien dans VLC. Les applis MeowWatch (PC, Apple TV) auront un lecteur qui lit tout.{error?.message ? `\n\nDétail : ${error.message}` : ""}
+            Le navigateur ne connaît pas toujours le format (MKV, HEVC, audio DTS ou TrueHD). Essaie un autre flux, ou ouvre le lien dans VLC. Les applis Meow Watch (PC, Apple TV) auront un lecteur qui lit tout.{error?.message ? `\n\nDétail : ${error.message}` : ""}
           </Text>
           <View style={{ flexDirection: "row", gap: 12 }}>
             <Pressable onPress={back} style={[st.btn, { backgroundColor: C.red }]}><Text style={font(700, 15)}>Choisir un autre flux</Text></Pressable>

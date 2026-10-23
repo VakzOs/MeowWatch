@@ -104,7 +104,7 @@ export function Detail({ preview }: { preview: Meta }) {
           </Pressable>
         );
       })}
-      {torrents > 0 ? <Text style={[font(400, 13, C.faint), { marginTop: 8 }]}>{torrents} flux torrent masqués (MeowWatch lit les liens debrid).</Text> : null}
+      {torrents > 0 ? <Text style={[font(400, 13, C.faint), { marginTop: 8 }]}>{torrents} flux torrent masqués (Meow Watch lit les liens debrid).</Text> : null}
     </ScrollView>
   );
 }

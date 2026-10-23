@@ -39,8 +39,8 @@ function Screen({ children }: { children: React.ReactNode }) {
     <View style={st.root}>
       <Backdrop />
       <View style={st.brand}>
-        <Image source={require("../../assets/logo.svg")} style={{ width: 30, height: 30 }} />
-        <Text style={font(700, 18)}>MeowWatch</Text>
+        <Image source={require("../../assets/avatars/chat-rouge.png")} style={{ width: 30, height: 30, borderRadius: 7 }} />
+        <Text style={font(700, 18)}>Meow Watch</Text>
       </View>
       {children}
     </View>
