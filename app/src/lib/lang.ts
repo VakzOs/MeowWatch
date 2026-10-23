@@ -39,3 +39,50 @@ export function trackLabel(code: string, title?: string, extras: string[] = []) 
   const showTitle = t && langCode("", t) !== code && t.toLowerCase() !== name.toLowerCase();
   return [name, showTitle ? t : "", ...extras].filter(Boolean).join(" · ");
 }
+
+// --- Langues préférées d'un profil ---------------------------------------------------------------
+
+/** audio : code de langue, ou "vo" (piste par défaut du fichier). subs : code de langue, ou "" (désactivés).
+ *  audio2 / subs2 : second choix si le premier n'est pas dans le fichier ("" : aucun). */
+export type LangChoice = { audio: string; subs: string; audio2?: string; subs2?: string };
+export type LangPrefs = { films: LangChoice; animes: LangChoice };
+/** Par défaut : films et séries en français sans sous-titres ; animés en japonais sous-titrés en français. */
+export const DEFAULT_PREFS: LangPrefs = { films: { audio: "fr", audio2: "vo", subs: "", subs2: "" }, animes: { audio: "ja", audio2: "fr", subs: "fr", subs2: "en" } };
+
+type T = { id: number; lang: string; forced?: boolean };
+/** Pistes à choisir au lancement. Sous-titres : ceux du fichier d'abord, sinon ceux des addons (ext). Sans sous-titres
+ *  voulus, on garde les « forcés » dans la langue de l'audio (passages dans une autre langue). */
+export function chooseTracks(choice: LangChoice, audio: T[], audioId: number, subs: T[], ext: { lang: string }[]) {
+  // Premier choix, sinon second ; « vo » (ou rien trouvé) garde la piste par défaut.
+  let a: T | undefined;
+  for (const l of [choice.audio, choice.audio2]) { if (!l || l === "vo") break; if ((a = audio.find(t => t.lang === l))) break; }
+  const heard = (a ?? audio.find(t => t.id === audioId))?.lang ?? "";
+  let sub: { id: number } | { ext: number } | null = null;
+  if (choice.subs) {
+    for (const l of [choice.subs, choice.subs2].filter(Boolean)) {
+      const own = subs.find(t => t.lang === l && !t.forced), e = ext.findIndex(t => t.lang === l);
+      sub = own ? { id: own.id } : e >= 0 ? { ext: e } : null;
+      if (sub) break;
+    }
+  } else {
+    const forced = subs.find(t => t.forced && t.lang === heard);
+    sub = forced ? { id: forced.id } : null;
+  }
+  return { audio: a?.id, sub };
+}
+
+// --- Sous-titres des addons ------------------------------------------------------------------------
+
+export type Cue = { start: number; end: number; text: string };
+const secs = (t: string) => t.split(":").reduce((acc, x) => acc * 60 + parseFloat(x.replace(",", ".")), 0);
+/** Répliques d'un fichier WebVTT (balises de mise en forme retirées). */
+export function parseVtt(vtt: string): Cue[] {
+  return vtt.replace(/\r/g, "").split(/\n{2,}/).flatMap(block => {
+    const lines = block.split("\n"), i = lines.findIndex(l => l.includes("-->"));
+    if (i < 0) return [];
+    const [a, b] = lines[i].split("-->").map(x => x.trim().split(/\s+/)[0]);
+    const text = lines.slice(i + 1).join("\n").replace(/<[^>]+>/g, "").replace(/\{\\[^}]*\}/g, "").trim();
+    return text ? [{ start: secs(a), end: secs(b), text }] : [];
+  });
+}
+

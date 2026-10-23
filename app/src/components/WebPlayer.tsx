@@ -3,13 +3,15 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { createElement, useEffect, useReducer, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { flagOf } from "../lib/lang";
+import { fetchSubtitles } from "../lib/addons";
+import { chooseTracks, DEFAULT_PREFS, flagOf, langCode, langName } from "../lib/lang";
 import { createEngine, type Engine, type Track } from "../lib/player";
-import { saveProgress } from "../lib/store";
+import { saveProgress, useStore } from "../lib/store";
 import { Icon, type IconName } from "./Icon";
 import { C, font } from "./theme";
 
-export type PlayParams = { url: string; file?: string; id: string; type: string; name: string; poster: string; background: string; videoId: string; label: string; start: string };
+/** subType/subVid : identifiant pour les addons de sous-titres (équivalent IMDb des animés) ; anime : règle animés. */
+export type PlayParams = { url: string; file?: string; subType?: string; subVid?: string; anime?: string; id: string; type: string; name: string; poster: string; background: string; videoId: string; label: string; start: string };
 
 // Réglages du lecteur, retenus sur l'appareil.
 type Prefs = { volume: number; muted: boolean; size: number; color: string; bg: string };
@@ -42,7 +44,11 @@ function useCss(prefs: Prefs) {
       .mw-range::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 7px; background: #fff; }
       .mw-range:focus-visible { outline: 2px solid ${C.red}; outline-offset: 2px; }
       .mw-player [data-subs="off"] .ASS-box { visibility: hidden; }
+      .mw-player .mw-cues { position: absolute; left: 5%; right: 5%; bottom: 6vh; display: flex; flex-direction: column; align-items: center; gap: 0.15em; pointer-events: none; transform: translateY(calc(var(--mw-lift, 0px) + 3vh)); transition: transform 250ms; }
+      .mw-player .mw-cues span { font: 600 calc(3.6vh * ${prefs.size}) "Instrument Sans", Arial, sans-serif; color: ${prefs.color || "#fff"}; text-align: center; white-space: pre-wrap;
+        ${prefs.bg ? `background: ${prefs.bg}; padding: 0.05em 0.35em; border-radius: 4px;` : "text-shadow: 0 0 3px #000, 0 0 3px #000, 0 2px 4px #000;"} }
       .mw-player .ASS-box { transform: translateY(var(--mw-lift, 0px)); transition: transform 250ms; }
+      .mw-player video::cue { font-size: calc(3.4vh * ${prefs.size}); ${prefs.color ? `color: ${prefs.color};` : ""} ${prefs.bg ? `background: ${prefs.bg};` : ""} }
       .mw-player .ASS-dialogue span { font-size: calc(var(--ass-scale) * var(--ass-real-fs) * ${prefs.size}px) !important;
         ${prefs.color ? `--ass-fill-color: ${prefs.color} !important;` : ""}
         ${prefs.bg ? `background: ${prefs.bg} !important; padding: 0.05em 0.3em; border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone;` : ""} }
@@ -73,6 +79,12 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   const [blocked, setBlocked] = useState(false); // son ou lecture bloqués tant qu'on n'a pas cliqué
   const [prefs, setPrefsState] = useState<Prefs>(DEFAULT);
   const [, refresh] = useReducer(x => x + 1, 0);
+  const addons = useStore(s => s.addons);
+  const langPrefs = useStore(s => s.user?.profile?.prefs) ?? DEFAULT_PREFS;
+  // Sous-titres des addons : listés tout de suite, chargés (via notre serveur, en WebVTT) quand on les choisit.
+  type Ext = { url: string; lang: string; label: string };
+  const [ext, setExt] = useState<Ext[]>([]);
+  const loaded = useRef(new Map<string, number>());
   const prefsRef = useRef(prefs); prefsRef.current = prefs;
   const setPrefs = (patch: Partial<Prefs>) => {
     const next = { ...prefsRef.current, ...patch };
@@ -89,6 +101,14 @@ export function WebPlayer({ p }: { p: PlayParams }) {
     (async () => {
       const saved = await AsyncStorage.getItem(PREFS_KEY).then(r => (r ? { ...DEFAULT, ...JSON.parse(r) } : DEFAULT), () => DEFAULT);
       setPrefsState(saved);
+      const subsP = fetchSubtitles(addons, p.subType || p.type, p.subVid || p.videoId, p.file || undefined).then(list => {
+        const choice = p.anime === "1" ? langPrefs.animes : langPrefs.films, rank = (l: string) => (l === choice.subs ? 0 : l === "fr" ? 1 : l === "en" ? 2 : 3);
+        const n: Record<string, number> = {};
+        const out = list.map(x => ({ ...x, lang: langCode(x.lang) })).sort((a, b) => rank(a.lang) - rank(b.lang)).slice(0, 60)
+          .map(x => ({ url: `/api/subtitle.vtt?url=${encodeURIComponent(x.url)}`, lang: x.lang, label: `${langName(x.lang)} · ${x.addon} ${(n[x.lang + x.addon] = (n[x.lang + x.addon] ?? 0) + 1)}` }));
+        if (!dead) setExt(out);
+        return out;
+      }, () => [] as Ext[]);
       const x = await createEngine(box, p.url, p.file || undefined, setError);
       if (dead) return x.destroy();
       e = x;
@@ -98,6 +118,15 @@ export function WebPlayer({ p }: { p: PlayParams }) {
       if (x.suspended()) setBlocked(true);
       x.resize();
       setEng(x);
+      // Langues préférées du profil (règle à part pour les animés) : audio tout de suite, sous-titres une fois ceux des addons connus.
+      const choice = p.anime === "1" ? langPrefs.animes : langPrefs.films;
+      const extList = await Promise.race([subsP, new Promise<Ext[]>(ok => setTimeout(() => ok([]), 6000))]);
+      if (dead) return;
+      const pick = chooseTracks(choice, x.audio, x.audioId, x.subs, extList);
+      if (pick.audio !== undefined) await x.selectAudio(pick.audio);
+      if (pick.sub && "id" in pick.sub) await x.selectSub(pick.sub.id);
+      else if (pick.sub) await useExt(x, extList[pick.sub.ext]);
+      refresh();
     })().catch(err => !dead && setError(err?.message ?? String(err)));
     return () => { dead = true; e?.destroy(); };
   }, [p.url]);
@@ -127,6 +156,12 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   const mute = () => { const m = !prefs.muted; eng?.setVolume(m ? 0 : prefs.volume || 1); setPrefs({ muted: m, volume: prefs.volume || 1 }); };
   const pickAudio = async (t: Track) => { await eng?.selectAudio(t.id); refresh(); };
   const pickSub = async (id: number) => { await eng?.selectSub(id); refresh(); };
+  async function useExt(e: Engine, s: Ext) {
+    let id = loaded.current.get(s.url);
+    if (id === undefined) { id = await e.addSub(s.url, s.lang, s.label); loaded.current.set(s.url, id); }
+    await e.selectSub(id);
+  }
+  const pickExt = async (s: Ext) => { if (eng) { await useExt(eng, s).catch(() => {}); refresh(); } };
   const lastSub = useRef(-1);
   const toggleSubs = () => { if (!eng?.subs.length) return; if (eng.subId >= 0) { lastSub.current = eng.subId; pickSub(-1); } else pickSub(lastSub.current >= 0 ? lastSub.current : eng.subs[0].id); };
   const changeDelay = (d: number) => { const x = Math.round(d * 10) / 10; setDelay(x); eng?.setSubDelay(x); };
@@ -228,9 +263,12 @@ export function WebPlayer({ p }: { p: PlayParams }) {
               <>
                 <Text style={st.menuTitle}>Sous-titres</Text>
                 <Item on={eng.subId < 0} label="Désactivés" onPress={() => pickSub(-1)} />
-                {eng.subs.map(t => <Item key={t.id} on={t.id === eng.subId} label={t.label} flag={t.lang} onPress={() => pickSub(t.id)} />)}
-                {!eng.subs.length ? <Text style={st.empty}>{eng.kind === "avance" ? "Ce fichier n'a pas de sous-titres." : `Le lecteur du navigateur ne voit pas les sous-titres de ce fichier. ${WHY[eng.why ?? "cors"]}`}</Text> : null}
-                {eng.canDelay && eng.subs.length ? (
+                {eng.subs.some(t => !t.ext) && ext.length ? <Text style={st.group}>Du fichier</Text> : null}
+                {eng.subs.filter(t => !t.ext).map(t => <Item key={t.id} on={t.id === eng.subId} label={t.label} flag={t.lang} onPress={() => pickSub(t.id)} />)}
+                {ext.length ? <Text style={st.group}>Des addons</Text> : null}
+                {ext.map(s => <Item key={s.url} on={loaded.current.get(s.url) === eng.subId} label={s.label} flag={s.lang} onPress={() => pickExt(s)} />)}
+                {!eng.subs.some(t => !t.ext) && !ext.length ? <Text style={st.empty}>{eng.kind === "avance" ? "Ce fichier n'a pas de sous-titres." : `Le lecteur du navigateur ne voit pas les sous-titres de ce fichier. ${WHY[eng.why ?? "cors"]}`}</Text> : null}
+                {eng.canDelay && eng.subId >= 0 ? (
                   <View style={st.delay}>
                     <Text style={[font(500, 13, C.soft), { flex: 1 }]}>Décalage</Text>
                     <Small label="−0,5 s" onPress={() => changeDelay(delay - 0.5)} />
@@ -329,6 +367,7 @@ const st = StyleSheet.create({
   menuBack: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 6 },
   item: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 8 },
   flag: { width: 22, height: 15, borderRadius: 2 },
+  group: { ...font(600, 12, C.mute), paddingHorizontal: 10, paddingTop: 10, paddingBottom: 4 },
   empty: { ...font(400, 13, C.mute), paddingHorizontal: 10, paddingVertical: 8, lineHeight: 19 },
   delay: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 10, marginTop: 4, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
   small: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.08)" },
