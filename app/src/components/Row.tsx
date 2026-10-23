@@ -10,7 +10,8 @@ export const openTitle = (m: Meta, season?: number) => router.push({ pathname: "
 export const hoverTitle = (m: Meta) => setAmbiance(m.background ?? m.poster);
 import { C, font } from "./theme";
 
-const MAX = 10; // titres par rangée (Vakz) ; Découvrir montre tout
+// Titres par rangée (Vakz) : 10 grandes vignettes (Reprendre), 20 affiches ; Découvrir montre tout.
+const MAX_WIDE = 10, MAX = 20;
 
 export type Item = { meta: Meta; wide?: boolean; progress?: number; sub?: string };
 
@@ -29,15 +30,15 @@ export function Row({ title, note, load, selected, onSelect, onHover }: {
         {note ? <Text style={font(500, 13, C.faint)}>{note}</Text> : null}
       </View>
       <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.scroll}>
-        {items ? items.slice(0, MAX).map(i => <Card key={i.meta.id} item={i} selected={selected === i.meta.id} onPress={() => onSelect(i.meta)} onHover={() => onHover?.(i.meta)} />)
+        {items ? items.slice(0, items[0]?.wide ? MAX_WIDE : MAX).map(i => <Card key={i.meta.id} item={i} selected={selected === i.meta.id} onPress={() => onSelect(i.meta)} onHover={() => onHover?.(i.meta)} />)
           : Array.from({ length: 6 }, (_, k) => <View key={k} style={[st.poster, st.ghost]} />)}
       </ScrollView>
     </View>
   );
 }
 
-/** Web : la molette fait défiler la rangée de côté. Au bout, la page ne reprend qu'après une pause (pas d'élan qui
- *  file vers le bas). Les bords qui cachent des affiches se fondent. */
+/** Web : la molette fait avancer la rangée d'une tuile par cran (tuiles entières, alignées à gauche). Au bout, la page
+ *  ne reprend qu'après une pause (pas d'élan qui file vers le bas). Les bords qui cachent des affiches se fondent. */
 function useWheelScroll() {
   const ref = useRef<any>(null); // ScrollView de react-native-web (getScrollableNode)
   useEffect(() => {
@@ -47,15 +48,20 @@ function useWheelScroll() {
       const l = el.scrollLeft > 4 ? 80 : 0, r = el.scrollLeft < el.scrollWidth - el.clientWidth - 4 ? 80 : 0;
       el.style.maskImage = el.style.webkitMaskImage = l || r ? `linear-gradient(to right, transparent 0, #000 ${l}px, #000 calc(100% - ${r}px), transparent 100%)` : "";
     };
-    let last = 0; // dernier coup de molette pris par la rangée
+    let last = 0, target = 0; // dernier coup de molette pris par la rangée, et tuile visée
     const onWheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return; // pavé tactile : défilement de côté déjà natif
       const max = el.scrollWidth - el.clientWidth, now = Date.now();
       const atEdge = (e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1);
       if (atEdge && now - last > 400) return; // nouveau geste au bout : la page défile
       e.preventDefault();
+      if (atEdge) { last = now; return; }
+      const first = el.firstElementChild?.firstElementChild as HTMLElement | undefined;
+      const step = (first?.offsetWidth ?? 158) + 14; // largeur d'une tuile + écart
+      const from = now - last < 400 ? target : el.scrollLeft; // crans rapprochés : on part de la tuile déjà visée
       last = now;
-      if (!atEdge) el.scrollBy({ left: e.deltaY * 2.5, behavior: "smooth" });
+      target = Math.max(0, Math.min(max, (Math.round(from / step) + Math.sign(e.deltaY)) * step));
+      el.scrollBy({ left: target - el.scrollLeft, behavior: "smooth" }); // scrollTo de l'élément est remplacé par react-native-web ({ x, y })
     };
     fade();
     el.addEventListener("scroll", fade, { passive: true });
