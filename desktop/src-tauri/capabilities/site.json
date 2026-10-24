@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "site",
-  "description": "Ce que le site Meow Watch peut faire dans l'appli : boutons de la fenêtre, mise à jour.",
+  "description": "Ce que le site Meow Watch peut faire dans l'appli : boutons de la fenêtre, mise à jour, lecteur mpv.",
   "windows": ["main"],
   "remote": { "urls": ["https://meowwatch.vkzdev.com/*"] },
   "permissions": [
@@ -15,6 +15,7 @@
     "core:window:allow-set-fullscreen",
     "core:window:allow-is-fullscreen",
     "allow-update-status",
-    "allow-install-update"
+    "allow-install-update",
+    "libmpv:default"
   ]
 }

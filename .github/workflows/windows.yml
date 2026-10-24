@@ -25,6 +25,22 @@ jobs:
             desktop/setup/src-tauri -> target
       - run: npm ci
         working-directory: desktop
+      # Lecteur mpv : libmpv (build LGPL de zhongfly, la plus récente) et la petite DLL qui fait le lien avec le plugin.
+      - name: Bibliothèques mpv
+        shell: pwsh
+        run: |
+          $lib = "desktop/src-tauri/lib"; New-Item -ItemType Directory -Force $lib | Out-Null
+          $mpv = "https://github.com/zhongfly/mpv-winbuild/releases/latest/download"
+          Invoke-WebRequest "$mpv/sha256.txt" -OutFile sha256.txt
+          $name = ((Get-Content sha256.txt | Where-Object { $_ -match "mpv-dev-lgpl-x86_64-" -and $_ -notmatch "v3" } | Select-Object -First 1).Trim() -split "\s+")[-1]
+          Write-Host "libmpv : $name"
+          Invoke-WebRequest "$mpv/$name" -OutFile mpv.7z
+          7z e mpv.7z libmpv-2.dll -o"$lib" -y | Out-Null
+          Invoke-WebRequest "https://github.com/nini22P/libmpv-wrapper/releases/latest/download/libmpv-wrapper-windows-x86_64.zip" -OutFile wrapper.zip
+          Expand-Archive wrapper.zip -DestinationPath wrapper -Force
+          Get-ChildItem wrapper -Recurse -Filter libmpv-wrapper.dll | Select-Object -First 1 | Copy-Item -Destination $lib
+          Get-ChildItem $lib | Format-Table Name, Length
+          if (-not (Test-Path "$lib/libmpv-2.dll") -or -not (Test-Path "$lib/libmpv-wrapper.dll")) { throw "DLL de mpv manquantes" }
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
