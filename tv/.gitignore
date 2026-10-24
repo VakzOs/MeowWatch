@@ -1,7 +1,8 @@
 node_modules/
 .expo/
 dist/
-android/
-ios/
+/android/
+/ios/
 expo-env.d.ts
 *.keystore
+modules/*/android/build/
