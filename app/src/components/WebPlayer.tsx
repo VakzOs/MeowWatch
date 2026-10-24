@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { createElement, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { describe, epLabel, fetchMeta, fetchStreamsFor, fetchSubtitles, imdbEquivalent, nextEpisode, pickNextStream, type FoundStream, type Meta } from "../lib/addons";
+import { fromAniSkip, fromChapters, type Markers } from "../lib/skip";
 import { chooseTracks, DEFAULT_PREFS, flagOf, langCode, langName } from "../lib/lang";
 import { desktop, win, openExternal } from "../lib/desktop";
 import { createEngine, type Engine, type Track } from "../lib/player";
@@ -76,6 +77,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   const [error, setError] = useState<string | null>(null);
   const [paused, setPaused] = useState(true);
   const [time, setTime] = useState(0), [dur, setDur] = useState(0);
+  const [marks, setMarks] = useState<Markers>({});
   const [menu, setMenu] = useState<null | "audio" | "subs" | "style" | "speed" | "streams">(null);
   const [ui, setUi] = useState(true);
   const [fs, setFs] = useState(false);
@@ -189,11 +191,23 @@ export function WebPlayer({ p }: { p: PlayParams }) {
     if (s.url === p.url) return setMenu(null);
     router.replace({ pathname: "/play", params: { ...p, url: s.url!, file: s.behaviorHints?.filename ?? "", binge: s.behaviorHints?.bingeGroup ?? "", addon: s.addon, start: String(Math.floor(time)) } });
   };
-  // Fin d'épisode : carte « Épisode suivant » dans les 20 dernières secondes, lancement auto à la fin (compte à rebours de 10 s).
+  // Repères : chapitres nommés du fichier, complétés par AniSkip pour un épisode d'animé (Kitsu).
+  const known = eng && dur > 60;
+  useEffect(() => {
+    if (!known) return;
+    const own = fromChapters(eng.chapters(), dur);
+    setMarks(own);
+    if (!own.intro || own.credits === undefined) fromAniSkip(p.videoId).then(a => setMarks({ ...a, ...own }), () => {});
+  }, [known]);
+  // Fin d'épisode : carte « Épisode suivant » au début du générique de fin s'il est repéré, sinon dans les 20 dernières
+  // secondes ; lancement auto 10 s après le début du générique, ou à la fin (compte à rebours des 10 dernières secondes).
   const left = dur - time;
-  const nextCard = !!next && dur > 60 && left <= 20 && !nextOff && !menu;
-  const countdown = nextCard && prefs.autoNext && left <= 10 ? Math.max(0, Math.ceil(left)) : null;
-  useEffect(() => { if (nextCard && prefs.autoNext && left <= 0.6) goNext(); }, [nextCard && left <= 0.6]);
+  const inCredits = marks.credits !== undefined && time >= marks.credits && time < dur;
+  const until = inCredits ? Math.min(left, marks.credits! + 10 - time) : left;
+  const nextCard = !!next && dur > 60 && (left <= 20 || inCredits) && !nextOff && !menu;
+  const countdown = nextCard && prefs.autoNext && until <= 10 ? Math.max(0, Math.ceil(until)) : null;
+  useEffect(() => { if (nextCard && prefs.autoNext && until <= 0.6) goNext(); }, [nextCard && until <= 0.6]);
+  const inIntro = !!marks.intro && time >= marks.intro[0] && time < marks.intro[1] - 1 && !menu;
 
   const toggle = async () => {
     if (!eng) return;
@@ -381,6 +395,11 @@ export function WebPlayer({ p }: { p: PlayParams }) {
         </View>
       ) : null}
 
+      {inIntro ? (
+        <Pressable onPress={() => seek(marks.intro![1])} style={({ hovered }: any) => [st.skip, hovered && { backgroundColor: "rgba(255,255,255,0.95)" }]} accessibilityLabel="Passer l'intro">
+          {({ hovered }: any) => <Text style={font(700, 15, hovered ? "#111" : C.ink)}>Passer l'intro</Text>}
+        </Pressable>
+      ) : null}
       {nextCard && next ? (
         <View style={st.next}>
           <Image source={next.thumbnail ?? p.background} style={st.nextImg} contentFit="cover" />
@@ -476,6 +495,7 @@ const st = StyleSheet.create({
   empty: { ...font(400, 13, C.mute), paddingHorizontal: 10, paddingVertical: 8, lineHeight: 19 },
   delay: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 10, marginTop: 4, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
   small: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.08)" },
+  skip: { position: "absolute", right: 24, bottom: 110, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.6)", backgroundColor: "rgba(20,20,22,0.75)", zIndex: 6 },
   next: { position: "absolute", right: 24, bottom: 112, width: 420, flexDirection: "row", gap: 14, padding: 14, borderRadius: 14, backgroundColor: "rgba(20,20,23,0.96)", boxShadow: "0 16px 40px rgba(0,0,0,0.6)" } as any,
   nextImg: { width: 150, aspectRatio: 16 / 9, borderRadius: 8, backgroundColor: C.raised },
   nextBtn: { flexDirection: "row", alignItems: "center", gap: 8, height: 36, paddingHorizontal: 14, borderRadius: 9, backgroundColor: C.red },
