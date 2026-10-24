@@ -79,7 +79,7 @@ export default function Title() {
     const vid = v?.id ?? id;
     const alt = imdbEquivalent(meta, v);
     router.push({ pathname: "/play", params: {
-      url: s.url, file: s.behaviorHints?.filename ?? "", binge: s.behaviorHints?.bingeGroup ?? "", addon: s.addon, subType: alt?.type ?? type, subVid: alt?.id ?? vid, anime: anime ? "1" : "", id, type, name: meta.name, poster: meta.poster ?? "", background: meta.background ?? "",
+      url: s.url, file: s.behaviorHints?.filename ?? "", binge: s.behaviorHints?.bingeGroup ?? "", addon: s.addon, subType: alt?.type ?? type, subVid: alt?.id ?? vid, anime: anime ? "1" : "", vo: fr?.originalLanguage ?? "", id, type, name: meta.name, poster: meta.poster ?? "", background: meta.background ?? "",
       videoId: vid, label: v ? epLabel(v) : "", start: String(saved?.videoId === vid ? Math.floor(saved!.time) : 0),
     } });
   };
