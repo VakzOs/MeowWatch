@@ -199,6 +199,11 @@ function navigateur(box: HTMLDivElement, url: string, onError: (m: string) => vo
 const MPV_CODECS: Record<string, string> = { h264: "H264", hevc: "HEVC", vc1: "VC-1", av1: "AV1", vp9: "VP9", mpeg2video: "MPEG-2",
   truehd: "TrueHD", ac3: "AC3", eac3: "E-AC3", dts: "DTS", aac: "AAC", opus: "Opus", flac: "FLAC", mp3: "MP3" };
 const PROPS = { "time-pos": "double", duration: "double", "track-list": "node" };
+// Filet de sécurité : marqué pendant que mpv tourne, effacé à la fermeture normale. Si l'appli plante (code natif),
+// la marque reste et le lancement suivant prend le lecteur avancé, au lieu de replanter en boucle.
+const MPV_TRY = "meowwatch:mpv-en-cours";
+const mark = (on: boolean) => { try { on ? localStorage.setItem(MPV_TRY, "1") : localStorage.removeItem(MPV_TRY); } catch { } };
+const crashed = () => { try { return !!localStorage.getItem(MPV_TRY); } catch { return false; } };
 let mpvGone: Promise<unknown> = Promise.resolve(); // une seule instance par fenêtre : la suivante attend la fin de la précédente
 
 async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
@@ -209,6 +214,7 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
   let loaded: (ok: boolean) => void = () => {};
   const ready = new Promise<boolean>(ok => (loaded = ok));
   await mpvGone;
+  mark(true);
   const off = await t.event.listen("mpv-event-main", ({ payload: e }: any) => {
     if (e.event === "property-change") props[e.name] = e.data;
     else if (e.event === "file-loaded") loaded(true);
@@ -216,7 +222,7 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
   });
   await inv("init", { mpvConfig: { initialOptions: { vo: "gpu-next", hwdec: "auto-safe", "keep-open": "yes", "force-window": "yes",
     pause: "yes", ytdl: "no", osc: "no", "input-default-bindings": "no", "sub-auto": "no", "audio-display": "no" }, observedProperties: PROPS } });
-  const fail = async (m: string) => { off(); await inv("destroy").catch(() => {}); throw new Error(m); };
+  const fail = async (m: string) => { off(); await inv("destroy").catch(() => {}); mark(false); throw new Error(m); };
   await inv("command", { name: "loadfile", args: [url] });
   if (!(await Promise.race([ready, new Promise<boolean>(ok => setTimeout(() => ok(false), 30000))]))) return fail("mpv n'a pas pu ouvrir ce lien");
 
@@ -259,7 +265,7 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
     canDelay: true, setSubDelay: s => { set("sub-delay", s); cues.setDelay(s); },
     suspended: () => false, resume: async () => {},
     resize: () => {},
-    destroy: () => { off(); cues.destroy(); mpvGone = inv("destroy").catch(() => {}); for (const [el, bg] of opaque) el.style.background = bg; },
+    destroy: () => { off(); cues.destroy(); mpvGone = inv("destroy").catch(() => {}).then(() => mark(false)); for (const [el, bg] of opaque) el.style.background = bg; },
   };
   return eng;
 }
@@ -268,7 +274,8 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
 export async function createEngine(box: HTMLDivElement, url: string, file: string | undefined, onError: (m: string) => void): Promise<Engine> {
   let why: Engine["why"] = "cors";
   let detail: string | undefined;
-  if (desktop?.mpv) try { return await mpv(box, url); } catch (e) { console.warn("mpv :", e); detail = `mpv : ${String((e as Error)?.message ?? e).slice(0, 200)}`; }
+  if (desktop?.mpv && crashed()) { mark(false); detail = "mpv : l'appli s'est fermée au dernier essai, lecteur avancé cette fois"; }
+  else if (desktop?.mpv) try { return await mpv(box, url); } catch (e) { console.warn("mpv :", e); detail = `mpv : ${String((e as Error)?.message ?? e).slice(0, 200)}`; }
   // Appli Windows : si le serveur du debrid refuse le lecteur avancé, le relais local lit le lien à sa place.
   const relay = relayed(url), name = file || new URL(url).pathname; // format deviné d'après le lien d'origine
   const direct = await readable(url);
