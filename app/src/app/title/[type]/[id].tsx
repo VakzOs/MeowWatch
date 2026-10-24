@@ -57,6 +57,10 @@ export default function Title() {
   const seasons = [...new Set(episodes.map(v => v.season!))].sort((a, b) => (a || 99) - (b || 99)); // spéciaux (saison 0) en dernier
   const isSeries = type !== "movie" && episodes.length > 0; // séries, animés, chaînes à épisodes
   const resumeEp = episodes.find(e => e.id === saved?.videoId);
+  // Anti-spoil : image floutée pour les épisodes après celui en cours (pas encore vus).
+  // ponytail: la reprise ne retient que le dernier épisode lancé ; revoir un ancien épisode refloute les suivants.
+  const spoil = useStore(s => !!s.user?.profile?.prefs?.spoil);
+  const seen = resumeEp ? episodes.indexOf(resumeEp) : -1;
   const [season, setSeason] = useState<number>();
   const [video, setVideo] = useState<Video | null>(null); // épisode ouvert dans la colonne (sinon : liste des épisodes)
   // Saison demandée (depuis le calendrier), sinon celle de la reprise, sinon la première.
@@ -164,8 +168,8 @@ export default function Title() {
             <ScrollView contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}>
               {episodes.filter(e => e.season === season).map(e => (
                 <Pressable key={e.id} onPress={() => setVideo(e)} style={({ hovered }: any) => [st.ep, hovered && st.epHover]}>
-                  <View>
-                    {e.thumbnail ? <Image source={e.thumbnail} style={st.thumb} contentFit="cover" /> : <View style={[st.thumb, { backgroundColor: C.raised }]} />}
+                  <View style={{ borderRadius: 8, overflow: "hidden" }}>
+                    {e.thumbnail ? <Image source={e.thumbnail} style={st.thumb} contentFit="cover" blurRadius={spoil && episodes.indexOf(e) > seen ? 12 : 0} /> : <View style={[st.thumb, { backgroundColor: C.raised }]} />}
                     {ratings[`${e.season}:${e.episode}`] ? <Rating value={ratings[`${e.season}:${e.episode}`]} /> : null}
                   </View>
                   <View style={{ flex: 1 }}>

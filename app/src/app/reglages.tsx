@@ -98,6 +98,15 @@ function Playback() {
         <Btn label="Afficher" onPress={() => put({ ...prefs, adult: true })} ghost={prefs.adult === false} />
         <Btn label="Masquer" onPress={() => put({ ...prefs, adult: false })} ghost={prefs.adult !== false} />
       </View>
+      <Text style={[font(600, 18), st.h]}>Anti-spoil</Text>
+      <View style={st.row}>
+        <View style={{ flex: 1 }}>
+          <Text style={font(600, 15)}>{prefs.spoil ? "Aperçus floutés" : "Aperçus visibles"}</Text>
+          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>Floute l'image des épisodes que tu n'as pas encore vus (liste des épisodes, épisode suivant), pour ce profil.</Text>
+        </View>
+        <Btn label="Visibles" onPress={() => put({ ...prefs, spoil: false })} ghost={!!prefs.spoil} />
+        <Btn label="Floutés" onPress={() => put({ ...prefs, spoil: true })} ghost={!prefs.spoil} />
+      </View>
     </>
   );
 }

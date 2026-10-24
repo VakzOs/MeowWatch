@@ -403,7 +403,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
       ) : null}
       {nextCard && next ? (
         <View style={st.next}>
-          <Image source={next.thumbnail ?? p.background} style={st.nextImg} contentFit="cover" />
+          <Image source={next.thumbnail ?? p.background} style={st.nextImg} contentFit="cover" blurRadius={langPrefs.spoil && next.thumbnail ? 12 : 0} />
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={font(600, 12, C.mute)}>Épisode suivant</Text>
             <Text style={font(700, 15)} numberOfLines={2}>{epLabel(next)}{next.name || next.title ? ` · ${next.name || next.title}` : ""}</Text>

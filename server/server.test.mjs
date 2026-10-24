@@ -177,8 +177,9 @@ test("préférences de langue du profil et relais des sous-titres", async () => 
   const put = b => api("/api/profiles/prefs", c, { method: "PUT", body: JSON.stringify(b) });
   assert.equal((await put({ films: { audio: "français" } })).status, 400);
   assert.equal((await put(prefs)).status, 200);
-  assert.deepEqual((await (await api("/api/auth/me", c)).json()).profile.prefs, { ...prefs, adult: true });
+  assert.deepEqual((await (await api("/api/auth/me", c)).json()).profile.prefs, { ...prefs, adult: true, spoil: false });
   assert.equal((await (await put({ ...prefs, adult: false })).json()).adult, false);
+  assert.equal((await (await put({ ...prefs, spoil: true })).json()).spoil, true);
   // Relais : connecté seulement, et jamais vers une adresse interne du VPS.
   assert.equal((await api("/api/subtitle.vtt?url=https://x.dev/a.srt")).status, 401);
   assert.equal((await (await api(`/api/subtitle.vtt?url=${encodeURIComponent("http://127.0.0.1:22/x")}`, c)).json()).error, "adresse refusée");
