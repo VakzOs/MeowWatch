@@ -13,6 +13,8 @@ import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
 const SESSION_DAYS = 60, INVITE_DAYS = 7, MAX_PROFILES = 6;
+// Codes de connexion des télés : sans 0/O ni 1/I pour se lire de loin ; gardés en mémoire (10 min, perdus au redémarrage).
+const TV_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", TV_MINUTES = 10;
 export const COLORS = ["#D6182A", "#E8833A", "#E5B92E", "#3FA66B", "#2F8FD8", "#8B5CF6"];
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".ttf": "font/ttf", ".woff2": "font/woff2", ".wasm": "application/wasm" };
 
@@ -146,6 +148,7 @@ export function start(env = process.env) {
   }).map(([k, sql]) => [k, db.prepare(sql)]));
 
   const hash = t => createHash("sha256").update(t).digest("hex");
+  const tvCodes = new Map(); // code → { secret (haché), exp, user }
   const token = (n = 32) => randomBytes(n).toString("base64url");
   const cookies = req => Object.fromEntries((req.headers.cookie ?? "").split(";").map(c => c.trim().split("=")).filter(([k]) => k).map(([k, ...v]) => [k, decodeURIComponent(v.join("="))]));
   const cookie = (name, value, maxAge) => `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
@@ -306,6 +309,33 @@ export function start(env = process.env) {
       q.addSession.run(hash(t), d.id, now + SESSION_DAYS * 864e5);
       redirect(res, "/", { "set-cookie": [clear, cookie("mw_session", t, SESSION_DAYS * 86400)] });
     },
+    // Connexion d'une télé (Discord n'a pas de connexion par code) : la télé demande un code, on le valide sur le site
+    // depuis un appareil déjà connecté, la télé reçoit alors sa propre session.
+    "POST /api/tv/start": (req, res) => {
+      const now = Date.now();
+      for (const [c, x] of tvCodes) if (x.exp < now) tvCodes.delete(c);
+      if (tvCodes.size > 500) return json(res, 503, { error: "trop de demandes, réessaie dans quelques minutes" });
+      let code; do code = Array.from(randomBytes(6), b => TV_ALPHABET[b % TV_ALPHABET.length]).join(""); while (tvCodes.has(code));
+      const secret = token();
+      tvCodes.set(code, { secret: hash(secret), exp: now + TV_MINUTES * 6e4, user: null });
+      json(res, 201, { code, secret, expiresAt: now + TV_MINUTES * 6e4 });
+    },
+    "GET /api/tv/poll": (req, res, url) => {
+      const x = tvCodes.get(url.searchParams.get("code") ?? "");
+      if (!x || x.exp < Date.now()) return json(res, 410, { error: "code expiré" });
+      if (hash(url.searchParams.get("secret") ?? "") !== x.secret) return json(res, 403, { error: "code refusé" });
+      if (!x.user) return json(res, 200, { pending: true });
+      tvCodes.delete(url.searchParams.get("code"));
+      const t = token();
+      q.addSession.run(hash(t), x.user, Date.now() + SESSION_DAYS * 864e5);
+      json(res, 200, { token: t });
+    },
+    "POST /api/tv/approve": member(async (req, res, url, u) => {
+      const code = String((await body(req)).code ?? "").toUpperCase().replace(/[^A-Z0-9]/g, ""), x = tvCodes.get(code);
+      if (!x || x.exp < Date.now()) return json(res, 404, { error: "Code inconnu ou expiré : relance la connexion sur la télé." });
+      x.user = u.id;
+      json(res, 200, { ok: true });
+    }),
     "GET /api/auth/me": (req, res) => { const u = me(req); u ? json(res, 200, view(u)) : json(res, 401, { error: "non connecté" }); },
     "POST /api/auth/logout": (req, res) => { const t = cookies(req).mw_session; if (t) q.deleteSession.run(hash(t)); json(res, 200, { ok: true }, { "set-cookie": cookie("mw_session", "", 0) }); },
     "GET /api/translate": member(async (req, res, url) => {

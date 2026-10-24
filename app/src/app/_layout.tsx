@@ -1,5 +1,5 @@
 import { InstrumentSans_400Regular, InstrumentSans_500Medium, InstrumentSans_600SemiBold, InstrumentSans_700Bold, useFonts } from "@expo-google-fonts/instrument-sans";
-import { DarkTheme, Stack, ThemeProvider, useGlobalSearchParams, usePathname } from "expo-router";
+import { DarkTheme, router, Stack, ThemeProvider, useGlobalSearchParams, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { AppState, Platform, View } from "react-native";
@@ -24,6 +24,7 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
   }
 }
 
+const TV_KEY = "meowwatch:tv-code";
 const THEME = { ...DarkTheme, colors: { ...DarkTheme.colors, background: "transparent", card: "transparent" } };
 
 export default function Root() {
@@ -41,6 +42,16 @@ export default function Root() {
   const [valid, setValid] = useState<boolean | null>(null);
   useEffect(() => { if (code) api(`/api/invite?code=${code}`).then(() => setValid(true), () => setValid(false)); }, [code]);
 
+  // QR code d'une télé scanné sans être connecté : le code attend la connexion Discord (qui revient sur l'accueil).
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    try {
+      const tv = new URLSearchParams(location.search).get("code");
+      if (path === "/tv" && tv) sessionStorage.setItem(TV_KEY, tv);
+      else if (user?.profile && path === "/" && sessionStorage.getItem(TV_KEY)) { const c = sessionStorage.getItem(TV_KEY)!; sessionStorage.removeItem(TV_KEY); router.replace(`/tv?code=${c}`); }
+    } catch { }
+  }, [path, user?.profile]);
+
   if (!fonts || !ready) return <View style={{ flex: 1, backgroundColor: C.chrome }} />;
   if (!user) return <Login error={erreur} invite={code ? { code, valid } : undefined} />;
   if (!user.profile) return <ProfilePicker />;
@@ -49,7 +60,7 @@ export default function Root() {
       <StatusBar style="light" />
       {/* Thème sombre au fond transparent : le fond flouté de Shell reste visible derrière chaque page. */}
       <ThemeProvider value={THEME}>
-        <Shell bare={path.startsWith("/play") || path.startsWith("/title")}>
+        <Shell bare={path.startsWith("/play") || path.startsWith("/title") || path === "/tv"}>
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "transparent" }, animation: "none" }} />
         </Shell>
       </ThemeProvider>
