@@ -1,0 +1,52 @@
+--- a/packages/avcodec/src/clib/decode.c
++++ b/packages/avcodec/src/clib/decode.c
+@@ -12,6 +12,25 @@
+ 
+ static AVCodecContext* dec_ctx;
+ 
++// MKV « V_MS/VFW/FOURCC » (VC-1 des REMUX) : les paquets n'ont que l'ordre de décodage. Avec des images B, chaque image
++// sortie prend le plus petit horaire reçu et pas encore servi (l'ordre d'affichage), comme les lecteurs AVI.
++#define MW_TS_MAX 64
++static int64_t mw_ts[MW_TS_MAX];
++static int mw_ts_n = 0;
++static void mw_ts_push(int64_t t) {
++  if (t == AV_NOPTS_VALUE || mw_ts_n == MW_TS_MAX) return;
++  int i = mw_ts_n++;
++  while (i > 0 && mw_ts[i - 1] > t) { mw_ts[i] = mw_ts[i - 1]; i--; }
++  mw_ts[i] = t;
++}
++static int64_t mw_ts_pop(int64_t fallback) {
++  if (!mw_ts_n) return fallback;
++  int64_t t = mw_ts[0];
++  for (int i = 1; i < mw_ts_n; i++) mw_ts[i - 1] = mw_ts[i];
++  mw_ts_n--;
++  return t;
++}
++
+ struct AVBuffer {
+   uint8_t *data; /**< data described by this buffer */
+   size_t size; /**< size of data in bytes */
+@@ -103,6 +122,7 @@
+ 
+     if (ret == AVERROR_EOF) {
+       avcodec_flush_buffers(dec_ctx);
++      mw_ts_n = 0;
+     }
+     // those two return values are special and mean there is no output
+     // frame available, but there were no errors during decoding
+@@ -115,6 +135,7 @@
+     return ret;
+   }
+ 
++  ((AVFrame*)frame)->pts = mw_ts_pop(frame->pts);
+   return 1;
+ }
+ 
+@@ -140,6 +161,7 @@
+   if (packet->buf) {
+     packet->buf->buffer->free = av_buffer_default_free;
+   }
++  mw_ts_push(packet->pts != AV_NOPTS_VALUE ? packet->pts : packet->dts);
+   return decode_packet(packet);
+ }
+ 
