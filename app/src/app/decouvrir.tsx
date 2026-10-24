@@ -3,7 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View, type NativeScrol
 import { Card, hoverTitle, openTitle } from "../components/Row";
 import { Select } from "../components/Select";
 import { C, catalogName, font, genreList, TYPE_FR } from "../components/theme";
-import { canSkip, discoverCatalogs, fetchCatalog, filledGenres, genreOptions, genreRequired, type Meta } from "../lib/addons";
+import { canSkip, discoverCatalogs, fetchCatalog, filledGenres, genreOptions, isAdultGenre, genreRequired, type Meta } from "../lib/addons";
 import { useStore, visibleAddons } from "../lib/store";
 
 /** Découvrir, façon Stremio : type, catalogue et genre en haut, grille d'affiches qui se charge au défilement. */
@@ -27,7 +27,9 @@ export default function Decouvrir() {
     if (!cur || !curKey || filled[curKey] || !genreOptions(cur.catalog).length) return;
     filledGenres(cur.addon, cur.catalog).then(g => setFilled(f => ({ ...f, [curKey]: g })));
   }, [curKey]);
-  const list = cur ? (curKey && filled[curKey]) || genreOptions(cur.catalog) : [];
+  // Genres pour adultes (Hentai, Ecchi…) masqués si le profil masque le contenu adulte (Réglages), sinon en bas du menu.
+  const adult = useStore(s => s.user?.profile?.prefs?.adult !== false);
+  const list = (cur ? (curKey && filled[curKey]) || genreOptions(cur.catalog) : []).filter(g => adult || !isAdultGenre(g));
   const curGenre = cur && genreRequired(cur.catalog) ? genre ?? list[0] : genre;
   const genres = curGenre && !list.includes(curGenre) ? [curGenre, ...list] : list;
 
@@ -85,8 +87,9 @@ export default function Decouvrir() {
   );
 }
 
-// Genres traduits remis dans l'ordre alphabétique français ; les années (Cinemeta) gardent l'ordre de l'addon.
-const byLabel = <T extends { label: string }>(l: T[]) => l.some(i => /^\d+$/.test(i.label)) ? l : [...l].sort((a, b) => a.label.localeCompare(b.label, "fr"));
+// Genres traduits remis dans l'ordre alphabétique français, genres pour adultes en dernier ; les années (Cinemeta) gardent l'ordre de l'addon.
+const byLabel = <T extends { k: string; label: string }>(l: T[]) => l.some(i => /^\d+$/.test(i.label)) ? l
+  : [...l].sort((a, b) => +isAdultGenre(a.k) - +isAdultGenre(b.k) || a.label.localeCompare(b.label, "fr"));
 
 const st = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", columnGap: 20, rowGap: 28 },

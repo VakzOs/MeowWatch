@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, fetchCatalog, kitsuCatalogUrl, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, fromStremio, fromStremioFR, searchCatalog, hostInstalled, categorize, ping, isAdultAddon, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, isAdultGenre, fetchCatalog, kitsuCatalogUrl, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, fromStremio, fromStremioFR, searchCatalog, hostInstalled, categorize, ping, isAdultAddon, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -169,4 +169,8 @@ test("ping : manifeste qui répond bien, en erreur, injoignable ; page de régla
       ping({ manifest: "https://down.dev/manifest.json" }), ping({ configure: "https://cfg.dev/configure" })]), [true, false, false, true]);
     assert.deepEqual(modes, ["cors", "cors", "cors", "no-cors"]);
   } finally { globalThis.fetch = real; }
+});
+
+test("genres pour adultes", () => {
+  assert.deepEqual(["Hentai", "Ecchi", "Yaoi", "Yuri", "Mature", "Shounen Ai", "Shoujo Ai", "Romance", "Coming Of Age"].filter(isAdultGenre), ["Hentai", "Ecchi", "Yaoi", "Yuri", "Mature"]);
 });
