@@ -72,7 +72,7 @@ export default function Decouvrir() {
           <Select id="type" open={menu} setOpen={setMenu} value={curType} items={types.map(t => ({ k: t, label: TYPE_FR[t] ?? t }))} onChange={t => { setType(t); setKey(undefined); setGenre(null); }} />
           <Select id="cat" open={menu} setOpen={setMenu} value={cur && keyOf(cur)} items={ofType.map(c => ({ k: keyOf(c), label: catalogName(c.catalog.name, c.catalog.id), note: all.some(o => o.addon !== c.addon) ? c.addon.manifest.name : undefined }))} onChange={k => { setKey(k); setGenre(null); }} />
           {genres.length ? (
-            <Select id="genre" open={menu} setOpen={setMenu} value={curGenre ?? ""} items={[...(cur && !genreRequired(cur.catalog) ? [{ k: "", label: "Tous les genres" }] : []), ...genres.map(g => ({ k: g, label: genreList([g])[0] }))]} onChange={g => setGenre(g || null)} />
+            <Select id="genre" open={menu} setOpen={setMenu} value={curGenre ?? ""} items={[...(cur && !genreRequired(cur.catalog) ? [{ k: "", label: "Tous les genres" }] : []), ...byLabel(genres.map(g => ({ k: g, label: genreList([g])[0] })))]} onChange={g => setGenre(g || null)} />
           ) : null}
         </View>
       )}
@@ -84,6 +84,9 @@ export default function Decouvrir() {
     </ScrollView>
   );
 }
+
+// Genres traduits remis dans l'ordre alphabétique français ; les années (Cinemeta) gardent l'ordre de l'addon.
+const byLabel = <T extends { label: string }>(l: T[]) => l.some(i => /^\d+$/.test(i.label)) ? l : [...l].sort((a, b) => a.label.localeCompare(b.label, "fr"));
 
 const st = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", columnGap: 20, rowGap: 28 },
