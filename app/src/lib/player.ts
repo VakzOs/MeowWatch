@@ -1,11 +1,11 @@
 // Moteurs de lecture du web. « avancé » : libmedia (WASM) décode le fichier lui-même : MKV, HEVC, DTS/AC3, pistes audio
 // et sous-titres intégrés. Il doit pouvoir lire le lien (CORS). Sinon, « navigateur » : la balise <video>, comme avant.
-import { relayed } from "./desktop";
+import { desktop, relayed } from "./desktop";
 import { langCode, parseVtt, trackLabel, type Cue } from "./lang";
 
 export type Track = { id: number; lang: string; label: string; forced?: boolean; ext?: boolean }; // ext : sous-titre d'un addon
 export type Engine = {
-  kind: "avance" | "navigateur";
+  kind: "avance" | "navigateur" | "mpv";
   why?: "cors" | "echec"; // pourquoi le lecteur avancé n'a pas servi
   detail?: string; // message d'erreur du lecteur avancé
   info?: string; // « H264 1080p · AC3 5.1 »
@@ -189,14 +189,83 @@ function navigateur(box: HTMLDivElement, url: string, onError: (m: string) => vo
   });
 }
 
-/** Lecteur avancé si le lien le permet, sinon celui du navigateur. */
+// --- mpv (appli Windows) ----------------------------------------------------------------------------
+// La fenêtre de l'appli est transparente : mpv y dessine la vidéo, la page (rendue transparente jusqu'au lecteur) garde
+// nos contrôles par-dessus. Tous les formats, carte graphique, lien lu directement (pas de CORS).
+
+const MPV_CODECS: Record<string, string> = { h264: "H264", hevc: "HEVC", vc1: "VC-1", av1: "AV1", vp9: "VP9", mpeg2video: "MPEG-2",
+  truehd: "TrueHD", ac3: "AC3", eac3: "E-AC3", dts: "DTS", aac: "AAC", opus: "Opus", flac: "FLAC", mp3: "MP3" };
+const PROPS = { "time-pos": "double", duration: "double", "track-list": "node" };
+let mpvGone: Promise<unknown> = Promise.resolve(); // une seule instance par fenêtre : la suivante attend la fin de la précédente
+
+async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
+  const t = (window as any).__TAURI__;
+  const inv = (cmd: string, a: object = {}) => t.core.invoke(`plugin:libmpv|${cmd}`, { windowLabel: "main", ...a });
+  const set = (name: string, value: string | number | boolean) => inv("set_property", { name, value });
+  const props: Record<string, any> = {};
+  let loaded: (ok: boolean) => void = () => {};
+  const ready = new Promise<boolean>(ok => (loaded = ok));
+  await mpvGone;
+  const off = await t.event.listen("mpv-event-main", ({ payload: e }: any) => {
+    if (e.event === "property-change") props[e.name] = e.data;
+    else if (e.event === "file-loaded") loaded(true);
+    else if (e.event === "end-file" && e.reason === "error") loaded(false);
+  });
+  await inv("init", { mpvConfig: { initialOptions: { vo: "gpu-next", hwdec: "auto-safe", "keep-open": "yes", "force-window": "yes",
+    pause: "yes", ytdl: "no", osc: "no", "input-default-bindings": "no", "sub-auto": "no", "audio-display": "no" }, observedProperties: PROPS } });
+  const fail = async (m: string) => { off(); await inv("destroy").catch(() => {}); throw new Error(m); };
+  await inv("command", { name: "loadfile", args: [url] });
+  if (!(await Promise.race([ready, new Promise<boolean>(ok => setTimeout(() => ok(false), 30000))]))) return fail("mpv n'a pas pu ouvrir ce lien");
+
+  // La page devient transparente du lecteur jusqu'à la fenêtre (restaurée à la fermeture).
+  const opaque: [HTMLElement, string][] = [];
+  for (let el: HTMLElement | null = box; el; el = el.parentElement) { opaque.push([el, el.style.background]); el.style.background = "transparent"; }
+
+  const list: any[] = (await inv("get_property", { name: "track-list", format: "node" }).catch(() => null)) ?? props["track-list"] ?? [];
+  const label = (x: any, extras: string[]) => trackLabel(langCode(x.lang, x.title), x.title, extras);
+  const audio: Track[] = list.filter(x => x.type === "audio").map(x => ({ id: x.id, lang: langCode(x.lang, x.title),
+    label: label(x, [MPV_CODECS[x.codec] ?? String(x.codec ?? "").toUpperCase(), CHANNELS[x["demux-channel-count"]] ?? ""]) }));
+  const subs: Track[] = list.filter(x => x.type === "sub").map(x => ({ id: x.id, lang: langCode(x.lang, x.title), forced: !!x.forced,
+    label: label(x, [x.forced ? "Forcés" : ""]) }));
+  const video = list.find(x => x.type === "video" && x.selected);
+  const infoOf = (aid: number) => {
+    const a = list.find(x => x.type === "audio" && x.id === aid);
+    return [[MPV_CODECS[video?.codec] ?? video?.codec, video?.["demux-h"] ? `${video["demux-h"]}p` : ""].filter(Boolean).join(" "),
+      [MPV_CODECS[a?.codec] ?? a?.codec, CHANNELS[a?.["demux-channel-count"]] ?? ""].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
+  };
+  const aid = list.find(x => x.type === "audio" && x.selected)?.id ?? audio[0]?.id ?? -1;
+  const cues = cueLayer(box, () => eng.time());
+  const eng: Engine = {
+    kind: "mpv", info: infoOf(aid),
+    time: () => props["time-pos"] ?? 0,
+    duration: () => props.duration ?? 0,
+    play: async () => { await set("pause", false); },
+    pause: () => { set("pause", true); },
+    seek: s => { inv("command", { name: "seek", args: [Math.max(0, s), "absolute"] }); },
+    setRate: r => { set("speed", r); },
+    setVolume: v => { set("volume", Math.round(v * 100)); },
+    audio, subs, audioId: aid, subId: -1,
+    selectAudio: async id => { await set("aid", id); eng.audioId = id; eng.info = infoOf(id); },
+    // Sous-titres du fichier : dessinés par mpv ; ceux des addons : par notre calque, comme dans les autres lecteurs.
+    selectSub: async id => { await set("sid", id >= 0 && !cues.has(id) ? id : "no"); cues.show(id); eng.subId = id; },
+    addSub: async (url, lang, label) => { const id = await cues.add(url); eng.subs.push({ id, lang, label, ext: true }); return id; },
+    canDelay: true, setSubDelay: s => { set("sub-delay", s); cues.setDelay(s); },
+    suspended: () => false, resume: async () => {},
+    resize: () => {},
+    destroy: () => { off(); cues.destroy(); mpvGone = inv("destroy").catch(() => {}); for (const [el, bg] of opaque) el.style.background = bg; },
+  };
+  return eng;
+}
+
+/** Appli Windows : mpv. Sinon lecteur avancé si le lien le permet, sinon celui du navigateur. */
 export async function createEngine(box: HTMLDivElement, url: string, file: string | undefined, onError: (m: string) => void): Promise<Engine> {
   let why: Engine["why"] = "cors";
+  let detail: string | undefined;
+  if (desktop?.mpv) try { return await mpv(box, url); } catch (e) { console.warn("mpv :", e); detail = `mpv : ${String((e as Error)?.message ?? e).slice(0, 200)}`; }
   // Appli Windows : si le serveur du debrid refuse le lecteur avancé, le relais local lit le lien à sa place.
   const relay = relayed(url), name = file || new URL(url).pathname; // format deviné d'après le lien d'origine
   const direct = await readable(url);
   if (!direct && relay && (await readable(relay))) url = relay;
-  let detail: string | undefined;
   if (direct || url === relay) {
     why = "echec";
     const inner = document.createElement("div");

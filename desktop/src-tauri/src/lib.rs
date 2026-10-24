@@ -1,5 +1,6 @@
 //! Meow Watch pour Windows : une fenêtre sans barre Windows qui ouvre le site (l'interface se met à jour avec lui),
-//! un relais local pour le lecteur avancé, et des mises à jour de l'appli téléchargées en fond.
+//! un relais local pour le lecteur avancé, le lecteur mpv (tous les formats, carte graphique) dessiné sous la page
+//! transparente, et des mises à jour de l'appli téléchargées en fond.
 mod relay;
 
 use std::sync::Mutex;
@@ -50,16 +51,18 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_libmpv::init())
         .manage(Pending::default())
         .invoke_handler(tauri::generate_handler![update_status, install_update])
         .setup(|app| {
             let relay = relay::start(SITE);
             // Le site sait qu'il tourne dans l'appli, et où trouver le relais (avant ses propres scripts).
             let init = format!(
-                "window.__MW_DESKTOP__ = {{ relay: 'http://127.0.0.1:{}/?t={}&u=', version: '{}' }};{}",
+                "window.__MW_DESKTOP__ = {{ relay: 'http://127.0.0.1:{}/?t={}&u=', version: '{}', mpv: {} }};{}",
                 relay.port,
                 relay.token,
                 app.package_info().version,
+                cfg!(windows), // libmpv n'est fournie que pour Windows
                 FALLBACK_BAR
             );
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(SITE.parse().expect("adresse du site")))
@@ -69,7 +72,10 @@ pub fn run() {
                 .center()
                 .decorations(false) // seuls nos 3 boutons, dessinés par le site
                 .shadow(true) // ombre et coins arrondis de Windows 11
-                .background_color(Color(18, 18, 20, 255)) // pas d'éclair blanc au lancement
+                // Fenêtre transparente : mpv dessine la vidéo dessous, la page (opaque ailleurs) devient transparente
+                // pendant la lecture pour laisser voir l'image sous ses contrôles.
+                .transparent(true)
+                .background_color(Color(0, 0, 0, 0))
                 .initialization_script(&init)
                 .build()?;
 

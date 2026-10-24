@@ -17,6 +17,7 @@ export type PlayParams = { url: string; file?: string; binge?: string; addon?: s
 // Réglages du lecteur, retenus sur l'appareil.
 type Prefs = { volume: number; muted: boolean; size: number; color: string; bg: string; blur: boolean; autoNext: boolean };
 const PREFS_KEY = "meowwatch:lecteur";
+const ENGINE = { avance: "Lecteur avancé", navigateur: "Lecteur du navigateur", mpv: "Lecteur mpv" };
 const DELAY_KEY = "meowwatch:decalage:"; // + identifiant du titre (la série, pas l'épisode)
 const DEFAULT: Prefs = { volume: 1, muted: false, size: 1, color: "", bg: "", blur: false, autoNext: true };
 const SIZES = [{ k: 0.8, label: "Petit" }, { k: 1, label: "Normal" }, { k: 1.3, label: "Grand" }, { k: 1.6, label: "Très grand" }];
@@ -282,7 +283,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
       <View style={[st.top, desktop && { paddingRight: 160 }, !show && st.hidden]} pointerEvents={show ? "box-none" : "none"}>
         <Pressable onPress={back} style={({ hovered }: any) => [st.round, hovered && st.roundOn]} accessibilityLabel="Retour"><Icon name="back" color={C.ink} /></Pressable>
         <Text style={[font(600, 17), { flex: 1 }]} numberOfLines={1}>{p.name}{p.label ? ` · ${p.label}` : ""}</Text>
-        {eng ? <Text style={font(500, 12, C.mute)}>{eng.kind === "avance" ? "Lecteur avancé" : "Lecteur du navigateur"}</Text> : null}
+        {eng ? <Text style={font(500, 12, C.mute)}>{ENGINE[eng.kind]}</Text> : null}
       </View>
 
       {/* Bas : barre de progression et boutons */}
@@ -318,7 +319,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
               <>
                 <Text style={st.menuTitle}>Langue audio</Text>
                 {eng.audio.length ? eng.audio.map(t => <Item key={t.id} on={t.id === eng.audioId} label={t.label} flag={t.lang} onPress={() => pickAudio(t)} />)
-                  : <Text style={st.empty}>{eng.kind === "avance" ? "Une seule piste audio." : `Le lecteur du navigateur ne peut pas changer la langue de ce fichier. ${WHY[eng.why ?? "cors"]}`}</Text>}
+                  : <Text style={st.empty}>{eng.kind !== "navigateur" ? "Une seule piste audio." : `Le lecteur du navigateur ne peut pas changer la langue de ce fichier. ${WHY[eng.why ?? "cors"]}`}</Text>}
               </>
             ) : null}
             {menu === "subs" ? (
@@ -329,7 +330,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
                 {eng.subs.filter(t => !t.ext).map(t => <Item key={t.id} on={t.id === eng.subId} label={t.label} flag={t.lang} onPress={() => pickSub(t.id)} />)}
                 {ext.length ? <Text style={st.group}>Des addons</Text> : null}
                 {ext.map(s => <Item key={s.url} on={loaded.current.get(s.url) === eng.subId} label={s.label} flag={s.lang} onPress={() => pickExt(s)} />)}
-                {!eng.subs.some(t => !t.ext) && !ext.length ? <Text style={st.empty}>{eng.kind === "avance" ? "Ce fichier n'a pas de sous-titres." : `Le lecteur du navigateur ne voit pas les sous-titres de ce fichier. ${WHY[eng.why ?? "cors"]}`}</Text> : null}
+                {!eng.subs.some(t => !t.ext) && !ext.length ? <Text style={st.empty}>{eng.kind !== "navigateur" ? "Ce fichier n'a pas de sous-titres." : `Le lecteur du navigateur ne voit pas les sous-titres de ce fichier. ${WHY[eng.why ?? "cors"]}`}</Text> : null}
                 {eng.canDelay && eng.subId >= 0 ? (
                   <View style={st.delay}>
                     <Text style={[font(500, 13, C.soft), { flex: 1 }]}>Décalage (par 0,5 s)</Text>
@@ -360,7 +361,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
                   return <Item key={i} on={s.url === p.url} label={`${d.quality}${d.size ? ` · ${d.size}` : ""}\n${extra || d.source}`} onPress={() => switchStream(s)} />;
                 })}
                 <Text style={st.empty}>Le nouveau flux reprend à la même position.</Text>
-                <Text style={st.empty}>{eng.kind === "avance" ? "Lecteur avancé" : "Lecteur du navigateur"}{eng.info ? ` · ${eng.info}` : ""}{eng.detail ? `\nErreur du lecteur avancé : ${eng.detail}` : ""}</Text>
+                <Text style={st.empty}>{ENGINE[eng.kind]}{eng.info ? ` · ${eng.info}` : ""}{eng.detail ? `\nErreur : ${eng.detail}` : ""}</Text>
               </>
             ) : null}
             {menu === "speed" ? (

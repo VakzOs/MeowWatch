@@ -1,6 +1,6 @@
-// Appli Windows (Tauri) : la fenêtre ouvre le site et lui injecte window.__MW_DESKTOP__ (relais local, version).
+// Appli Windows (Tauri) : la fenêtre ouvre le site et lui injecte window.__MW_DESKTOP__ (relais local, version, mpv).
 // Hors de l'appli, tout ceci vaut null et le site se comporte normalement.
-type Desktop = { relay: string; version: string };
+type Desktop = { relay: string; version: string; mpv?: boolean }; // mpv : lecteur intégré (appli 1.1.0 et plus)
 export const desktop: Desktop | null = typeof window !== "undefined" ? (window as any).__MW_DESKTOP__ ?? null : null;
 
 const tauri = () => (window as any).__TAURI__;
