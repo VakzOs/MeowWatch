@@ -224,7 +224,10 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
   const opaque: [HTMLElement, string][] = [];
   for (let el: HTMLElement | null = box; el; el = el.parentElement) { opaque.push([el, el.style.background]); el.style.background = "transparent"; }
 
-  const list: any[] = (await inv("get_property", { name: "track-list", format: "node" }).catch(() => null)) ?? props["track-list"] ?? [];
+  // Pistes : seulement par l'événement observé. Ne jamais lire une propriété « node » avec get_property : libmpv-wrapper
+  // (nov. 2025) y fait écrire un mpv_node de 16 octets dans un pointeur de 8, puis libère n'importe quoi : l'appli plantait.
+  for (let i = 0; i < 30 && !props["track-list"]?.length; i++) await new Promise(r => setTimeout(r, 100));
+  const list: any[] = props["track-list"] ?? [];
   const label = (x: any, extras: string[]) => trackLabel(langCode(x.lang, x.title), x.title, extras);
   const audio: Track[] = list.filter(x => x.type === "audio").map(x => ({ id: x.id, lang: langCode(x.lang, x.title),
     label: label(x, [MPV_CODECS[x.codec] ?? String(x.codec ?? "").toUpperCase(), CHANNELS[x["demux-channel-count"]] ?? ""]) }));
@@ -248,9 +251,10 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
     setRate: r => { set("speed", r); },
     setVolume: v => { set("volume", Math.round(v * 100)); },
     audio, subs, audioId: aid, subId: -1,
-    selectAudio: async id => { await set("aid", id); eng.audioId = id; eng.info = infoOf(id); },
+    // aid / sid en texte : le wrapper envoie tout nombre en « double », format que mpv refuse pour un choix de piste.
+    selectAudio: async id => { await set("aid", String(id)); eng.audioId = id; eng.info = infoOf(id); },
     // Sous-titres du fichier : dessinés par mpv ; ceux des addons : par notre calque, comme dans les autres lecteurs.
-    selectSub: async id => { await set("sid", id >= 0 && !cues.has(id) ? id : "no"); cues.show(id); eng.subId = id; },
+    selectSub: async id => { await set("sid", id >= 0 && !cues.has(id) ? String(id) : "no"); cues.show(id); eng.subId = id; },
     addSub: async (url, lang, label) => { const id = await cues.add(url); eng.subs.push({ id, lang, label, ext: true }); return id; },
     canDelay: true, setSubDelay: s => { set("sub-delay", s); cues.setDelay(s); },
     suspended: () => false, resume: async () => {},
