@@ -39,7 +39,9 @@
   .row h3 { font-size: 28px; font-weight: 600; padding: 0 96px 16px; display: flex; gap: 14px; align-items: baseline; }
   .row h3 small { color: var(--faint); font-size: 20px; font-weight: 500; }
   .tiles { display: flex; gap: 26px; padding: 20px 96px 14px; overflow: hidden; }
-  .home .rows { bottom: -250px; }
+  .home .rows { bottom: -290px; }
+  #accueil-b .tiles { padding-bottom: 64px; }
+  #accueil-b .rows { bottom: -380px; }
   .home .hero { top: 170px; }
   .home .desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .card { flex: none; border-radius: 14px; background-size: cover; background-position: center; position: relative; }
@@ -48,7 +50,10 @@
   .card.focus { outline: 5px solid #fff; outline-offset: 5px; transform: scale(1.1); box-shadow: 0 20px 50px rgba(0,0,0,0.7); z-index: 2; }
   .card .bar { position: absolute; left: 14px; right: 14px; bottom: 14px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.3); }
   .card .bar b { display: block; height: 6px; border-radius: 3px; background: var(--red); }
-  .card .lbl { position: absolute; left: 0; right: 0; bottom: -44px; font-size: 22px; font-weight: 600; white-space: nowrap; }
+  .card .lbl { position: absolute; left: 0; right: 0; bottom: -46px; font-size: 22px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card.poster .lbl { font-size: 20px; }
+  .card.poster .lbl small { display: block; margin: 2px 0 0; font-size: 17px; }
+  .card.focus .lbl { transform: scale(0.91); transform-origin: left top; }
   .card .lbl small { color: var(--faint); font-weight: 500; margin-left: 8px; }
   /* Rail (variante B) */
   .rail { position: absolute; top: 0; bottom: 0; left: 0; width: 120px; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 22px; padding-top: 44px; background: linear-gradient(90deg, rgba(11,11,12,0.95), rgba(11,11,12,0)); }
@@ -147,7 +152,7 @@
   </div>
 </div>
 
-<div class="page"><h2><b>2B</b> · Accueil, rail à gauche</h2><p>Comme le site et l'appli Windows : une colonne d'icônes à gauche, qui s'ouvre avec les libellés quand on va dessus. Plus de place pour le visuel et les rangées.</p></div>
+<div class="page"><h2><b>2B</b> · Accueil, rail à gauche</h2><p>Variante choisie. Comme le site et l'appli Windows : une colonne d'icônes à gauche, qui s'ouvre avec les libellés quand on va dessus. Titre et année (ou épisode) sous chaque vignette.</p></div>
 <div class="tv home" id="accueil-b">
   <div class="bg" style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"></div>
   <div class="shade-l"></div><div class="shade-b"></div>
@@ -166,22 +171,22 @@
     <p class="desc">Deux frères traquent les créatures surnaturelles à travers l'Amérique, sur les traces de leur père disparu.</p>
   </div>
   <div class="rows" style="padding-left:84px">
-    <div class="row"><h3>Reprendre <small>sur tous tes appareils</small></h3>
+    <div class="row" style="margin-bottom:10px"><h3>Reprendre <small>sur tous tes appareils</small></h3>
       <div class="tiles">
-        <div class="card wide focus" style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"><div class="bar"><b style="width:62%"></b></div></div>
-        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt0112159/img)"><div class="bar"><b style="width:30%"></b></div></div>
-        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt0120737/img)"><div class="bar"><b style="width:80%"></b></div></div>
-        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt11126994/img)"><div class="bar"><b style="width:12%"></b></div></div>
+        <div class="card wide focus" style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"><div class="bar"><b style="width:62%"></b></div><div class="lbl">Supernatural<small>S5 · É4</small></div></div>
+        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt0112159/img)"><div class="bar"><b style="width:30%"></b></div><div class="lbl">Neon Genesis Evangelion<small>É12</small></div></div>
+        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt0120737/img)"><div class="bar"><b style="width:80%"></b></div><div class="lbl">Le Seigneur des anneaux<small>1 h 12 restantes</small></div></div>
+        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt11126994/img)"><div class="bar"><b style="width:12%"></b></div><div class="lbl">Arcane<small>S2 · É1</small></div></div>
       </div></div>
     <div class="row" style="margin-bottom:0"><h3>Populaires · Séries <small>Cinemeta</small></h3>
       <div class="tiles">
-        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0903747/img)"></div>
-        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0944947/img)"></div>
-        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt11126994/img)"></div>
-        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0388629/img)"></div>
-        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0816692/img)"></div>
-        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0120737/img)"></div>
-        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0112159/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0903747/img)"><div class="lbl">Breaking Bad<small>2008</small></div></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0944947/img)"><div class="lbl">Game of Thrones<small>2011</small></div></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt11126994/img)"><div class="lbl">Arcane<small>2021</small></div></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0388629/img)"><div class="lbl">One Piece<small>1999</small></div></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0816692/img)"><div class="lbl">Interstellar<small>2014</small></div></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0120737/img)"><div class="lbl">Le Seigneur des anneaux<small>2001</small></div></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0112159/img)"><div class="lbl">Evangelion<small>1995</small></div></div>
       </div></div>
   </div>
 </div>
