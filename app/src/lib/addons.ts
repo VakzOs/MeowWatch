@@ -70,6 +70,22 @@ export const discoverCatalogs = (addons: Addon[]) =>
   }).map(c => ({ addon: a, catalog: c })));
 export const genreOptions = (c: Catalog) => (c.extra ?? []).find(e => e.name === "genre")?.options ?? [];
 export const genreRequired = (c: Catalog) => required(c).includes("genre");
+
+/** Genres du catalogue qui renvoient au moins un titre : l'addon Kitsu propose une liste fixe, souvent vide (35 sur 61 en « Top Airing »).
+ *  Un genre en erreur est gardé, une panne ne doit pas vider le menu. */
+export async function filledGenres(a: Addon, c: Catalog): Promise<string[]> {
+  // ponytail: une requête par genre (4 à la fois, mises en cache et réutilisées par la grille) ; si un addon a des centaines de genres, sonder à l'ouverture du menu.
+  const all = genreOptions(c), ok = new Set<string>();
+  let i = 0;
+  const worker = async () => {
+    while (i < all.length) {
+      const g = all[i++];
+      if ((await fetchCatalog(a, c, { genre: g }).catch(() => [null])).length) ok.add(g);
+    }
+  };
+  await Promise.all(Array.from({ length: 4 }, worker));
+  return all.filter(g => ok.has(g));
+}
 export const canSkip = (c: Catalog) => hasExtra(c, "skip");
 
 export function catalogUrl(a: Addon, c: Catalog, extra?: Record<string, string>): string {

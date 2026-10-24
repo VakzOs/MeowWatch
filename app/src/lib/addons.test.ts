@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -90,4 +90,17 @@ test("épisode suivant et son flux (même groupe que l'épisode en cours)", () =
   assert.equal(pickNextStream(list, "a-1080", "A")?.behaviorHints?.bingeGroup, "a-1080");
   assert.equal(pickNextStream(list, "z", "B")?.addon, "B");
   assert.equal(pickNextStream(list)?.behaviorHints?.bingeGroup, "a-720");
+});
+
+test("filledGenres retire les genres vides et garde ceux en erreur", async () => {
+  const kitsu: Addon = { url: "https://k.dev/manifest.json", manifest: { id: "k", name: "Kitsu", resources: ["catalog"], types: ["anime"], catalogs: [
+    { type: "anime", id: "airing", extra: [{ name: "genre", options: ["Action", "Cars", "Slice of Life", "Panne"] }] }] } };
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (u: string) => {
+    if (u.includes("Panne")) return new Response("", { status: 500 });
+    return Response.json({ metas: /Action|Slice%20of%20Life/.test(u) ? [{ id: "kitsu:1" }] : [] });
+  }) as typeof fetch;
+  try {
+    assert.deepEqual(await filledGenres(kitsu, kitsu.manifest.catalogs![0]), ["Action", "Slice of Life", "Panne"]);
+  } finally { globalThis.fetch = real; }
 });
