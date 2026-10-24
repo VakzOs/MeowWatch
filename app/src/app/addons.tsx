@@ -4,7 +4,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet
 import { Icon } from "../components/Icon";
 import { Select } from "../components/Select";
 import { C, font, TYPE_FR } from "../components/theme";
-import { addonKinds, CATEGORIES, configureUrl, fetchAddonCatalog, hostInstalled, searchCatalog, type Addon, type CatalogEntry, type Category, type Host } from "../lib/addons";
+import { addonKinds, CATEGORIES, configureUrl, fetchAddonCatalog, hostInstalled, hostUrl, ping, searchCatalog, type Addon, type CatalogEntry, type Category, type Host } from "../lib/addons";
 import { addAddon, importFromStremio, moveAddon, removeAddon, useStore } from "../lib/store";
 import { createLink, fetchAccount, waitForAuth } from "../lib/stremio";
 
@@ -125,6 +125,19 @@ function Catalogue() {
   const [picked, setPicked] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pings, setPings] = useState<Record<string, boolean>>({});
+  const asked = useRef(new Set<string>());
+  // Hébergeurs sans statut fourni par la source : on les teste nous-mêmes, une fois par session.
+  useEffect(() => {
+    const l = lists[source];
+    if (!Array.isArray(l)) return;
+    for (const h of l.flatMap(e => e.hosts)) {
+      const u = hostUrl(h);
+      if (h.up !== undefined || !u || asked.current.has(u)) continue;
+      asked.current.add(u);
+      ping(h).then(up => setPings(p => ({ ...p, [u]: up })));
+    }
+  }, [source, lists]);
   useEffect(() => {
     if (lists[source]) return;
     fetchAddonCatalog(source).then(l => setLists(x => ({ ...x, [source]: l })), () => setLists(x => ({ ...x, [source]: "erreur" })));
@@ -143,7 +156,8 @@ function Catalogue() {
   const cur = cat && cats.some(x => x.c === cat) ? cat : null, shown = cur ? found.filter(e => e.cats.includes(cur)) : found;
   const rows = (items: CatalogEntry[]) => Array.from({ length: Math.ceil(items.length / cols) }, (_, i) => items.slice(i * cols, i * cols + cols));
 
-  const card = (e: CatalogEntry) => {
+  const card = (raw: CatalogEntry) => {
+    const e = { ...raw, hosts: raw.hosts.map(h => (h.up !== undefined ? h : { ...h, up: pings[hostUrl(h)] })) };
     const i = picked[e.key] ?? pickHost(e), h = e.hosts[i], done = hostInstalled(h, installed), many = e.hosts.length > 1;
     const sub = [e.cats.join(", "), many ? `${e.hosts.length} hébergeurs` : h.label ? `par ${h.label}` : ""].filter(Boolean).join(" · ");
     return (
@@ -151,8 +165,11 @@ function Catalogue() {
         <View style={{ flexDirection: "row", gap: 14, alignItems: "center" }}>
           {e.logo ? <Image source={e.logo} style={st.logo} contentFit="contain" /> : <View style={[st.logo, st.mono]}><Text style={font(700, 18)}>{e.name[0]}</Text></View>}
           <View style={{ flex: 1 }}>
-            <Text style={font(700, 16)} numberOfLines={1}>{e.name}</Text>
-            <Text style={font(500, 13, C.faint)} numberOfLines={1}>{sub}{!many && h.up === false ? <Text style={{ color: "#FF8A94" }}> · hors ligne</Text> : null}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Text style={[font(700, 16), { flexShrink: 1 }]} numberOfLines={1}>{e.name}</Text>
+              {h.up !== undefined ? <View style={[st.status, { backgroundColor: h.up ? "#3FA66B" : "#E5484D" }]} accessibilityLabel={h.up ? "En ligne" : "Hors ligne"} {...{ title: h.up ? "En ligne" : "Hors ligne" } as any} /> : null}
+            </View>
+            <Text style={font(500, 13, C.faint)} numberOfLines={1}>{sub}</Text>
           </View>
         </View>
         {e.description || cols > 1 ? <Text style={[font(400, 13, C.mute), { lineHeight: 18 }, cols > 1 && { height: 36 }]} numberOfLines={2}>{e.description}</Text> : null}
@@ -160,7 +177,7 @@ function Catalogue() {
           {many ? (
             <View style={{ flex: 1 }}>
               <Select id={e.key} open={menu} setOpen={setMenu} value={String(i)} onChange={k => setPicked(p => ({ ...p, [e.key]: +k }))}
-                items={e.hosts.map((x, j) => ({ k: String(j), label: x.label ?? `Hébergeur ${j + 1}`, note: x.up === false ? "hors ligne" : hostInstalled(x, installed) ? "installé" : undefined }))} />
+                items={e.hosts.map((x, j) => ({ k: String(j), label: x.label ?? `Hébergeur ${j + 1}`, note: [hostInstalled(x, installed) ? "installé" : "", x.up === undefined ? "" : x.up ? "en ligne" : "hors ligne"].filter(Boolean).join(" · ") || undefined }))} />
             </View>
           ) : <View style={{ flex: 1 }} />}
           {done ? (
@@ -278,6 +295,7 @@ const st = StyleSheet.create({
   seg: { flexDirection: "row", padding: 4, gap: 4, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.06)" },
   segBtn: { height: 40, paddingHorizontal: 16, borderRadius: 9, justifyContent: "center" },
   search: { flexDirection: "row", alignItems: "center", gap: 10, minWidth: 240, height: 48 },
+  status: { width: 8, height: 8, borderRadius: 4 },
   chip: { flexDirection: "row", alignItems: "center", gap: 6, height: 34, paddingHorizontal: 14, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.07)" },
   icon: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center" },
 });
