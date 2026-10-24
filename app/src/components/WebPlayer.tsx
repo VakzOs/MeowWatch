@@ -265,6 +265,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   useEffect(() => {
     (rootRef.current as HTMLElement | null)?.style.setProperty("--mw-lift", show && eng ? "-110px" : "-3vh");
   }, [show, eng]);
+  useEffect(() => { eng?.setSubStyle?.({ size: prefs.size, color: prefs.color, bg: prefs.bg, lift: show }); }, [eng, prefs.size, prefs.color, prefs.bg, show]);
 
   return (
     <View ref={rootRef} style={[st.root, !show && ({ cursor: "none" } as any)]}>

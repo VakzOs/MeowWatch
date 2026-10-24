@@ -18,6 +18,7 @@ export type Engine = {
   canDelay: boolean; setSubDelay(s: number): void;
   suspended(): boolean; resume(): Promise<void>; // son bloqué par le navigateur tant qu'on n'a pas cliqué
   resize(): void; destroy(): void;
+  setSubStyle?(s: { size: number; color: string; bg: string; lift: boolean }): void; // mpv : sous-titres du fichier dessinés par lui
 };
 
 const FORCED = 0x40, SDH = 0x80; // AV_DISPOSITION_* de FFmpeg
@@ -221,7 +222,9 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
     else if (e.event === "end-file" && e.reason === "error") loaded(false);
   });
   await inv("init", { mpvConfig: { initialOptions: { vo: "gpu-next", hwdec: "auto-safe", "keep-open": "yes", "force-window": "yes",
-    pause: "yes", ytdl: "no", osc: "no", "input-default-bindings": "no", "sub-auto": "no", "audio-display": "no" }, observedProperties: PROPS } });
+    pause: "yes", ytdl: "no", osc: "no", "input-default-bindings": "no", "sub-auto": "no", "audio-display": "no",
+    // Pas de sous-titres d'office (mpv prend sinon la piste « par défaut ») : ce sont les préférences du profil qui décident.
+    sid: "no", "sub-font": "Segoe UI Semibold", "sub-border-size": 2.5, "sub-shadow-offset": 1, "sub-margin-y": 64 }, observedProperties: PROPS } });
   const fail = async (m: string) => { off(); await inv("destroy").catch(() => {}); mark(false); throw new Error(m); };
   await inv("command", { name: "loadfile", args: [url] });
   if (!(await Promise.race([ready, new Promise<boolean>(ok => setTimeout(() => ok(false), 30000))]))) return fail("mpv n'a pas pu ouvrir ce lien");
@@ -265,6 +268,16 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
     canDelay: true, setSubDelay: s => { set("sub-delay", s); cues.setDelay(s); },
     suspended: () => false, resume: async () => {},
     resize: () => {},
+    // Même apparence que nos sous-titres (taille, couleur, fond). mpv lit les couleurs en « r/g/b/a » de 0 à 1.
+    setSubStyle: ({ size, color, bg, lift }) => {
+      // Marge en pixels ramenés à 720 de haut ; au-dessus de la barre de contrôles (110 px) quand elle est affichée.
+      set("sub-margin-y", String(lift ? Math.round((130 * 720) / window.innerHeight) : 64)); // option entière : en texte
+      set("sub-font-size", Math.round(44 * size));
+      set("sub-color", color || "#FFFFFF");
+      const a = bg.match(/[\d.]+/g)?.map(Number);
+      set("sub-border-style", a ? "background-box" : "outline-and-shadow");
+      if (a) set("sub-back-color", `${a[0] / 255}/${a[1] / 255}/${a[2] / 255}/${a[3] ?? 1}`);
+    },
     destroy: () => { off(); cues.destroy(); mpvGone = inv("destroy").catch(() => {}).then(() => mark(false)); for (const [el, bg] of opaque) el.style.background = bg; },
   };
   return eng;
