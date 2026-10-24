@@ -46,7 +46,7 @@ export function trackLabel(code: string, title?: string, extras: string[] = []) 
 /** audio : code de langue, ou "vo" (piste par défaut du fichier). subs : code de langue, ou "" (désactivés).
  *  audio2 / subs2 : second choix si le premier n'est pas dans le fichier ("" : aucun). */
 export type LangChoice = { audio: string; subs: string; audio2?: string; subs2?: string };
-export type LangPrefs = { films: LangChoice; animes: LangChoice };
+export type LangPrefs = { films: LangChoice; animes: LangChoice; adult?: boolean }; // adult : addons pour adultes au catalogue (oui par défaut)
 /** Par défaut : films et séries en français sans sous-titres ; animés en japonais sous-titrés en français. */
 /** Animé : addon d'animés (Kitsu), ou animation japonaise (pays donné par Cinemeta, sinon langue originale TMDB). */
 export function isAnime(type: string, id: string, genres: string[] = [], country = "", originalLanguage = "") {

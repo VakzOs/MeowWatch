@@ -57,11 +57,11 @@ function Playback() {
   const profile = useStore(s => s.user?.profile)!;
   const prefs = profile.prefs ?? DEFAULT_PREFS;
   const [menu, setMenu] = useState<string | null>(null);
-  const save = (k: keyof LangPrefs, patch: Partial<LangChoice>) => {
-    const next = { ...prefs, [k]: { ...prefs[k], ...patch } };
+  const put = (next: LangPrefs) => {
     updateProfile({ ...profile, prefs: next });
     api("/api/profiles/prefs", { method: "PUT", body: JSON.stringify(next) }).catch(() => {});
   };
+  const save = (k: "films" | "animes", patch: Partial<LangChoice>) => put({ ...prefs, [k]: { ...prefs[k], ...patch } });
   return (
     <>
       <Text style={[font(600, 18), st.h]}>Lecture</Text>
@@ -87,6 +87,15 @@ function Playback() {
       <Text style={[font(400, 13, C.mute), { marginTop: 4 }]}>
         Si le fichier n'a ni le premier ni le second choix, le lecteur garde sa piste par défaut ; les sous-titres viennent du fichier, sinon des addons (OpenSubtitles…). Animés : ceux des addons d'animés, et les animations japonaises.
       </Text>
+      <Text style={[font(600, 18), st.h]}>Contenu adulte</Text>
+      <View style={st.row}>
+        <View style={{ flex: 1 }}>
+          <Text style={font(600, 15)}>{prefs.adult === false ? "Masqué" : "Affiché"}</Text>
+          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>Addons pour adultes dans le catalogue de l'écran Addons, pour ce profil.</Text>
+        </View>
+        <Btn label="Afficher" onPress={() => put({ ...prefs, adult: true })} ghost={prefs.adult === false} />
+        <Btn label="Masquer" onPress={() => put({ ...prefs, adult: false })} ghost={prefs.adult !== false} />
+      </View>
     </>
   );
 }

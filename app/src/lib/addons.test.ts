@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, fromStremio, fromStremioFR, searchCatalog, hostInstalled, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, fromStremio, fromStremioFR, searchCatalog, hostInstalled, categorize, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -113,16 +113,23 @@ test("catalogues d'addons : Stremio, StremioFR, recherche et addons déjà insta
   ]);
   assert.deepEqual(stremio.map(e => e.hosts[0]), [{ manifest: "https://t.dev/manifest.json" }, { configure: "https://c.dev/configure" }]);
   assert.equal(stremio[0].tag, "flux");
+  assert.deepEqual(stremio.map(e => e.cats), [["Flux"], ["Autres"]]);
 
   const fr = fromStremioFR({
     streaming: [{ id: "lumio", name: "Lumio", description: "Addon français", instances: [{ label: "A", url: "https://l.tv", manifestUrl: "https://l.tv/configure/manifest.json" }] },
       { id: "comet", name: "Comet", instances: [{ label: "E", url: "https://comet.e.com" }, { label: "F", url: "https://comet.f.com" }] }],
     catalogue: [{ id: "vide", name: "Vide", instances: [] }],
   }, { "comet::https://comet.e.com": { state: "up" }, "comet::https://comet.f.com": { state: "down" } });
-  assert.deepEqual(fr.map(e => [e.name, e.tag]), [["Lumio", "flux"], ["Comet", "flux"]]);
+  assert.deepEqual(fr.map(e => [e.name, e.cats]), [["Lumio", ["Flux"]], ["Comet", ["Flux"]]]);
   assert.deepEqual(fr[1].hosts, [{ label: "E", configure: "https://comet.e.com", up: true }, { label: "F", configure: "https://comet.f.com", up: false }]);
   assert.equal(fr[0].hosts[0].up, undefined);
 
+  assert.deepEqual(categorize("UwU-FR Flux d'animés en VF et VOSTFR", ["Flux"]), ["Flux", "Animés"]);
+  assert.deepEqual(categorize("TVLegal Flux TV en direct issus de sources légales"), ["TV"]);
+  assert.deepEqual(categorize("Auto Subtitle Translate"), ["Sous-titres"]);
+  assert.deepEqual(categorize("Ratings"), ["Autres"]);
+  assert.deepEqual(categorize("Hot", [], true), ["Adultes"]);
+  assert.deepEqual(categorize("Porn catalog 18+", ["Catalogues"]), ["Catalogues", "Adultes"]);
   assert.deepEqual(searchCatalog([...stremio, ...fr], "FRANÇAIS").map(e => e.name), ["Lumio"]);
   assert.equal(searchCatalog(fr, " ").length, 2);
   const mine = [{ url: "https://comet.e.com/eyJjb25maWciOjF9/manifest.json", manifest: { id: "comet", name: "Comet" } }];

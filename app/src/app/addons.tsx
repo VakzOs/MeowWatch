@@ -4,7 +4,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet
 import { Icon } from "../components/Icon";
 import { Select } from "../components/Select";
 import { C, font, TYPE_FR } from "../components/theme";
-import { addonKinds, configureUrl, fetchAddonCatalog, hostInstalled, searchCatalog, type Addon, type CatalogEntry, type Host } from "../lib/addons";
+import { addonKinds, CATEGORIES, configureUrl, fetchAddonCatalog, hostInstalled, searchCatalog, type Addon, type CatalogEntry, type Category, type Host } from "../lib/addons";
 import { addAddon, importFromStremio, moveAddon, removeAddon, useStore } from "../lib/store";
 import { createLink, fetchAccount, waitForAuth } from "../lib/stremio";
 
@@ -109,17 +109,18 @@ function StremioImport() {
 const openUrl = (url: string) => (Platform.OS === "web" ? window.open(url, "_blank", "noopener") : Linking.openURL(url));
 
 const SOURCES = [{ id: "fr", label: "StremioFR" }, { id: "stremio", label: "Stremio" }] as const;
-const cap = (t = "") => t.charAt(0).toUpperCase() + t.slice(1);
 const pickHost = (e: CatalogEntry) => e.hosts.findIndex(h => h.up !== false) >= 0 ? e.hosts.findIndex(h => h.up !== false) : 0;
 
 /** Catalogues d'addons, en cartes : un bouton par addon, l'hébergeur se choisit dans un menu quand il y en a plusieurs. */
 function Catalogue() {
   const installed = useStore(s => s.addons);
+  const adult = useStore(s => s.user?.profile?.prefs?.adult !== false);
   const { width } = useWindowDimensions();
   const cols = width >= 940 ? 2 : 1;
   const [source, setSource] = useState<"fr" | "stremio">("fr");
   const [lists, setLists] = useState<Partial<Record<"fr" | "stremio", CatalogEntry[] | "erreur">>>({});
   const [q, setQ] = useState("");
+  const [cat, setCat] = useState<Category | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -136,14 +137,15 @@ function Catalogue() {
     catch (err: any) { setMsg({ ok: false, text: `${e.name} : ${/fetch|network|Failed/i.test(err?.message) ? "addon injoignable pour le moment." : err?.message ?? "erreur inconnue."}` }); }
     setBusy(null);
   };
-  const list = lists[source], shown = Array.isArray(list) ? searchCatalog(list, q) : [];
-  // StremioFR range ses addons par section (flux, catalogues, autres) ; le catalogue Stremio est une seule liste.
-  const groups = source === "fr" ? [...new Set(shown.map(e => e.tag))].map(t => ({ title: cap(t), items: shown.filter(e => e.tag === t) })) : [{ title: "", items: shown }];
+  // Les addons pour adultes sont masqués si le profil l'a choisi (Réglages > Contenu adulte).
+  const list = lists[source], found = Array.isArray(list) ? searchCatalog(list, q).filter(e => adult || !e.cats.includes("Adultes")) : [];
+  const cats = CATEGORIES.map(c => ({ c, n: found.filter(e => e.cats.includes(c)).length })).filter(x => x.n);
+  const cur = cat && cats.some(x => x.c === cat) ? cat : null, shown = cur ? found.filter(e => e.cats.includes(cur)) : found;
   const rows = (items: CatalogEntry[]) => Array.from({ length: Math.ceil(items.length / cols) }, (_, i) => items.slice(i * cols, i * cols + cols));
 
   const card = (e: CatalogEntry) => {
     const i = picked[e.key] ?? pickHost(e), h = e.hosts[i], done = hostInstalled(h, installed), many = e.hosts.length > 1;
-    const sub = many ? `${e.hosts.length} hébergeurs` : h.label ? `par ${h.label}` : cap(e.tag);
+    const sub = [e.cats.join(", "), many ? `${e.hosts.length} hébergeurs` : h.label ? `par ${h.label}` : ""].filter(Boolean).join(" · ");
     return (
       <View key={e.key} style={st.card}>
         <View style={{ flexDirection: "row", gap: 14, alignItems: "center" }}>
@@ -195,19 +197,24 @@ function Catalogue() {
           <TextInput value={q} onChangeText={setQ} placeholder="Chercher un addon" placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false} style={[font(400, 15), { flex: 1, height: 48, outlineStyle: "none" } as any]} accessibilityLabel="Chercher dans le catalogue" />
         </View>
       </View>
+      {cats.length > 1 ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+          {[{ c: null, n: found.length }, ...cats].map(({ c, n }) => (
+            <Pressable key={c ?? "tout"} onPress={() => setCat(c)} accessibilityState={{ selected: cur === c }} style={({ hovered }: any) => [st.chip, cur === c ? { backgroundColor: C.ink } : hovered && { backgroundColor: "rgba(255,255,255,0.14)" }]}>
+              <Text style={font(600, 13, cur === c ? C.ground : C.soft)}>{c ?? "Tout"}</Text>
+              <Text style={font(500, 12, C.faint)}>{n}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       {msg ? <Text style={[font(500, 14, msg.ok ? C.soft : "#FF8A94"), { marginBottom: 12 }]}>{msg.text}</Text> : null}
       {list === "erreur" ? <Text style={font(400, 14, "#FF8A94")}>Impossible de charger ce catalogue pour le moment.</Text>
         : !list ? <ActivityIndicator color={C.red} style={{ alignSelf: "flex-start", marginTop: 8 }} />
         : !shown.length ? <Text style={font(400, 14, C.mute)}>Aucun addon ne correspond.</Text>
-        : groups.map(g => (
-          <View key={g.title} style={{ marginBottom: 12 }}>
-            {g.title ? <Text style={[font(600, 12, C.faint), st.group]}>{g.title.toUpperCase()}</Text> : null}
-            {rows(g.items).map((r, i) => (
-              <View key={i} style={{ flexDirection: "row", gap: 12, marginBottom: 12, zIndex: r.some(e => e.key === menu) ? 10 : 1 }}>
-                {r.map(card)}
-                {r.length < cols ? <View style={{ flex: cols - r.length }} /> : null}
-              </View>
-            ))}
+        : rows(shown).map((r, i) => (
+          <View key={i} style={{ flexDirection: "row", gap: 12, marginBottom: 12, zIndex: r.some(e => e.key === menu) ? 10 : 1 }}>
+            {r.map(card)}
+            {r.length < cols ? <View style={{ flex: cols - r.length }} /> : null}
           </View>
         ))}
     </>
@@ -271,6 +278,6 @@ const st = StyleSheet.create({
   seg: { flexDirection: "row", padding: 4, gap: 4, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.06)" },
   segBtn: { height: 40, paddingHorizontal: 16, borderRadius: 9, justifyContent: "center" },
   search: { flexDirection: "row", alignItems: "center", gap: 10, minWidth: 240, height: 48 },
-  group: { letterSpacing: 1, marginTop: 8, marginBottom: 10 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, height: 34, paddingHorizontal: 14, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.07)" },
   icon: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center" },
 });

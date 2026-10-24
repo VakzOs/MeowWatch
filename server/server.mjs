@@ -399,7 +399,7 @@ export function start(env = process.env) {
       const ok = ["films", "animes"].every(k => b?.[k] && ["audio", "subs", "audio2", "subs2"].every(f => lang(b[k][f] ?? "")));
       if (!ok) return json(res, 400, { error: "préférences invalides" });
       if (!u.profile_id) return json(res, 409, { error: "Choisis d'abord un profil." });
-      const prefs = Object.fromEntries(["films", "animes"].map(k => [k, { audio: b[k].audio || "vo", audio2: b[k].audio2 ?? "", subs: b[k].subs, subs2: b[k].subs2 ?? "" }]));
+      const prefs = { ...Object.fromEntries(["films", "animes"].map(k => [k, { audio: b[k].audio || "vo", audio2: b[k].audio2 ?? "", subs: b[k].subs, subs2: b[k].subs2 ?? "" }])), adult: b.adult !== false };
       q.savePrefs.run(JSON.stringify(prefs), u.profile_id, u.id);
       json(res, 200, prefs);
     }),
