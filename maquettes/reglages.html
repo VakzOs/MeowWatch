@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Réglages : 3 rangements</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ground: #121214; --chrome: #0B0B0C; --raised: #18181B; --hover: #24242A; --field: #1C1C1F;
+    --soft: #D4D4D8; --mute: #A8A8AD; --faint: #8A8A90; --red: #D6182A; --line: rgba(255,255,255,.07); }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #060607; color: #fff; font: 400 14px "Instrument Sans", system-ui, sans-serif; padding: 32px; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .lead { color: var(--mute); margin-bottom: 26px; max-width: 900px; line-height: 1.5; }
+  section.mock { margin-bottom: 56px; }
+  .cap { display: flex; gap: 12px; align-items: baseline; margin-bottom: 12px; }
+  .cap b { background: var(--red); border-radius: 999px; padding: 3px 11px; font-size: 13px; }
+  .cap h2 { font-size: 18px; }
+  .cap span { color: var(--mute); }
+  .row-mocks { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+
+  /* Cadre de l'appli (C3) */
+  .app { width: 1180px; height: 720px; display: flex; background: var(--ground); border-radius: 14px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  .side { width: 210px; background: var(--chrome); padding: 22px 12px; display: flex; flex-direction: column; gap: 2px; flex: none; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; padding: 0 10px 22px; }
+  .brand i { width: 26px; height: 26px; border-radius: 7px; background: var(--red); }
+  .nav { display: flex; align-items: center; gap: 11px; padding: 10px; border-radius: 9px; color: var(--mute); font-weight: 500; }
+  .nav.on { background: var(--raised); color: #fff; }
+  .nav svg, .ic { width: 18px; height: 18px; flex: none; }
+  .spacer { flex: 1; }
+  .main { flex: 1; min-width: 0; overflow: hidden; }
+
+  /* Commun */
+  .h1 { font-size: 26px; font-weight: 700; }
+  .h2 { font-size: 13px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; margin: 26px 0 10px; }
+  .card { background: rgba(255,255,255,.06); border-radius: 12px; }
+  .item { display: flex; align-items: center; gap: 14px; padding: 13px 16px; }
+  .card > .item + .item { border-top: 1px solid var(--line); }
+  .grow { flex: 1; min-width: 0; }
+  .t { font-weight: 600; font-size: 15px; }
+  .d { color: var(--mute); font-size: 13px; margin-top: 2px; line-height: 1.4; }
+  .v { color: var(--mute); font-size: 14px; }
+  .chev { color: var(--faint); font-size: 18px; }
+  .btn { height: 36px; padding: 0 14px; border-radius: 9px; background: rgba(255,255,255,.08); font-weight: 600; display: inline-flex; align-items: center; white-space: nowrap; }
+  .btn.red { background: var(--red); }
+  .sw { width: 42px; height: 24px; border-radius: 999px; background: #3a3a40; position: relative; flex: none; }
+  .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+  .sw.on { background: var(--red); }
+  .sw.on::after { left: 21px; }
+  .seg { display: inline-flex; background: rgba(255,255,255,.07); border-radius: 9px; padding: 3px; }
+  .seg span { padding: 6px 12px; border-radius: 7px; color: var(--mute); font-weight: 600; font-size: 13px; }
+  .seg span.on { background: var(--hover); color: #fff; }
+  .sel { height: 36px; padding: 0 12px; border-radius: 9px; background: var(--field); display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; min-width: 150px; }
+  .sel::after { content: "▾"; color: var(--faint); }
+  .av { width: 44px; height: 44px; border-radius: 50%; flex: none; background: linear-gradient(135deg, #5865F2, #3b44b8); display: grid; place-items: center; font-weight: 700; }
+  .av.p { background: linear-gradient(135deg, #f0a35e, #D6182A); border-radius: 12px; }
+  .badge { font-size: 11px; font-weight: 700; color: var(--faint); background: rgba(255,255,255,.07); border-radius: 6px; padding: 2px 7px; margin-left: 8px; vertical-align: 2px; }
+  .matrix { display: grid; grid-template-columns: 130px 1fr 1fr; gap: 10px 14px; align-items: center; padding: 16px; }
+  .matrix .hd { color: var(--faint); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .matrix .lb { color: var(--mute); font-weight: 500; }
+  .note { color: var(--faint); font-size: 12.5px; line-height: 1.45; padding: 0 16px 14px; }
+
+  /* A — Onglets */
+  .A { display: flex; height: 100%; }
+  .A .sub { width: 230px; border-right: 1px solid var(--line); padding: 30px 14px; flex: none; }
+  .A .sub .grp { font-size: 11.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .07em; padding: 18px 10px 6px; }
+  .A .sub .tab { display: flex; gap: 10px; align-items: center; padding: 9px 10px; border-radius: 8px; color: var(--soft); font-weight: 500; }
+  .A .sub .tab.on { background: var(--raised); color: #fff; box-shadow: inset 3px 0 0 var(--red); }
+  .A .who { display: flex; gap: 10px; align-items: center; padding: 0 10px 8px; }
+  .A .pane { flex: 1; padding: 30px 36px; max-width: 760px; }
+
+  /* B — Tuiles */
+  .B { padding: 34px 40px; }
+  .B .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 22px; }
+  .B .tile { background: rgba(255,255,255,.06); border-radius: 16px; padding: 20px; height: 168px; display: flex; flex-direction: column; gap: 8px; position: relative; }
+  .B .tile .ic { width: 30px; height: 30px; color: var(--red); margin-bottom: 6px; }
+  .B .tile .t { font-size: 17px; }
+  .B .tile .d { font-size: 13.5px; }
+  .B .tile.focus { background: var(--hover); outline: 3px solid #fff; outline-offset: 2px; transform: scale(1.03); }
+  .B .tile .lock { position: absolute; top: 16px; right: 16px; font-size: 11px; font-weight: 700; color: var(--faint); }
+  .B .top { display: flex; align-items: center; gap: 14px; }
+  .phone { width: 300px; height: 640px; background: var(--ground); border-radius: 38px; border: 8px solid #222226; overflow: hidden; padding: 46px 16px 16px; flex: none; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  .phone .back { color: var(--red); font-weight: 600; margin-bottom: 8px; }
+  .phone .h1 { font-size: 24px; margin-bottom: 4px; }
+  .phone .item { padding: 12px 14px; }
+  .phone .t { font-size: 14.5px; }
+
+  /* C — Une page groupée */
+  .C { height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+  .C .bar { position: sticky; top: 0; background: rgba(18,18,20,.92); backdrop-filter: blur(8px); padding: 26px 36px 14px; border-bottom: 1px solid var(--line); }
+  .C .chips { display: flex; gap: 8px; margin-top: 14px; }
+  .C .chips span { padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,.07); color: var(--soft); font-weight: 600; font-size: 13px; }
+  .C .chips span.on { background: #fff; color: #111; }
+  .C .body { padding: 6px 36px 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; align-items: start; }
+  .C .body .h2 { grid-column: span 1; }
+  .C .scope { color: var(--faint); font-weight: 500; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+
+  .why { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 1180px; }
+  .why div { background: var(--raised); border-radius: 12px; padding: 14px 16px; color: var(--soft); line-height: 1.5; font-size: 13.5px; }
+  .why b { display: block; color: #fff; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></symbol>
+  <symbol id="compass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+  <symbol id="lib" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4v16M10 4v16M15 5l4 15"/></symbol>
+  <symbol id="cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="puzzle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4a2 2 0 114 0v2h4v4h-2a2 2 0 100 4h2v4h-4v-2a2 2 0 10-4 0v2H6v-4h2a2 2 0 100-4H6V6h4z"/></symbol>
+  <symbol id="gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></symbol>
+  <symbol id="user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></symbol>
+  <symbol id="play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></symbol>
+  <symbol id="shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></symbol>
+  <symbol id="sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12a8 8 0 01-14 5M4 12a8 8 0 0114-5M18 3v4h-4M6 21v-4h4"/></symbol>
+  <symbol id="globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+  <symbol id="people" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.5-5 6.5-5s5.7 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.5 0 4 1.4 4.5 4"/></symbol>
+  <symbol id="info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></symbol>
+</svg>
+
+<template id="side">
+  <div class="side">
+    <div class="brand"><i></i>MeowWatch</div>
+    <div class="nav"><svg><use href="#home"/></svg>Accueil</div>
+    <div class="nav"><svg><use href="#compass"/></svg>Découvrir</div>
+    <div class="nav"><svg><use href="#lib"/></svg>Bibliothèque</div>
+    <div class="nav"><svg><use href="#cal"/></svg>Calendrier</div>
+    <div class="spacer"></div>
+    <div class="nav"><svg><use href="#puzzle"/></svg>Addons</div>
+    <div class="nav on"><svg><use href="#gear"/></svg>Réglages</div>
+  </div>
+</template>
+
+<h1>Réglages : 3 façons de ranger</h1>
+<p class="lead">Aujourd'hui, une seule colonne de 9 blocs mélange ce qui dépend du <b>profil</b> (langues, contenu adulte), du <b>compte</b> (Discord, synchro, langue des fiches) et du <b>serveur</b> (invitations, accès). Les trois propositions trient pareil — Profil · Compte · Partage · À propos — et changent la façon d'y naviguer. Les doubles boutons « Afficher / Masquer » deviennent des interrupteurs, les langues un tableau Films / Animés.</p>
+
+<!-- A -->
+<section class="mock">
+  <div class="cap"><b>A</b><h2>Onglets</h2><span>menu des réglages à gauche, un panneau à la fois (Discord, macOS)</span></div>
+  <div class="app"><slot-side></slot-side>
+    <div class="main"><div class="A">
+      <div class="sub">
+        <div class="h1" style="padding:0 10px 14px">Réglages</div>
+        <div class="who"><div class="av p">M</div><div><div class="t">Minou</div><div class="d" style="margin:0">Profil ouvert</div></div></div>
+        <div class="grp">Profil</div>
+        <div class="tab"><svg class="ic"><use href="#user"/></svg>Mon profil</div>
+        <div class="tab on"><svg class="ic"><use href="#play"/></svg>Lecture</div>
+        <div class="tab"><svg class="ic"><use href="#shield"/></svg>Contenu adulte</div>
+        <div class="grp">Compte</div>
+        <div class="tab"><svg class="ic"><use href="#sync"/></svg>Discord et synchro</div>
+        <div class="tab"><svg class="ic"><use href="#globe"/></svg>Langue des fiches</div>
+        <div class="grp">Serveur</div>
+        <div class="tab"><svg class="ic"><use href="#people"/></svg>Accès et invitations</div>
+        <div class="tab"><svg class="ic"><use href="#info"/></svg>À propos</div>
+      </div>
+      <div class="pane">
+        <div class="h1">Lecture</div>
+        <div class="d" style="font-size:14px;margin-top:6px">Pistes choisies au lancement d'une vidéo, pour le profil Minou.</div>
+        <div class="h2">Langues</div>
+        <div class="card">
+          <div class="matrix">
+            <span></span><span class="hd">Films et séries</span><span class="hd">Animés</span>
+            <span class="lb">Audio</span><div class="sel">Français</div><div class="sel">Version originale</div>
+            <span class="lb">Sinon</span><div class="sel">Version originale</div><div class="sel">Japonais</div>
+            <span class="lb">Sous-titres</span><div class="sel">Désactivés</div><div class="sel">Français</div>
+            <span class="lb">Sinon</span><div class="sel" style="opacity:.35">—</div><div class="sel">Anglais</div>
+          </div>
+          <div class="note">Sans le premier ni le second choix, le lecteur garde sa piste par défaut. Sous-titres : ceux du fichier, sinon ceux des addons.</div>
+        </div>
+        <div class="h2">Pendant la lecture</div>
+        <div class="card">
+          <div class="item"><div class="grow"><div class="t">Épisode suivant automatique</div><div class="d">Carte affichée 20 s avant la fin.</div></div><div class="sw on"></div></div>
+          <div class="item"><div class="grow"><div class="t">Style des sous-titres</div><div class="d">Taille, couleur, fond.</div></div><span class="v">Moyen · blanc</span><span class="chev">›</span></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<!-- B -->
+<section class="mock">
+  <div class="cap"><b>B</b><h2>Tuiles</h2><span>un écran d'accueil des réglages, chaque tuile ouvre sa page (Apple TV, téléphone)</span></div>
+  <div class="row-mocks">
+    <div class="app" style="width:850px;height:620px"><slot-side></slot-side>
+      <div class="main"><div class="B">
+        <div class="top"><div class="h1">Réglages</div><div class="grow"></div><div class="av p">M</div><div><div class="t">Minou</div><div class="d" style="margin:0">Changer de profil</div></div></div>
+        <div class="grid">
+          <div class="tile"><svg class="ic"><use href="#user"/></svg><div class="t">Profil</div><div class="d">Nom, avatar, couleur</div></div>
+          <div class="tile focus"><svg class="ic"><use href="#play"/></svg><div class="t">Lecture</div><div class="d">Films : FR, sinon VO<br>Animés : VO + st FR</div></div>
+          <div class="tile"><svg class="ic"><use href="#shield"/></svg><div class="t">Contenu adulte</div><div class="d">Masqué pour ce profil</div></div>
+          <div class="tile"><svg class="ic"><use href="#sync"/></svg><div class="t">Compte</div><div class="d">Vakz · Discord<br>Synchronisé à l'instant</div></div>
+          <div class="tile"><svg class="ic"><use href="#people"/></svg><div class="t">Accès</div><div class="d">4 personnes · 1 invitation</div><span class="lock">PROPRIÉTAIRE</span></div>
+          <div class="tile"><svg class="ic"><use href="#info"/></svg><div class="t">À propos</div><div class="d">Fiches en français<br>Appli 1.0.4</div></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="phone">
+      <div class="back">‹ Réglages</div>
+      <div class="h1">Lecture</div>
+      <div class="d" style="margin-bottom:16px">Profil Minou</div>
+      <div class="h2" style="margin-top:8px">Films et séries</div>
+      <div class="card">
+        <div class="item"><div class="grow t">Audio</div><span class="v">Français</span><span class="chev">›</span></div>
+        <div class="item"><div class="grow t">Sinon</div><span class="v">VO</span><span class="chev">›</span></div>
+        <div class="item"><div class="grow t">Sous-titres</div><span class="v">Désactivés</span><span class="chev">›</span></div>
+      </div>
+      <div class="h2">Animés</div>
+      <div class="card">
+        <div class="item"><div class="grow t">Audio</div><span class="v">VO</span><span class="chev">›</span></div>
+        <div class="item"><div class="grow t">Sinon</div><span class="v">Japonais</span><span class="chev">›</span></div>
+        <div class="item"><div class="grow t">Sous-titres</div><span class="v">Français</span><span class="chev">›</span></div>
+        <div class="item"><div class="grow t">Sinon</div><span class="v">Anglais</span><span class="chev">›</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- C -->
+<section class="mock">
+  <div class="cap"><b>C</b><h2>Une page, rangée</h2><span>tout reste sur une page, en 2 colonnes, avec un sommaire collant (iOS, Netflix)</span></div>
+  <div class="app"><slot-side></slot-side>
+    <div class="main"><div class="C">
+      <div class="bar">
+        <div class="h1">Réglages</div>
+        <div class="chips"><span class="on">Profil Minou</span><span>Compte</span><span>Partage</span><span>À propos</span></div>
+      </div>
+      <div class="body">
+        <div>
+          <div class="h2">Profil <span class="scope">· seulement Minou</span></div>
+          <div class="card">
+            <div class="item"><div class="av p">M</div><div class="grow"><div class="t">Minou</div><div class="d">Avatar et nom</div></div><span class="btn">Modifier</span></div>
+            <div class="item"><div class="grow"><div class="t">Contenu adulte</div><div class="d">Addons et genres pour adultes</div></div><div class="sw"></div></div>
+          </div>
+          <div class="h2">Langues de lecture</div>
+          <div class="card">
+            <div class="matrix" style="grid-template-columns:96px 1fr 1fr">
+              <span></span><span class="hd">Films</span><span class="hd">Animés</span>
+              <span class="lb">Audio</span><div class="sel" style="min-width:0">Français</div><div class="sel" style="min-width:0">VO</div>
+              <span class="lb">Sinon</span><div class="sel" style="min-width:0">VO</div><div class="sel" style="min-width:0">Japonais</div>
+              <span class="lb">Sous-titres</span><div class="sel" style="min-width:0">Aucun</div><div class="sel" style="min-width:0">Français</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="h2">Compte <span class="scope">· tous les profils</span></div>
+          <div class="card">
+            <div class="item"><div class="av">V</div><div class="grow"><div class="t">Vakz<span class="badge">PROPRIÉTAIRE</span></div><div class="d">Connecté avec Discord</div></div><span class="btn">Se déconnecter</span></div>
+            <div class="item"><div class="grow"><div class="t">Synchronisé à l'instant</div><div class="d">12 addons et la reprise suivent sur tous tes appareils</div></div><span class="btn">Synchroniser</span></div>
+            <div class="item"><div class="grow"><div class="t">Langue des fiches</div><div class="d">Titres et résumés traduits par TMDB</div></div><div class="seg"><span class="on">FR</span><span>EN</span></div></div>
+          </div>
+          <div class="h2">Partage</div>
+          <div class="card">
+            <div class="item"><div class="grow"><div class="t">Inviter quelqu'un</div><div class="d">Lien à usage unique, 7 jours</div></div><span class="btn red">Créer un lien</span></div>
+            <div class="item"><div class="grow"><div class="t">4 personnes ont accès</div><div class="d">1 invitation en attente</div></div><span class="v">Gérer</span><span class="chev">›</span></div>
+          </div>
+          <div class="h2">À propos</div>
+          <div class="card"><div class="item"><div class="grow"><div class="t">Appli Windows 1.0.4</div><div class="d">Site mis à jour le 24 octobre à 09:12</div></div></div></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<div class="why">
+  <div><b>A · Onglets</b>Le plus net sur PC et web : un sujet à la fois, place pour grandir (style des sous-titres, raccourcis…). Sur Apple TV et téléphone, le menu devient une liste qui ouvre les pages.</div>
+  <div><b>B · Tuiles</b>Pensé télécommande (C4) : 6 grosses cibles avec le résumé du réglage dessus, on voit l'état sans entrer. Un écran de plus à traverser sur PC.</div>
+  <div><b>C · Une page, rangée</b>Le plus proche d'aujourd'hui, donc le moins de travail : mêmes blocs, triés et compactés en 2 colonnes, sommaire en haut. Tient en un écran, mais grossira avec chaque nouveau réglage.</div>
+</div>
+
+<script>
+  const side = document.getElementById("side").innerHTML;
+  document.querySelectorAll("slot-side").forEach(s => s.outerHTML = side);
+</script>
+</body>
+</html>
