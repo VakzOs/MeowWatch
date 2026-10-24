@@ -105,6 +105,8 @@ const kitsuMeta = ({ id, attributes: a }: KitsuAnime): Meta => ({
   id: `kitsu:${id}`, type: a.subtype === "movie" ? "movie" : "series", name: a.canonicalTitle, description: a.synopsis,
   releaseInfo: a.startDate?.slice(0, 4), poster: a.posterImage?.medium, background: a.coverImage?.original,
 });
+/** Genres à caractère sexuel (Yaoi/Yuri = versions explicites de Shounen Ai/Shoujo Ai, qui restent tout public). */
+export const isAdultGenre = (g: string) => /^(hentai|ecchi|erotica|yaoi|yuri|mature|doujinshi|adult|nsfw|porn)/i.test(g.trim());
 export const genreRequired = (c: Catalog) => required(c).includes("genre");
 
 /** Genres du catalogue qui renvoient au moins un titre : l'addon Kitsu propose une liste fixe, souvent vide (35 sur 61 en « Top Airing »).

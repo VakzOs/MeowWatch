@@ -91,7 +91,7 @@ function Playback() {
       <View style={st.row}>
         <View style={{ flex: 1 }}>
           <Text style={font(600, 15)}>{prefs.adult === false ? "Masqué" : "Affiché"}</Text>
-          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>Addons pour adultes dans le catalogue de l'écran Addons, pour ce profil.</Text>
+          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>Addons pour adultes et genres pour adultes (Hentai, Ecchi…) de Découvrir, pour ce profil.</Text>
         </View>
         <Btn label="Afficher" onPress={() => put({ ...prefs, adult: true })} ghost={prefs.adult === false} />
         <Btn label="Masquer" onPress={() => put({ ...prefs, adult: false })} ghost={prefs.adult !== false} />
