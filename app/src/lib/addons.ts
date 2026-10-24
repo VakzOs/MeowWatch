@@ -83,7 +83,13 @@ const kitsuSort = (c: Catalog) => KITSU_CATALOGS[c.id];
 export const KITSU_CATEGORIES = ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Romance", "Science Fiction", "Slice of Life", "School Life",
   "Supernatural", "Mystery", "Horror", "Thriller", "Psychological", "Sports", "Music", "Idol", "Historical", "Military", "Mecha", "Martial Arts",
   "Swordplay", "Super Power", "Magic", "Magical Girl", "Isekai", "Demon", "Vampire", "Space", "Virtual Reality", "Motorsport", "Cops", "Harem",
-  "Ecchi", "Parody", "Kids", "Friendship", "Shounen", "Shoujo", "Seinen", "Josei", "Shoujo Ai", "Shounen Ai", "Yaoi", "Gender Bender"];
+  "Ecchi", "Parody", "Kids", "Friendship", "Shounen", "Shoujo", "Seinen", "Josei", "Shoujo Ai", "Shounen Ai", "Yaoi", "Gender Bender",
+  // Anciens genres de l'addon sous leur nom de catégorie, et autres catégories d'au moins ~70 animés (hors lieux et époques).
+  "Anime Influenced", "Dementia", "Samurai", "Crime", "Detective", "Post Apocalypse", "War", "Robot", "Piloted Robot", "Super Robot", "Alien",
+  "Superhero", "Henshin", "Time Travel", "Parallel Universe", "Card Games", "Family", "Cooking", "Working Life", "Coming Of Age", "Law And Order",
+  "Politics", "Zombie", "Ghost", "Dragon", "Elf", "Deity", "Angel", "Ninja", "Pirate", "Mafia", "Assassin", "Revenge", "Dystopia", "Cyberpunk",
+  "Steampunk", "Dark Fantasy", "Space Opera", "Reverse Harem", "Anthropomorphism", "Baseball", "Soccer", "Basketball", "Musical Band", "Disaster",
+  "Battle Royale", "Countryside", "Maid", "Fantasy World", "Contemporary Fantasy", "High School", "Slapstick", "Conspiracy"];
 
 export function kitsuCatalogUrl(c: Catalog, genre: string, skip = 0): string | null {
   const k = kitsuSort(c);

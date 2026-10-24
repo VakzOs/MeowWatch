@@ -28,6 +28,16 @@ const GENRE_FR: Record<string, string> = {
   "Science Fiction": "Science-fiction", "School Life": "Vie scolaire", Idol: "Idols", "Martial Arts": "Arts martiaux", Swordplay: "Combats au sabre",
   "Super Power": "Super-pouvoirs", "Magical Girl": "Magical girl", Demon: "Démons", Vampire: "Vampires", "Virtual Reality": "Réalité virtuelle",
   Motorsport: "Sport automobile", Cops: "Police", Parody: "Parodie", Kids: "Enfants", Friendship: "Amitié", "Gender Bender": "Changement de sexe",
+  "Anime Influenced": "Inspiré des animés", Dementia: "Expérimental", Samurai: "Samouraïs", Detective: "Détective", "Post Apocalypse": "Post-apocalyptique",
+  Robot: "Robots", "Piloted Robot": "Robots pilotés", "Super Robot": "Super robots", Alien: "Extraterrestres", Superhero: "Super-héros",
+  Henshin: "Transformation (henshin)", "Time Travel": "Voyage dans le temps", "Parallel Universe": "Univers parallèle", "Card Games": "Jeux de cartes",
+  Cooking: "Cuisine", "Working Life": "Vie professionnelle", "Coming Of Age": "Passage à l'âge adulte", "Law And Order": "Justice",
+  Politics: "Politique", Zombie: "Zombies", Ghost: "Fantômes", Dragon: "Dragons", Elf: "Elfes", Deity: "Divinités", Angel: "Anges", Ninja: "Ninjas",
+  Pirate: "Pirates", Mafia: "Mafia", Assassin: "Assassins", Revenge: "Vengeance", Dystopia: "Dystopie", Cyberpunk: "Cyberpunk", Steampunk: "Steampunk",
+  "Dark Fantasy": "Dark fantasy", "Space Opera": "Space opera", "Reverse Harem": "Harem inversé", Anthropomorphism: "Animaux humanisés",
+  Baseball: "Baseball", Soccer: "Football", Basketball: "Basket", "Musical Band": "Groupe de musique", Disaster: "Catastrophe",
+  "Battle Royale": "Battle royale", Countryside: "Campagne", Maid: "Soubrettes", "Fantasy World": "Monde fantastique",
+  "Contemporary Fantasy": "Fantastique contemporain", "High School": "Lycée", Slapstick: "Burlesque", Conspiracy: "Complot",
 };
 // Noms des catalogues de Cinemeta (en anglais) ; ceux des autres addons restent tels quels.
 const CATALOG_FR: Record<string, string> = { Popular: "Populaires", New: "Nouveautés", Featured: "À la une", Top: "Les mieux notés", Trending: "Tendances" };
