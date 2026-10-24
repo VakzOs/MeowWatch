@@ -113,6 +113,59 @@ export async function fetchManifest(input: string): Promise<Addon> {
   return { url, manifest };
 }
 
+/** Ce que fournit un addon, en clair. */
+export function addonKinds(m: Manifest) {
+  const res = (m.resources ?? []).map(r => (typeof r === "string" ? r : r.name));
+  return [res.includes("catalog") || m.catalogs?.length ? "catalogues" : "", res.includes("meta") ? "fiches" : "", res.includes("stream") ? "flux" : "", res.includes("subtitles") ? "sous-titres" : ""].filter(Boolean).join(", ");
+}
+
+// --- Catalogues d'addons à installer --------------------------------------------
+
+/** Un addon du catalogue et ses hébergeurs : lien d'installation direct, sinon page de réglages (qui donne le lien). */
+export type Host = { label?: string; manifest?: string; configure?: string; up?: boolean };
+export type CatalogEntry = { key: string; name: string; logo?: string; description?: string; tag?: string; hosts: Host[] };
+
+/** Catalogue communautaire de Stremio (celui de leur onglet Addons). */
+export const STREMIO_COLLECTION = "https://api.strem.io/addonscollection.json";
+export function fromStremio(list: { transportUrl?: string; manifest?: Manifest }[]): CatalogEntry[] {
+  return list.filter(x => /^https?:\/\//.test(x.transportUrl ?? "") && x.manifest?.id && x.manifest.name).map(({ transportUrl: url, manifest: m }) => {
+    const a = { url: url!, manifest: m! }, cfg = m!.behaviorHints?.configurationRequired && configureUrl(a);
+    return { key: url!, name: m!.name, logo: m!.logo, description: m!.description?.replace(/<[^>]+>/g, ""), tag: addonKinds(m!), hosts: [cfg ? { configure: cfg } : { manifest: url }] };
+  });
+}
+
+/** StremioFR (stremiofr.me) : addons français, par section, avec plusieurs hébergeurs et leur statut. */
+export const STREMIOFR = "https://stremiofr.me/api";
+const FR_SECTIONS = { streaming: "flux", catalogue: "catalogues", other: "autres" } as const;
+type FrAddon = { id: string; name: string; logo?: string; description?: string; instances?: { label?: string; url?: string; manifestUrl?: string }[] };
+export function fromStremioFR(data: Partial<Record<keyof typeof FR_SECTIONS, FrAddon[]>>, status: Record<string, { state?: string }> = {}): CatalogEntry[] {
+  return (Object.keys(FR_SECTIONS) as (keyof typeof FR_SECTIONS)[]).flatMap(sec => (data[sec] ?? []).map(a => ({
+    key: `fr:${a.id}`, name: a.name, logo: a.logo, description: a.description, tag: FR_SECTIONS[sec],
+    hosts: (a.instances ?? []).filter(i => i.manifestUrl || i.url).map(i => {
+      const state = status[`${a.id}::${i.url}`]?.state;
+      return { label: i.label, ...(i.manifestUrl ? { manifest: i.manifestUrl } : { configure: i.url }), up: state ? state === "up" : undefined };
+    }),
+  })).filter(e => e.hosts.length));
+}
+
+export async function fetchAddonCatalog(source: "fr" | "stremio"): Promise<CatalogEntry[]> {
+  if (source === "stremio") return fromStremio(await getJSON(STREMIO_COLLECTION));
+  const [data, status] = await Promise.all([getJSON(`${STREMIOFR}/addons`), getJSON(`${STREMIOFR}/status`).catch(() => ({}))]);
+  return fromStremioFR(data, status);
+}
+
+/** Filtre sur le nom, la description et le genre d'addon. */
+export function searchCatalog(list: CatalogEntry[], q: string) {
+  const w = q.trim().toLowerCase();
+  return w ? list.filter(e => [e.name, e.description, e.tag].join(" ").toLowerCase().includes(w)) : list;
+}
+/** Un hébergeur est « installé » si un addon installé vient du même site (le lien installé porte la config, il diffère). */
+export const hostInstalled = (h: Host, installed: Addon[]) => {
+  const origin = (u?: string) => { try { return u ? new URL(u).origin : ""; } catch { return ""; } };
+  const o = origin(h.manifest ?? h.configure);
+  return !!o && installed.some(a => origin(a.url) === o);
+};
+
 export async function fetchCatalog(a: Addon, c: Catalog, extra?: Record<string, string>): Promise<Meta[]> {
   const r = await getJSON<{ metas?: Meta[] }>(catalogUrl(a, c, extra));
   return r.metas ?? [];

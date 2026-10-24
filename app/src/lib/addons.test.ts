@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, fromStremio, fromStremioFR, searchCatalog, hostInstalled, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -103,4 +103,28 @@ test("filledGenres retire les genres vides et garde ceux en erreur", async () =>
   try {
     assert.deepEqual(await filledGenres(kitsu, kitsu.manifest.catalogs![0]), ["Action", "Slice of Life", "Panne"]);
   } finally { globalThis.fetch = real; }
+});
+
+test("catalogues d'addons : Stremio, StremioFR, recherche et addons déjà installés", () => {
+  const stremio = fromStremio([
+    { transportUrl: "https://t.dev/manifest.json", manifest: { id: "t", name: "Torrentio", resources: ["stream"], behaviorHints: { configurable: true } } },
+    { transportUrl: "https://c.dev/manifest.json", manifest: { id: "c", name: "Cfg", behaviorHints: { configurationRequired: true } } },
+    { transportUrl: "stremio://x", manifest: { id: "x", name: "X" } }, { transportUrl: "https://n.dev/manifest.json" },
+  ]);
+  assert.deepEqual(stremio.map(e => e.hosts[0]), [{ manifest: "https://t.dev/manifest.json" }, { configure: "https://c.dev/configure" }]);
+  assert.equal(stremio[0].tag, "flux");
+
+  const fr = fromStremioFR({
+    streaming: [{ id: "lumio", name: "Lumio", description: "Addon français", instances: [{ label: "A", url: "https://l.tv", manifestUrl: "https://l.tv/configure/manifest.json" }] },
+      { id: "comet", name: "Comet", instances: [{ label: "E", url: "https://comet.e.com" }, { label: "F", url: "https://comet.f.com" }] }],
+    catalogue: [{ id: "vide", name: "Vide", instances: [] }],
+  }, { "comet::https://comet.e.com": { state: "up" }, "comet::https://comet.f.com": { state: "down" } });
+  assert.deepEqual(fr.map(e => [e.name, e.tag]), [["Lumio", "flux"], ["Comet", "flux"]]);
+  assert.deepEqual(fr[1].hosts, [{ label: "E", configure: "https://comet.e.com", up: true }, { label: "F", configure: "https://comet.f.com", up: false }]);
+  assert.equal(fr[0].hosts[0].up, undefined);
+
+  assert.deepEqual(searchCatalog([...stremio, ...fr], "FRANÇAIS").map(e => e.name), ["Lumio"]);
+  assert.equal(searchCatalog(fr, " ").length, 2);
+  const mine = [{ url: "https://comet.e.com/eyJjb25maWciOjF9/manifest.json", manifest: { id: "comet", name: "Comet" } }];
+  assert.deepEqual(fr[1].hosts.map(h => hostInstalled(h, mine)), [true, false]);
 });
