@@ -1,8 +1,9 @@
 // Repères d'un épisode : intro (bouton « Passer l'intro ») et début du générique de fin (carte « Épisode suivant »).
-// D'abord les chapitres nommés du fichier, sinon AniSkip pour les animés (base communautaire, par épisode).
+// D'abord les chapitres nommés du fichier, sinon les bases communautaires : TheIntroDB (séries et films, par identifiant
+// IMDb), AniSkip (animés Kitsu).
 
 export type Chapter = { title: string; start: number };
-export type Markers = { intro?: [number, number]; credits?: number };
+export type Markers = { intro?: [number, number]; recap?: [number, number]; credits?: number };
 
 const INTRO = /^(op|opening|intro|introduction|ouverture|g[ée]n[ée]rique (de )?d[ée]but)\b/i;
 const CREDITS = /^(ed|ending|credits?|end credits|outro|g[ée]n[ée]rique( de fin)?)\b/i;
@@ -32,4 +33,14 @@ export async function fromAniSkip(videoId: string): Promise<Markers> {
   const of = (type: string) => r.results?.find((x: any) => x.skipType === type)?.interval;
   const op = of("op"), ed = of("ed");
   return { ...(op && { intro: [op.startTime, op.endTime] as [number, number] }), ...(ed && { credits: ed.startTime }) };
+}
+
+/** Film (« tt… ») ou épisode (« tt…:saison:épisode ») : intro, récap et générique de fin par TheIntroDB. */
+export async function fromIntroDb(videoId: string): Promise<Markers> {
+  const id = /^(tt\d+)(?::(\d+):(\d+))?$/.exec(videoId);
+  if (!id) return {};
+  const r = await json(`https://api.theintrodb.org/v4/media?imdb_id=${id[1]}${id[2] ? `&season=${id[2]}&episode=${id[3]}` : ""}`);
+  const span = (x: any): [number, number] | undefined => (x?.end_ms ? [(x.start_ms ?? 0) / 1000, x.end_ms / 1000] : undefined);
+  const intro = span(r.intro?.[0]), recap = span(r.recap?.[0]), credits = r.credits?.[0]?.start_ms;
+  return { ...(intro && { intro }), ...(recap && { recap }), ...(credits && { credits: credits / 1000 }) };
 }

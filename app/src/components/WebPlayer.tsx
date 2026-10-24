@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { createElement, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { describe, epLabel, fetchMeta, fetchStreamsFor, fetchSubtitles, imdbEquivalent, nextEpisode, pickNextStream, type FoundStream, type Meta } from "../lib/addons";
-import { fromAniSkip, fromChapters, type Markers } from "../lib/skip";
+import { fromAniSkip, fromChapters, fromIntroDb, type Markers } from "../lib/skip";
 import { chooseTracks, DEFAULT_PREFS, flagOf, langCode, langName } from "../lib/lang";
 import { desktop, win, openExternal } from "../lib/desktop";
 import { createEngine, type Engine, type Track } from "../lib/player";
@@ -191,13 +191,13 @@ export function WebPlayer({ p }: { p: PlayParams }) {
     if (s.url === p.url) return setMenu(null);
     router.replace({ pathname: "/play", params: { ...p, url: s.url!, file: s.behaviorHints?.filename ?? "", binge: s.behaviorHints?.bingeGroup ?? "", addon: s.addon, start: String(Math.floor(time)) } });
   };
-  // Repères : chapitres nommés du fichier, complétés par AniSkip pour un épisode d'animé (Kitsu).
+  // Repères : chapitres nommés du fichier, complétés par TheIntroDB (IMDb) ou AniSkip (animé Kitsu).
   const known = eng && dur > 60;
   useEffect(() => {
     if (!known) return;
     const own = fromChapters(eng.chapters(), dur);
     setMarks(own);
-    if (!own.intro || own.credits === undefined) fromAniSkip(p.videoId).then(a => setMarks({ ...a, ...own }), () => {});
+    if (!own.intro || own.credits === undefined) (p.videoId.startsWith("kitsu:") ? fromAniSkip : fromIntroDb)(p.videoId).then(a => setMarks({ ...a, ...own }), () => {});
   }, [known]);
   // Fin d'épisode : carte « Épisode suivant » au début du générique de fin s'il est repéré, sinon dans les 20 dernières
   // secondes ; lancement auto 10 s après le début du générique, ou à la fin (compte à rebours des 10 dernières secondes).
@@ -207,7 +207,8 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   const nextCard = !!next && dur > 60 && (left <= 20 || inCredits) && !nextOff && !menu;
   const countdown = nextCard && prefs.autoNext && until <= 10 ? Math.max(0, Math.ceil(until)) : null;
   useEffect(() => { if (nextCard && prefs.autoNext && until <= 0.6) goNext(); }, [nextCard && until <= 0.6]);
-  const inIntro = !!marks.intro && time >= marks.intro[0] && time < marks.intro[1] - 1 && !menu;
+  const within = (r?: [number, number]) => !!r && time >= r[0] && time < r[1] - 1 && !menu;
+  const skipTo = within(marks.recap) ? { label: "Passer le récap", to: marks.recap![1] } : within(marks.intro) ? { label: "Passer l'intro", to: marks.intro![1] } : null;
 
   const toggle = async () => {
     if (!eng) return;
@@ -395,9 +396,9 @@ export function WebPlayer({ p }: { p: PlayParams }) {
         </View>
       ) : null}
 
-      {inIntro ? (
-        <Pressable onPress={() => seek(marks.intro![1])} style={({ hovered }: any) => [st.skip, hovered && { backgroundColor: "rgba(255,255,255,0.95)" }]} accessibilityLabel="Passer l'intro">
-          {({ hovered }: any) => <Text style={font(700, 15, hovered ? "#111" : C.ink)}>Passer l'intro</Text>}
+      {skipTo ? (
+        <Pressable onPress={() => seek(skipTo.to)} style={({ hovered }: any) => [st.skip, hovered && { backgroundColor: "rgba(255,255,255,0.95)" }]} accessibilityLabel={skipTo.label}>
+          {({ hovered }: any) => <Text style={font(700, 15, hovered ? "#111" : C.ink)}>{skipTo.label}</Text>}
         </Pressable>
       ) : null}
       {nextCard && next ? (
