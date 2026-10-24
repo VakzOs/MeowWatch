@@ -100,7 +100,9 @@ async function avance(box: HTMLDivElement, url: string, file?: string): Promise<
     selectAudio: async id => { await p.selectAudio(id); eng.audioId = id; eng.info = infoOf(id); },
     selectSub: async id => {
       const own = cues.has(id);
-      if (id >= 0 && !own && id !== p.getSelectedSubtitleStreamId()) await p.selectSubtitle(id);
+      // libmedia 1.3.1 garde les répliques déjà lues de l'ancienne piste et ne passe jamais à la nouvelle (le chinois
+      // marqué « par défaut » restait affiché) : un saut sur place vide ce tampon.
+      if (id >= 0 && !own && id !== p.getSelectedSubtitleStreamId()) { await p.selectSubtitle(id); p.seek(p.currentTime); }
       box.dataset.subs = id >= 0 && !own ? "on" : "off";
       cues.show(id);
       eng.subId = id;
