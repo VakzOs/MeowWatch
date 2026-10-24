@@ -25,9 +25,10 @@ const CHANNELS: Record<number, string> = { 1: "Mono", 2: "Stéréo", 6: "5.1", 8
 // Identifiants de codecs de FFmpeg (AVCodecID) les plus courants dans les fichiers des debrids.
 const CODECS: Record<number, string> = { 2: "MPEG-2", 12: "MPEG-4", 27: "H264", 70: "VC-1", 167: "VP9", 173: "HEVC", 225: "AV1",
   86017: "MP3", 86018: "AAC", 86019: "AC3", 86020: "DTS", 86021: "Vorbis", 86028: "FLAC", 86045: "MLP", 86056: "E-AC3", 86060: "TrueHD", 86076: "Opus" };
-// libmedia n'a pas de décodeur TrueHD / MLP (son des REMUX) : on fournit le nôtre, compilé depuis FFmpeg par
-// app/scripts/truehd-wasm.sh. ponytail: version SIMD seule (tous les navigateurs depuis 2023) ; un navigateur sans SIMD n'aura pas le son.
-const TRUEHD = new Set([86045, 86060]), TRUEHD_WASM = "/wasm/truehd-simd.wasm";
+// Décodeurs absents de libmedia, fournis par nous (compilés depuis FFmpeg par app/scripts/wasm-decodeurs.sh) : TrueHD / MLP
+// (son des REMUX) et VC-1 (vidéo de Blu-ray). ponytail: versions SIMD seules (tous les navigateurs depuis 2023).
+const OWN: Record<number, string> = { 86045: "truehd", 86060: "truehd", 70: "vc1" };
+const WVC1 = 0x31435657; // « WVC1 » : VC-1 rangé à la Windows dans le MKV (V_MS/VFW/FOURCC), que libmedia ne reconnaît pas
 
 let lib: Promise<any> | null = null;
 /** libmedia est servie par l'appli (public/libmedia, copiée à l'installation) : ses workers et modules doivent être de la même origine. */
@@ -38,11 +39,11 @@ const loadLib = () => (lib ??= new Promise((ok, ko) => {
   s.src = "/libmedia/avplayer.js";
   s.onload = () => {
     const AV = w.AVPlayer.default ?? w.AVPlayer, ok1 = AV.prototype.isCodecIdSupported, get = AV.prototype.getResource;
-    AV.prototype.isCodecIdSupported = function (id: number, ...a: any[]) { return TRUEHD.has(id) || ok1.call(this, id, ...a); };
-    // getWasm remplace toute la table d'URL de libmedia : on ne le pose que le temps de demander le décodeur TrueHD.
+    AV.prototype.isCodecIdSupported = function (id: number, ...a: any[]) { return id in OWN || ok1.call(this, id, ...a); };
+    // getWasm remplace toute la table d'URL de libmedia : on ne le pose que le temps de demander l'un de nos décodeurs.
     AV.prototype.getResource = function (type: string, id: number, ...a: any[]) {
-      if (type !== "decoder" || !TRUEHD.has(id)) return get.call(this, type, id, ...a);
-      this.options.getWasm = () => TRUEHD_WASM;
+      if (type !== "decoder" || !(id in OWN)) return get.call(this, type, id, ...a);
+      this.options.getWasm = () => `/wasm/${OWN[id]}-simd.wasm`;
       try { return get.call(this, type, id, ...a); } finally { delete this.options.getWasm; }
     };
     ok(AV);
@@ -70,6 +71,7 @@ async function avance(box: HTMLDivElement, url: string, file?: string): Promise<
   const e = ext(url, file);
   await p.load(url, e ? { ext: e } : undefined);
   const streams: any[] = p.getStreams();
+  for (const s of streams) if (s.mediaType === "Video" && !s.codecparProxy.codecId && s.codecparProxy.codecTag === WVC1) s.codecparProxy.codecId = 70;
   const track = (s: any, extras: string[]): Track => {
     const lang = langCode(s.metadata?.language, s.metadata?.title);
     return { id: s.id, lang, label: trackLabel(lang, s.metadata?.title, extras), forced: !!(s.disposition & FORCED) };
