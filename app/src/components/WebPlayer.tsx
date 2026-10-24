@@ -133,14 +133,14 @@ export function WebPlayer({ p }: { p: PlayParams }) {
       // Langues préférées du profil (règle à part pour les animés) : audio et sous-titres du fichier tout de suite ; sinon
       // sous-titres des addons dès qu'ils arrivent (OpenSubtitles peut être lent), sauf si on en a choisi entre-temps.
       const choice = p.anime === "1" ? langPrefs.animes : langPrefs.films;
-      const first = chooseTracks(choice, x.audio.filter(t => !t.bad), x.audioId, x.subs, []);
+      const first = chooseTracks(choice, x.audio, x.audioId, x.subs, []);
       if (first.audio !== undefined) await x.selectAudio(first.audio);
       if (first.sub && "id" in first.sub) await x.selectSub(first.sub.id);
       refresh();
       if (first.sub || !choice.subs) return;
       const extList = await subsP;
       if (dead || picked.current) return;
-      const late = chooseTracks(choice, x.audio.filter(t => !t.bad), x.audioId, x.subs, extList).sub;
+      const late = chooseTracks(choice, x.audio, x.audioId, x.subs, extList).sub;
       if (late && "ext" in late) { await useExt(x, extList[late.ext]); refresh(); }
     })().catch(err => !dead && setError(err?.message ?? String(err)));
     return () => { dead = true; e?.destroy(); };
