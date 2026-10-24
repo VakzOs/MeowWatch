@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Meow Watch TV : maquettes</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --red: #D6182A; --ink: #fff; --soft: #D4D4D8; --mute: #A8A8AD; --faint: #8A8A90; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #0e0f12; color: var(--ink); font-family: "Instrument Sans", system-ui, sans-serif; padding: 40px; }
+  .tv { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0B0B0C; margin-bottom: 60px; }
+  .bg { position: absolute; inset: 0; background-size: cover; background-position: center top; }
+  .shade-l { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(11,11,12,0.96) 0%, rgba(11,11,12,0.75) 38%, rgba(11,11,12,0) 70%); }
+  .shade-b { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,11,12,0) 30%, rgba(11,11,12,0.92) 62%, #0B0B0C 80%); }
+  /* Haut : logo, onglets, profil */
+  .top { position: absolute; top: 0; left: 0; right: 0; height: 120px; display: flex; align-items: center; gap: 56px; padding: 0 96px; z-index: 3; }
+  .logo { display: flex; align-items: center; gap: 16px; font-weight: 700; font-size: 30px; }
+  .logo img { width: 52px; height: 52px; }
+  .tabs { display: flex; gap: 12px; flex: 1; }
+  .tab { padding: 12px 26px; border-radius: 999px; font-size: 24px; font-weight: 600; color: var(--soft); }
+  .tab.on { color: #fff; }
+  .tab.on::after { content: ""; display: block; height: 4px; border-radius: 2px; background: var(--red); margin-top: 6px; }
+  .tab.focus { background: #fff; color: #111; }
+  .me { width: 56px; height: 56px; border-radius: 14px; background: var(--red) url(../app/assets/brand/chat-rouge-net.svg) center/cover; }
+  /* Héros */
+  .hero { position: absolute; left: 96px; top: 210px; width: 820px; z-index: 2; }
+  .hero h1 { font-size: 84px; line-height: 1; font-weight: 700; letter-spacing: -1px; }
+  .meta { display: flex; gap: 22px; align-items: center; margin-top: 22px; font-size: 24px; font-weight: 600; color: var(--soft); }
+  .imdb { background: #F5C518; color: #111; font-weight: 700; font-size: 18px; padding: 2px 8px; border-radius: 5px; margin-left: 6px; }
+  .desc { margin-top: 22px; font-size: 24px; line-height: 1.5; color: var(--soft); }
+  .btns { display: flex; gap: 20px; margin-top: 36px; }
+  .btn { white-space: nowrap; display: flex; align-items: center; gap: 14px; height: 76px; padding: 0 36px; border-radius: 14px; font-size: 26px; font-weight: 700; background: rgba(255,255,255,0.14); }
+  .btn.red { background: var(--red); }
+  .btn.focus { background: #fff; color: #111; transform: scale(1.06); box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+  .btn svg { width: 28px; height: 28px; }
+  /* Rangées */
+  .rows { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; }
+  .row { margin-bottom: 38px; }
+  .row h3 { font-size: 28px; font-weight: 600; padding: 0 96px 16px; display: flex; gap: 14px; align-items: baseline; }
+  .row h3 small { color: var(--faint); font-size: 20px; font-weight: 500; }
+  .tiles { display: flex; gap: 26px; padding: 20px 96px 14px; overflow: hidden; }
+  .home .rows { bottom: -250px; }
+  .home .hero { top: 170px; }
+  .home .desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card { flex: none; border-radius: 14px; background-size: cover; background-position: center; position: relative; }
+  .card.wide { width: 420px; aspect-ratio: 16/9; }
+  .card.poster { width: 220px; aspect-ratio: 2/3; }
+  .card.focus { outline: 5px solid #fff; outline-offset: 5px; transform: scale(1.1); box-shadow: 0 20px 50px rgba(0,0,0,0.7); z-index: 2; }
+  .card .bar { position: absolute; left: 14px; right: 14px; bottom: 14px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.3); }
+  .card .bar b { display: block; height: 6px; border-radius: 3px; background: var(--red); }
+  .card .lbl { position: absolute; left: 0; right: 0; bottom: -44px; font-size: 22px; font-weight: 600; white-space: nowrap; }
+  .card .lbl small { color: var(--faint); font-weight: 500; margin-left: 8px; }
+  /* Rail (variante B) */
+  .rail { position: absolute; top: 0; bottom: 0; left: 0; width: 120px; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 22px; padding-top: 44px; background: linear-gradient(90deg, rgba(11,11,12,0.95), rgba(11,11,12,0)); }
+  .rail .ico { width: 64px; height: 64px; border-radius: 16px; display: grid; place-items: center; color: var(--soft); }
+  .rail .ico.on { color: #fff; background: rgba(255,255,255,0.1); }
+  .rail .ico.on svg { stroke: var(--red); }
+  .rail svg { width: 32px; height: 32px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  /* Titre */
+  .seasons { display: flex; gap: 14px; padding: 0 96px 18px; }
+  .chip { padding: 10px 24px; border-radius: 999px; font-size: 22px; font-weight: 600; background: rgba(255,255,255,0.1); }
+  .chip.on { background: var(--red); }
+  .ep { width: 400px; flex: none; }
+  .ep .card { width: 400px; aspect-ratio: 16/9; }
+  .ep .t { font-size: 22px; font-weight: 600; margin-top: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ep .d { font-size: 18px; color: var(--faint); margin-top: 4px; }
+  .rate { position: absolute; right: 10px; bottom: 10px; min-width: 52px; height: 34px; border-radius: 8px; display: grid; place-items: center; font-size: 19px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+  /* Lecteur */
+  .pl-bottom { position: absolute; left: 0; right: 0; bottom: 0; height: 420px; background: linear-gradient(180deg, transparent, rgba(0,0,0,0.92)); }
+  .pl-title { position: absolute; left: 96px; top: 64px; font-size: 34px; font-weight: 700; text-shadow: 0 2px 10px #000; }
+  .pl-title small { display: block; font-size: 22px; color: var(--soft); font-weight: 500; margin-top: 6px; }
+  .prog { position: absolute; left: 96px; right: 96px; bottom: 170px; display: flex; align-items: center; gap: 24px; font-size: 24px; font-weight: 600; }
+  .track { flex: 1; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.25); position: relative; }
+  .track b { position: absolute; left: 0; top: 0; bottom: 0; width: 38%; background: var(--red); border-radius: 4px; }
+  .track i { position: absolute; left: 38%; top: 50%; width: 26px; height: 26px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); }
+  .ctrls { position: absolute; left: 96px; right: 96px; bottom: 60px; display: flex; gap: 18px; align-items: center; }
+  .cb { width: 80px; height: 80px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,0.12); }
+  .cb svg { width: 34px; height: 34px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .cb.focus { background: #fff; transform: scale(1.12); }
+  .cb.focus svg { stroke: #111; fill: #111; }
+  .cl { font-size: 20px; color: var(--soft); margin-left: 8px; }
+  .skip { position: absolute; right: 96px; bottom: 210px; padding: 18px 34px; border-radius: 14px; font-size: 26px; font-weight: 700; border: 2px solid rgba(255,255,255,0.7); background: rgba(20,20,22,0.75); }
+  .subs { position: absolute; left: 0; right: 0; bottom: 330px; text-align: center; font-size: 44px; font-weight: 600; text-shadow: 0 0 6px #000, 2px 2px 0 #000; }
+  /* Connexion */
+  .pair { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 140px; }
+  .pair h2 { font-size: 56px; font-weight: 700; margin-bottom: 20px; }
+  .pair p { font-size: 26px; color: var(--soft); line-height: 1.5; max-width: 760px; }
+  .code { display: flex; gap: 14px; margin: 44px 0 30px; }
+  .code span { width: 96px; height: 120px; border-radius: 16px; background: rgba(255,255,255,0.08); display: grid; place-items: center; font-size: 64px; font-weight: 700; }
+  .code em { width: 30px; display: grid; place-items: center; font-size: 56px; color: var(--faint); font-style: normal; }
+  .url { font-size: 30px; font-weight: 700; color: #fff; }
+  .qr { width: 400px; height: 400px; background: #fff; border-radius: 24px; padding: 28px; }
+  .qr svg { width: 100%; height: 100%; }
+  .wait { margin-top: 36px; font-size: 22px; color: var(--faint); display: flex; align-items: center; gap: 14px; }
+  .wait i { width: 22px; height: 22px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.2); border-top-color: var(--red); }
+  .label { font-size: 22px; color: var(--mute); margin: 0 0 10px; }
+  .page h2 { font-size: 26px; margin-bottom: 4px; } .page h2 b { color: var(--red); } .page p { color: var(--mute); font-size: 16px; margin-bottom: 16px; max-width: 1200px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="page"><h2><b>1</b> · Connexion</h2><p>Premier lancement : un code et un QR code. Tu scannes avec ton téléphone (déjà connecté au site) ou tu tapes le code sur meowwatch.vkzdev.com/tv, et la télé se connecte toute seule.</p></div>
+<div class="tv" id="connexion">
+  <div class="bg" style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img); filter: blur(30px) brightness(0.35); transform: scale(1.1)"></div>
+  <div class="top"><div class="logo"><img src="../app/assets/brand/chat-rouge.svg" alt="">Meow Watch</div></div>
+  <div class="pair">
+    <div>
+      <h2>Connecte ta télé</h2>
+      <p>Sur ton téléphone ou ton ordinateur, déjà connecté à Meow Watch, va sur</p>
+      <div class="url" style="margin-top:14px">meowwatch.vkzdev.com/tv</div>
+      <div class="code"><span>K</span><span>7</span><span>M</span><em>-</em><span>4</span><span>Q</span><span>X</span></div>
+      <p>et saisis ce code, ou scanne le QR code.</p>
+      <div class="wait"><i></i>En attente de validation… le code change dans 9 min</div>
+    </div>
+    <div class="qr"><svg id="qrsvg" viewBox="0 0 29 29" shape-rendering="crispEdges"></svg></div>
+  </div>
+</div>
+
+<div class="page"><h2><b>2A</b> · Accueil, onglets en haut</h2><p>Comme Google TV et Netflix : onglets en haut, grand visuel du titre sélectionné, rangées en dessous. La télécommande déplace le cadre blanc ; le visuel suit la tuile sélectionnée.</p></div>
+<div class="tv home" id="accueil-a">
+  <div class="bg" style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"></div>
+  <div class="shade-l"></div><div class="shade-b"></div>
+  <div class="top"><div class="logo"><img src="../app/assets/brand/chat-rouge.svg" alt="">Meow Watch</div>
+    <div class="tabs"><span class="tab on">Accueil</span><span class="tab">Découvrir</span><span class="tab">Bibliothèque</span><span class="tab">Calendrier</span><span class="tab">Recherche</span></div><span class="me"></span></div>
+  <div class="hero">
+    <h1>Supernatural</h1>
+    <div class="meta"><span>S5 · É4 · The End</span><span>2005–2020</span><span>8.4<span class="imdb">IMDb</span></span></div>
+    <p class="desc">Deux frères traquent les créatures surnaturelles à travers l'Amérique, sur les traces de leur père disparu.</p>
+  </div>
+  <div class="rows">
+    <div class="row"><h3>Reprendre <small>sur tous tes appareils</small></h3>
+      <div class="tiles">
+        <div class="card wide focus" style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"><div class="bar"><b style="width:62%"></b></div></div>
+        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt0112159/img)"><div class="bar"><b style="width:30%"></b></div></div>
+        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt0120737/img)"><div class="bar"><b style="width:80%"></b></div></div>
+        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt11126994/img)"><div class="bar"><b style="width:12%"></b></div></div>
+      </div></div>
+    <div class="row" style="margin-bottom:0"><h3>Populaires · Séries <small>Cinemeta</small></h3>
+      <div class="tiles">
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0903747/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0944947/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt11126994/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0388629/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0816692/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0120737/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0112159/img)"></div>
+      </div></div>
+  </div>
+</div>
+
+<div class="page"><h2><b>2B</b> · Accueil, rail à gauche</h2><p>Comme le site et l'appli Windows : une colonne d'icônes à gauche, qui s'ouvre avec les libellés quand on va dessus. Plus de place pour le visuel et les rangées.</p></div>
+<div class="tv home" id="accueil-b">
+  <div class="bg" style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"></div>
+  <div class="shade-l"></div><div class="shade-b"></div>
+  <div class="rail">
+    <img src="../app/assets/brand/chat-rouge.svg" alt="" style="width:56px;height:56px;margin-bottom:24px">
+    <span class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>
+    <span class="ico on"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>
+    <span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></span>
+    <span class="ico"><svg viewBox="0 0 24 24"><path d="M5 4v16M10 4v16M15 4l4 16"/></svg></span>
+    <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+    <span class="ico" style="margin-top:auto;margin-bottom:44px"><span class="me" style="width:52px;height:52px"></span></span>
+  </div>
+  <div class="hero" style="left:180px">
+    <h1>Supernatural</h1>
+    <div class="meta"><span>S5 · É4 · The End</span><span>2005–2020</span><span>8.4<span class="imdb">IMDb</span></span></div>
+    <p class="desc">Deux frères traquent les créatures surnaturelles à travers l'Amérique, sur les traces de leur père disparu.</p>
+  </div>
+  <div class="rows" style="padding-left:84px">
+    <div class="row"><h3>Reprendre <small>sur tous tes appareils</small></h3>
+      <div class="tiles">
+        <div class="card wide focus" style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"><div class="bar"><b style="width:62%"></b></div></div>
+        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt0112159/img)"><div class="bar"><b style="width:30%"></b></div></div>
+        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt0120737/img)"><div class="bar"><b style="width:80%"></b></div></div>
+        <div class="card wide" style="background-image:url(https://images.metahub.space/background/medium/tt11126994/img)"><div class="bar"><b style="width:12%"></b></div></div>
+      </div></div>
+    <div class="row" style="margin-bottom:0"><h3>Populaires · Séries <small>Cinemeta</small></h3>
+      <div class="tiles">
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0903747/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0944947/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt11126994/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0388629/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0816692/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0120737/img)"></div>
+        <div class="card poster" style="background-image:url(https://images.metahub.space/poster/medium/tt0112159/img)"></div>
+      </div></div>
+  </div>
+</div>
+
+<div class="page"><h2><b>3</b> · Page d'un titre</h2><p>Bouton principal sélectionné d'office (Reprendre), saisons et épisodes en rangée avec les notes IMDb ; « Bas » descend aux épisodes, « OK » lance.</p></div>
+<div class="tv" id="titre">
+  <div class="bg" style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"></div>
+  <div class="shade-l"></div><div class="shade-b"></div>
+  <div class="hero" style="top:120px">
+    <h1>Supernatural</h1>
+    <div class="meta"><span>42 min</span><span>2005–2020</span><span>8.4<span class="imdb">IMDb</span></span><span>Drame · Fantastique</span></div>
+    <p class="desc">Deux frères traquent les créatures surnaturelles à travers l'Amérique, sur les traces de leur père disparu.</p>
+    <div class="btns">
+      <span class="btn focus"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg>Reprendre S5 · É4</span>
+      <span class="btn">Bibliothèque</span><span class="btn">Bande-annonce</span>
+    </div>
+  </div>
+  <div class="rows">
+    <div class="seasons"><span class="chip">Saison 4</span><span class="chip on">Saison 5</span><span class="chip">Saison 6</span><span class="chip">Saison 7</span></div>
+    <div class="tiles" style="padding-bottom:110px" id="eps"></div>
+  </div>
+</div>
+
+<div class="page"><h2><b>4</b> · Lecteur</h2><p>Contrôles qui apparaissent à la moindre touche ; « Gauche / Droite » avance de 10 s, « OK » met en pause. « Passer le récap » est sélectionné d'office quand il apparaît.</p></div>
+<div class="tv" id="lecteur">
+  <div class="bg" style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"></div>
+  <div class="pl-bottom"></div>
+  <div class="pl-title">Supernatural<small>S5 · É4 · The End</small></div>
+  <div class="subs">Qu'est-ce que tu fais, Sam ?</div>
+  <span class="skip">Passer le récap</span>
+  <div class="prog"><span>16:02</span><div class="track"><b></b><i></i></div><span>42:10</span></div>
+  <div class="ctrls">
+    <span class="cb focus"><svg viewBox="0 0 24 24"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg></span>
+    <span class="cb"><svg viewBox="0 0 24 24"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg></span>
+    <span class="cb"><svg viewBox="0 0 24 24"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></svg></span>
+    <span style="flex:1"></span>
+    <span class="cb"><svg viewBox="0 0 24 24"><path d="M3 14v-2a9 9 0 0 1 18 0v2M3 14h4v6H3zM17 14h4v6h-4z"/></svg></span><span class="cl">Français</span>
+    <span class="cb" style="margin-left:18px"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 12h4M13 12h4M7 15h10"/></svg></span><span class="cl">Aucun</span>
+    <span class="cb" style="margin-left:18px"><svg viewBox="0 0 24 24"><path d="M5 5l10 7-10 7zM19 5v14"/></svg></span><span class="cl">Suivant</span>
+  </div>
+</div>
+
+<script>
+  // Faux QR code (maquette)
+  const svg = document.getElementById("qrsvg"); let h = "";
+  const finder = (x, y) => { h += `<rect x="${x}" y="${y}" width="7" height="7"/><rect x="${x + 1}" y="${y + 1}" width="5" height="5" fill="#fff"/><rect x="${x + 2}" y="${y + 2}" width="3" height="3"/>`; };
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (let y = 0; y < 29; y++) for (let x = 0; x < 29; x++) if (!((x < 8 && y < 8) || (x > 20 && y < 8) || (x < 8 && y > 20)) && rnd() > 0.52) h += `<rect x="${x}" y="${y}" width="1" height="1"/>`;
+  finder(0, 0); finder(22, 0); finder(0, 22); svg.innerHTML = h;
+  // Épisodes S5
+  const EPS = [["Sympathy for the Devil", 8.6], ["Good God, Y'All", 8.6], ["Free to Be You and Me", 8.5], ["The End", 9.1], ["Fallen Idols", 7.8], ["I Believe the Children Are Our Future", 8.5]];
+  const col = n => n >= 9 ? ["#186A3B", "#fff"] : n >= 8 ? ["#28B463", "#fff"] : ["#F4D03F", "#111"];
+  document.getElementById("eps").innerHTML = EPS.map((e, i) => `<div class="ep"><div class="card${i === 3 ? "" : ""}" style="background-image:url(https://images.metahub.space/background/medium/tt0460681/img)"><span class="rate" style="background:${col(e[1])[0]};color:${col(e[1])[1]}">${String(e[1]).replace(".", ",")}</span>${i === 3 ? '<div class="bar"><b style="width:62%"></b></div>' : ""}</div><div class="t">${i + 1}. ${e[0]}</div><div class="d">${["10 sept.", "17 sept.", "24 sept.", "1 oct.", "8 oct.", "5 nov."][i]} 2009</div></div>`).join("");
+</script>
+</body>
+</html>
