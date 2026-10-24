@@ -287,6 +287,7 @@ export function start(env = process.env) {
     return u.json();
   }
 
+  let apk = null; // dernière version Android trouvée sur GitHub (gardée 10 min)
   const routes = {
     // Départ vers Discord ; le code d'invitation voyage avec l'état anti-CSRF.
     "GET /api/auth/discord": (req, res, url) => {
@@ -331,6 +332,16 @@ export function start(env = process.env) {
       const t = token();
       q.addSession.run(hash(t), x.user, Date.now() + SESSION_DAYS * 864e5);
       json(res, 200, { token: t });
+    },
+    // Adresse courte à taper sur la télé (appli Downloader) : dernier APK Android publié par GitHub Actions.
+    "GET /tv.apk": async (req, res) => {
+      if (!apk || Date.now() - apk.at > 600_000) {
+        const r = await fetch("https://api.github.com/repos/VakzOs/MeowWatch/releases?per_page=30", { headers: { "user-agent": "MeowWatch" } }).catch(() => null);
+        const tag = r?.ok ? (await r.json()).find(x => x.tag_name?.startsWith("android-v"))?.tag_name : null;
+        if (tag) apk = { tag, at: Date.now() };
+      }
+      if (!apk) return json(res, 404, { error: "Pas encore d'appli Android publiée." });
+      redirect(res, `https://github.com/VakzOs/MeowWatch/releases/download/${apk.tag}/Meow-Watch-TV.apk`);
     },
     "POST /api/tv/approve": member(async (req, res, url, u) => {
       const code = String((await body(req)).code ?? "").toUpperCase().replace(/[^A-Z0-9]/g, ""), x = tvCodes.get(code);

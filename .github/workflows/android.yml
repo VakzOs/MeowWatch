@@ -1,0 +1,53 @@
+# Appli Android TV (et téléphone) : à chaque étiquette android-vX.Y.Z, construit l'APK et le publie dans une
+# « Release » GitHub. Signée avec la clé de l'appli (secrets ANDROID_KEYSTORE en base64 et ANDROID_KEYSTORE_PASSWORD) :
+# toujours la même, sinon Android refuse d'installer la nouvelle version par-dessus l'ancienne.
+name: Appli Android TV
+
+on:
+  push:
+    tags: ["android-v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: tv
+    env:
+      EXPO_PUBLIC_API_URL: https://meowwatch.vkzdev.com
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+      - run: npm ci
+      - run: npm run prebuild
+      - name: APK
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          MW_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MW_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE" ]; then echo "$ANDROID_KEYSTORE" | base64 -d > "$RUNNER_TEMP/meowwatch.jks"; export MW_KEYSTORE="$RUNNER_TEMP/meowwatch.jks"; fi
+          cd android && ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk ../Meow-Watch-TV.apk
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" Meow-Watch-TV.apk --repo "$GITHUB_REPOSITORY" --title "Meow Watch pour Android TV ${GITHUB_REF_NAME#android-v}" \
+            --notes "Télécharge « Meow-Watch-TV.apk » et installe-le (télé Android ou téléphone). Mode d'emploi : docs/android-tv.md"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: Meow-Watch-TV
+          path: tv/Meow-Watch-TV.apk

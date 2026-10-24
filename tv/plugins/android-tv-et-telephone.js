@@ -1,6 +1,6 @@
 // Un seul APK pour la télé et le téléphone : lanceur des deux (Leanback et classique), ni télécommande ni écran tactile
-// obligatoires ; seulement les processeurs ARM (télés et téléphones), pas l'émulateur x86 (libmpv pèse lourd).
-const { withAndroidManifest, withAppBuildGradle } = require("expo/config-plugins");
+// obligatoires ; Android 8 minimum (libmpv) ; seulement les processeurs ARM (télés et téléphones), pas l'émulateur x86 (libmpv pèse lourd).
+const { withAndroidManifest, withAppBuildGradle, withGradleProperties } = require("expo/config-plugins");
 
 module.exports = config => {
   config = withAndroidManifest(config, c => {
@@ -15,8 +15,20 @@ module.exports = config => {
     }
     return c;
   });
+  config = withGradleProperties(config, c => {
+    c.modResults = c.modResults.filter(p => p.key !== "android.minSdkVersion");
+    c.modResults.push({ type: "property", key: "android.minSdkVersion", value: "26" });
+    return c;
+  });
   return withAppBuildGradle(config, c => {
-    if (!c.modResults.contents.includes("abiFilters")) c.modResults.contents = c.modResults.contents.replace(/defaultConfig \{/, 'defaultConfig {\n        ndk { abiFilters "arm64-v8a", "armeabi-v7a" }');
+    let g = c.modResults.contents;
+    if (!g.includes("abiFilters")) g = g.replace(/defaultConfig \{/, 'defaultConfig {\n        ndk { abiFilters "arm64-v8a", "armeabi-v7a" }');
+    // GitHub Actions : clé de l'appli (MW_KEYSTORE, fichier tiré d'un secret) et numéro de version ; en local, clé de débogage.
+    if (!g.includes("MW_KEYSTORE")) g = g
+      .replace(/(buildTypes \{[\s\S]*?release \{[\s\S]*?)signingConfig signingConfigs\.debug/, '$1signingConfig System.getenv("MW_KEYSTORE") ? signingConfigs.release : signingConfigs.debug')
+      .replace(/signingConfigs \{/, 'signingConfigs {\n        release {\n            if (System.getenv("MW_KEYSTORE")) { storeFile file(System.getenv("MW_KEYSTORE")); storePassword System.getenv("MW_KEYSTORE_PASSWORD"); keyAlias "meowwatch"; keyPassword System.getenv("MW_KEYSTORE_PASSWORD") }\n        }')
+      .replace(/versionCode \d+/, 'versionCode Integer.parseInt(System.getenv("MW_VERSION_CODE") ?: "1")');
+    c.modResults.contents = g;
     return c;
   });
 };

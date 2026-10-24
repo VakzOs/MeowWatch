@@ -14,9 +14,10 @@ export type Admin = {
 // Appli native (télé) : session reçue par la connexion par code, envoyée dans l'en-tête Authorization.
 let token = "";
 export const setToken = (t: string) => { token = t; };
+export const authHeaders = (): Record<string, string> => (token ? { authorization: `Bearer ${token}` } : {});
 
 export async function api<T = any>(path: string, init: RequestInit = {}): Promise<T> {
-  const r = await fetch(API + path, { credentials: "include", ...init, headers: { "content-type": "application/json", ...(token && { authorization: `Bearer ${token}` }), ...init.headers } });
+  const r = await fetch(API + path, { credentials: "include", ...init, headers: { "content-type": "application/json", ...authHeaders(), ...init.headers } });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(data.error ?? `Erreur ${r.status}`), { status: r.status });
   return data;
