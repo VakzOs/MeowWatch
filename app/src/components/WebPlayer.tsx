@@ -12,7 +12,7 @@ import { Icon, type IconName } from "./Icon";
 import { C, font } from "./theme";
 
 /** subType/subVid : identifiant pour les addons de sous-titres (équivalent IMDb des animés) ; anime : règle animés. */
-export type PlayParams = { url: string; file?: string; binge?: string; addon?: string; subType?: string; subVid?: string; anime?: string; id: string; type: string; name: string; poster: string; background: string; videoId: string; label: string; start: string };
+export type PlayParams = { url: string; file?: string; binge?: string; addon?: string; subType?: string; subVid?: string; anime?: string; vo?: string; id: string; type: string; name: string; poster: string; background: string; videoId: string; label: string; start: string };
 
 // Réglages du lecteur, retenus sur l'appareil.
 type Prefs = { volume: number; muted: boolean; size: number; color: string; bg: string; blur: boolean; autoNext: boolean };
@@ -105,7 +105,11 @@ export function WebPlayer({ p }: { p: PlayParams }) {
     AsyncStorage.setItem(PREFS_KEY, JSON.stringify(next)).catch(() => {});
   };
   useCss(prefs);
-  const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
+  // En quittant le lecteur, l'appli sort du plein écran (pas entre deux épisodes : le lecteur est recréé sans passer par ici).
+  const back = () => {
+    if (desktop) win.isFullscreen().then(f => { if (f) win.toggleFullscreen(); });
+    router.canGoBack() ? router.back() : router.replace("/");
+  };
 
   // Démarrage : réglages de l'appareil, puis moteur (avancé si possible), reprise et lecture.
   useEffect(() => {
@@ -133,6 +137,9 @@ export function WebPlayer({ p }: { p: PlayParams }) {
       if (+p.start > 0) x.seek(+p.start);
       try { await x.play(); setPaused(false); } catch { setBlocked(true); }
       if (x.suspended()) setBlocked(true);
+      // Une seule piste audio sans langue (souvent l'anglais des MULTi) : c'est très probablement la VO du titre (TMDB).
+      const blank = x.audio.filter(t => !t.lang);
+      if (blank.length === 1 && p.vo) Object.assign(blank[0], { lang: p.vo, label: blank[0].label.replace(langName(""), `${langName(p.vo)} (VO probable)`) });
       x.resize();
       setEng(x);
       // Langues préférées du profil (règle à part pour les animés) : audio et sous-titres du fichier tout de suite ; sinon
@@ -182,9 +189,9 @@ export function WebPlayer({ p }: { p: PlayParams }) {
     if (s.url === p.url) return setMenu(null);
     router.replace({ pathname: "/play", params: { ...p, url: s.url!, file: s.behaviorHints?.filename ?? "", binge: s.behaviorHints?.bingeGroup ?? "", addon: s.addon, start: String(Math.floor(time)) } });
   };
-  // Fin d'épisode : carte « Épisode suivant » dans les 40 dernières secondes, lancement auto à la fin (compte à rebours de 10 s).
+  // Fin d'épisode : carte « Épisode suivant » dans les 20 dernières secondes, lancement auto à la fin (compte à rebours de 10 s).
   const left = dur - time;
-  const nextCard = !!next && dur > 60 && left <= 40 && !nextOff && !menu;
+  const nextCard = !!next && dur > 60 && left <= 20 && !nextOff && !menu;
   const countdown = nextCard && prefs.autoNext && left <= 10 ? Math.max(0, Math.ceil(left)) : null;
   useEffect(() => { if (nextCard && prefs.autoNext && left <= 0.6) goNext(); }, [nextCard && left <= 0.6]);
 
