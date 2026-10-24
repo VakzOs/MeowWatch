@@ -272,7 +272,9 @@ export function start(env = process.env) {
     fails.delete(p.id);
     return null;
   }
-  const me = req => { const t = cookies(req).mw_session; return t ? q.session.get(hash(t), Date.now()) : undefined; };
+  // Session : cookie du site, ou en-tête « Authorization: Bearer » des applis natives (télé).
+  const sid = req => cookies(req).mw_session || /^Bearer (\S+)$/.exec(req.headers.authorization ?? "")?.[1];
+  const me = req => { const t = sid(req); return t ? q.session.get(hash(t), Date.now()) : undefined; };
   const body = (req, max = 1e4) => new Promise((ok, ko) => { let d = ""; req.on("data", c => { d += c; if (d.length > max) { ko(Object.assign(new Error("trop gros"), { status: 413 })); req.destroy(); } }).on("end", () => { try { ok(d ? JSON.parse(d) : {}); } catch (e) { ko(e); } }); });
 
   async function discordUser(code) {
@@ -337,7 +339,7 @@ export function start(env = process.env) {
       json(res, 200, { ok: true });
     }),
     "GET /api/auth/me": (req, res) => { const u = me(req); u ? json(res, 200, view(u)) : json(res, 401, { error: "non connecté" }); },
-    "POST /api/auth/logout": (req, res) => { const t = cookies(req).mw_session; if (t) q.deleteSession.run(hash(t)); json(res, 200, { ok: true }, { "set-cookie": cookie("mw_session", "", 0) }); },
+    "POST /api/auth/logout": (req, res) => { const t = sid(req); if (t) q.deleteSession.run(hash(t)); json(res, 200, { ok: true }, { "set-cookie": cookie("mw_session", "", 0) }); },
     "GET /api/translate": member(async (req, res, url) => {
       if (!cfg.tmdbKey) return json(res, 404, { error: "Traduction non configurée (TMDB_API_KEY)." });
       const type = url.searchParams.get("type"), id = url.searchParams.get("id") ?? "", lang = url.searchParams.get("lang") ?? "fr-FR";
@@ -359,10 +361,10 @@ export function start(env = process.env) {
       if (!p) return json(res, 404, { error: "profil introuvable" });
       const refused = checkPin(p, pin);
       if (refused) return json(res, refused[0], { error: refused[1] });
-      q.selectProfile.run(p.id, hash(cookies(req).mw_session));
+      q.selectProfile.run(p.id, hash(sid(req)));
       json(res, 200, profileView(p));
     }),
-    "POST /api/profiles/leave": member((req, res) => { q.selectProfile.run(null, hash(cookies(req).mw_session)); json(res, 200, { ok: true }); }),
+    "POST /api/profiles/leave": member((req, res) => { q.selectProfile.run(null, hash(sid(req))); json(res, 200, { ok: true }); }),
     "POST /api/profiles": member(async (req, res, url, u) => {
       const { name, color, pin, avatar } = await body(req);
       if (profilesOf(u).length >= MAX_PROFILES) return json(res, 400, { error: `${MAX_PROFILES} profils au maximum.` });

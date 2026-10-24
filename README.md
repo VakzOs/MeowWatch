@@ -4,6 +4,7 @@ Client de streaming compatible avec les addons Stremio : web, PC, Apple TV, iPho
 Connexion Discord, réservée au propriétaire et aux personnes qu'il invite.
 
 - `app/` : l'appli Expo (web aujourd'hui ; Apple TV, iPhone, Android et PC ensuite).
+- `tv/` : l'appli télé (Android TV, puis Apple TV), React Native TV ; réutilise `app/src/lib`, lecteur mpv.
 - `server/` : petit serveur Node sans dépendance (appli web + API + connexion Discord, SQLite dans `data/`).
 - `maquettes/` : direction artistique (C3 web/PC/tablette, C4 Apple TV/téléphone).
 
