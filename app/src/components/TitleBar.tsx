@@ -18,6 +18,9 @@ export function TitleBar({ bare }: { bare?: boolean }) {
   const input = useRef<any>(null); // TextInput (focus avec Ctrl+K)
   const [update, setUpdate] = useState<string | null>(null);
   const [later, setLater] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  // Installation silencieuse (sans la fenêtre de Windows) : l'appli se ferme quelques secondes puis se rouvre. On le dit avant.
+  const restart = () => { setInstalling(true); setTimeout(installUpdate, 2500); };
   useEffect(() => onUpdate(setUpdate), []);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); input.current?.focus(); } };
@@ -46,12 +49,16 @@ export function TitleBar({ bare }: { bare?: boolean }) {
       </View>
       {update && !later && !bare ? (
         <View style={st.toast}>
-          <Text style={font(700, 14)}>Mise à jour {update} prête</Text>
-          <Text style={[font(400, 12.5, C.mute), { marginTop: 2, marginBottom: 10, lineHeight: 17 }]}>Téléchargée en arrière-plan. Elle s'applique au redémarrage, sans réinstaller.</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Pressable onPress={installUpdate} style={({ hovered }: any) => [st.restart, hovered && { opacity: 0.9 }]}><Text style={font(700, 13)}>Redémarrer</Text></Pressable>
-            <Pressable onPress={() => setLater(true)}><Text style={font(500, 13, C.mute)}>Plus tard</Text></Pressable>
-          </View>
+          <Text style={font(700, 14)}>{installing ? `Installation de la ${update}…` : `Mise à jour ${update} prête`}</Text>
+          <Text style={[font(400, 12.5, C.mute), { marginTop: 2, marginBottom: installing ? 0 : 10, lineHeight: 17 }]}>
+            {installing ? "Meow Watch se ferme quelques secondes puis se rouvre tout seul." : "Téléchargée en arrière-plan. Elle s'applique au redémarrage, sans réinstaller."}
+          </Text>
+          {installing ? null : (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <Pressable onPress={restart} style={({ hovered }: any) => [st.restart, hovered && { opacity: 0.9 }]}><Text style={font(700, 13)}>Redémarrer</Text></Pressable>
+              <Pressable onPress={() => setLater(true)}><Text style={font(500, 13, C.mute)}>Plus tard</Text></Pressable>
+            </View>
+          )}
         </View>
       ) : null}
     </>
