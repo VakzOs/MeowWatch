@@ -2,12 +2,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { createElement, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { describe, epLabel, fetchMeta, fetchStreamsFor, fetchSubtitles, imdbEquivalent, nextEpisode, pickNextStream, type FoundStream, type Meta } from "../lib/addons";
 import { chooseTracks, DEFAULT_PREFS, flagOf, langCode, langName } from "../lib/lang";
-import { desktop, win } from "../lib/desktop";
+import { desktop, win, openExternal } from "../lib/desktop";
 import { createEngine, type Engine, type Track } from "../lib/player";
-import { saveProgress, useStore } from "../lib/store";
+import { saveProgress, useStore, visibleAddons } from "../lib/store";
 import { Icon, type IconName } from "./Icon";
 import { C, font } from "./theme";
 
@@ -84,7 +84,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   const [blocked, setBlocked] = useState(false); // son ou lecture bloqués tant qu'on n'a pas cliqué
   const [prefs, setPrefsState] = useState<Prefs>(DEFAULT);
   const [, refresh] = useReducer(x => x + 1, 0);
-  const addons = useStore(s => s.addons);
+  const addons = useStore(visibleAddons);
   const langPrefs = useStore(s => s.user?.profile?.prefs) ?? DEFAULT_PREFS;
   // Sous-titres des addons : listés tout de suite, chargés (via notre serveur, en WebVTT) quand on les choisit.
   type Ext = { url: string; lang: string; label: string };
@@ -403,7 +403,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
           </Text>
           <View style={{ flexDirection: "row", gap: 12 }}>
             <Pressable onPress={back} style={[st.btn, { backgroundColor: C.red }]}><Text style={font(700, 15)}>Choisir un autre flux</Text></Pressable>
-            <Pressable onPress={() => Linking.openURL(p.url)} style={[st.btn, { backgroundColor: "rgba(255,255,255,0.14)" }]}><Text style={font(700, 15)}>Ouvrir le lien</Text></Pressable>
+            <Pressable onPress={() => openExternal(p.url)} style={[st.btn, { backgroundColor: "rgba(255,255,255,0.14)" }]}><Text style={font(700, 15)}>Ouvrir le lien</Text></Pressable>
           </View>
         </View>
       ) : null}

@@ -5,12 +5,12 @@ import { hoverTitle, openTitle, Row, type Item } from "../components/Row";
 import { C, catalogName, font, TYPE_FR } from "../components/theme";
 import { fetchCatalog, homeCatalogs, searchCatalogs, type Meta } from "../lib/addons";
 import { desktop } from "../lib/desktop";
-import { setQuery, useStore } from "../lib/store";
+import { removeProgress, setQuery, useStore, visibleAddons } from "../lib/store";
 
 const open = openTitle, hover = hoverTitle;
 
 export default function Home() {
-  const addons = useStore(s => s.addons);
+  const addons = useStore(visibleAddons);
   const progress = useStore(s => s.progress);
   const library = useStore(s => s.library);
   const query = useStore(s => s.query); // partagée avec la barre du haut de l'appli Windows
@@ -45,7 +45,7 @@ export default function Home() {
               <TextInput value={query} onChangeText={setQuery} placeholder="Rechercher un film, une série" placeholderTextColor={C.faint} style={[font(400, 15), st.input]} accessibilityLabel="Rechercher" />
             </View>
           )}
-          {!search && resume.length ? <Row title="Reprendre" note="sur tous tes appareils" load={loadResume} onSelect={open} onHover={hover} /> : null}
+          {!search && resume.length ? <Row title="Reprendre" note="sur tous tes appareils" load={loadResume} onSelect={open} onHover={hover} onRemove={m => removeProgress(m.id)} /> : null}
           {!search && saved.length ? <Row title="Ma bibliothèque" note="derniers ajouts" load={loadSaved} onSelect={open} onHover={hover} /> : null}
           {rows.map(r => <Row key={r.key} title={r.title} note={r.note} load={r.load} onSelect={open} onHover={hover} />)}
           {!rows.length ? <Text style={[font(400, 15, C.mute), { padding: 32 }]}>{search ? "Aucun addon installé ne sait chercher." : "Aucun catalogue : ajoute un addon dans la page Addons."}</Text> : null}

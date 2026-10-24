@@ -24,7 +24,7 @@ export function Select({ id, open, setOpen, items, value, onChange }: { id: stri
                 <Pressable key={i.k} onPress={() => { onChange(i.k); setOpen(null); }} style={({ hovered }: any) => [st.option, hovered && { backgroundColor: "rgba(255,255,255,0.08)" }]}>
                   <Text style={[font(on ? 700 : 500, 14, on ? C.ink : C.soft), { flex: 1 }]}>{i.label}</Text>
                   {i.note ? <Text style={font(500, 12, C.faint)}>{i.note}</Text> : null}
-                  {on ? <View style={st.dot} /> : null}
+                  {on ? <Icon name="check" size={14} color={C.soft} /> : null}
                 </Pressable>
               );
             })}
@@ -40,5 +40,4 @@ const st = StyleSheet.create({
   backdrop: { position: "fixed" as any, top: 0, left: 0, right: 0, bottom: 0 },
   menu: { position: "absolute", top: 50, left: 0, minWidth: 220, maxHeight: 380, borderRadius: 12, backgroundColor: "#1A1A1D", boxShadow: "0 12px 32px rgba(0,0,0,0.5)" } as any,
   option: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.red },
 });

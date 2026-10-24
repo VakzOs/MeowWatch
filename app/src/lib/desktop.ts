@@ -1,5 +1,7 @@
 // Appli Windows (Tauri) : la fenêtre ouvre le site et lui injecte window.__MW_DESKTOP__ (relais local, version, mpv).
 // Hors de l'appli, tout ceci vaut null et le site se comporte normalement.
+import { Linking, Platform } from "react-native";
+
 type Desktop = { relay: string; version: string; mpv?: boolean }; // mpv : lecteur intégré (appli 1.1.0 et plus)
 export const desktop: Desktop | null = typeof window !== "undefined" ? (window as any).__MW_DESKTOP__ ?? null : null;
 
@@ -28,3 +30,12 @@ export function onUpdate(cb: (version: string) => void) {
   return () => { off.then((f: () => void) => f()); };
 }
 export const installUpdate = () => tauri()?.core.invoke("install_update");
+
+/** Ouvre un lien hors de Meow Watch. Appli Windows : navigateur par défaut (sa fenêtre n'ouvre pas de popup ;
+ *  les applis d'avant 1.2.0 n'ont pas la commande, on tente alors la popup). */
+export function openExternal(url: string) {
+  const open = () => (Platform.OS === "web" ? void window.open(url, "_blank", "noopener") : void Linking.openURL(url));
+  const t = Platform.OS === "web" ? tauri() : null;
+  if (t) t.core.invoke("open_url", { url }).catch(open);
+  else open();
+}

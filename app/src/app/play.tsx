@@ -2,7 +2,8 @@ import { useEvent, useEventListener } from "expo";
 import { router, useLocalSearchParams } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useRef } from "react";
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { openExternal } from "../lib/desktop";
 import { Icon } from "../components/Icon";
 import { C, font } from "../components/theme";
 import { WebPlayer, type PlayParams } from "../components/WebPlayer";
@@ -51,7 +52,7 @@ function NativePlay({ p }: { p: PlayParams }) {
           </Text>
           <View style={{ flexDirection: "row", gap: 12 }}>
             <Pressable onPress={back} style={[st.btn, { backgroundColor: C.red }]}><Text style={font(700, 15)}>Choisir un autre flux</Text></Pressable>
-            <Pressable onPress={() => Linking.openURL(p.url)} style={[st.btn, { backgroundColor: "rgba(255,255,255,0.14)" }]}><Text style={font(700, 15)}>Ouvrir le lien</Text></Pressable>
+            <Pressable onPress={() => openExternal(p.url)} style={[st.btn, { backgroundColor: "rgba(255,255,255,0.14)" }]}><Text style={font(700, 15)}>Ouvrir le lien</Text></Pressable>
           </View>
         </View>
       ) : null}

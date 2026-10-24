@@ -16,6 +16,7 @@
     "core:window:allow-is-fullscreen",
     "allow-update-status",
     "allow-install-update",
+    "allow-open-url",
     "libmpv:default"
   ]
 }

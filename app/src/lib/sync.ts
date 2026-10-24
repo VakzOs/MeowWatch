@@ -7,6 +7,8 @@ export type Progress = {
   binge?: string; addon?: string;
   /** Vu jusqu'au bout : gardé (pour que les autres appareils l'apprennent) mais hors de « Reprendre ». */
   done?: boolean;
+  /** Retiré de l'historique : gardé (pour les autres appareils) mais affiché nulle part, jusqu'à la prochaine lecture. */
+  removed?: boolean;
 };
 
 /** Titre de la bibliothèque d'un profil. Retiré : gardé avec `removed` pour que les autres appareils l'apprennent. */

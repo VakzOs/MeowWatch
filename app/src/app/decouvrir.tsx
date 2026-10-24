@@ -4,11 +4,11 @@ import { Card, hoverTitle, openTitle } from "../components/Row";
 import { Select } from "../components/Select";
 import { C, catalogName, font, genreList, TYPE_FR } from "../components/theme";
 import { canSkip, discoverCatalogs, fetchCatalog, filledGenres, genreOptions, genreRequired, type Meta } from "../lib/addons";
-import { useStore } from "../lib/store";
+import { useStore, visibleAddons } from "../lib/store";
 
 /** Découvrir, façon Stremio : type, catalogue et genre en haut, grille d'affiches qui se charge au défilement. */
 export default function Decouvrir() {
-  const addons = useStore(s => s.addons);
+  const addons = useStore(visibleAddons);
   const all = useMemo(() => discoverCatalogs(addons), [addons]);
   const types = [...new Set(all.map(c => c.catalog.type))];
   const [type, setType] = useState<string>();

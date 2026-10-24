@@ -1,15 +1,16 @@
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { openExternal } from "../lib/desktop";
 import { Icon } from "../components/Icon";
 import { Select } from "../components/Select";
 import { C, font, TYPE_FR } from "../components/theme";
 import { addonKinds, CATEGORIES, configureUrl, fetchAddonCatalog, hostInstalled, hostUrl, ping, searchCatalog, type Addon, type CatalogEntry, type Category, type Host } from "../lib/addons";
-import { addAddon, importFromStremio, moveAddon, removeAddon, useStore } from "../lib/store";
+import { addAddon, importFromStremio, moveAddon, removeAddon, useStore, visibleAddons } from "../lib/store";
 import { createLink, fetchAccount, waitForAuth } from "../lib/stremio";
 
 export default function Addons() {
-  const addons = useStore(s => s.addons);
+  const addons = useStore(visibleAddons);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -67,7 +68,6 @@ function StremioImport() {
       setStep({ s: "done", ...(await importFromStremio(await fetchAccount(key))) });
     } catch (e: any) { if (e?.message !== "annulé") setStep({ s: "error", text: e?.message ?? "Erreur inconnue." }); }
   };
-  const open = (url: string) => (Platform.OS === "web" ? window.open(url, "_blank", "noopener") : Linking.openURL(url));
   return (
     <View style={st.import}>
       <View style={{ flex: 1, gap: 6 }}>
@@ -93,7 +93,7 @@ function StremioImport() {
         <View style={{ alignItems: "center", gap: 10 }}>
           <Image source={step.qrcode} style={{ width: 112, height: 112, borderRadius: 8, backgroundColor: "#fff" }} accessibilityLabel="QR code de validation Stremio" />
           <View style={{ flexDirection: "row", gap: 8 }}>
-            <Pressable onPress={() => open(step.link)} style={({ hovered }: any) => [st.btn, hovered && { opacity: 0.9 }]}><Text style={font(700, 14)}>Ouvrir Stremio</Text></Pressable>
+            <Pressable onPress={() => openExternal(step.link)} style={({ hovered }: any) => [st.btn, hovered && { opacity: 0.9 }]}><Text style={font(700, 14)}>Ouvrir Stremio</Text></Pressable>
             <Pressable onPress={() => { abort.current?.abort(); setStep({ s: "idle" }); }} style={({ hovered }: any) => [st.btn, st.ghost, hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}><Text style={font(600, 14)}>Annuler</Text></Pressable>
           </View>
         </View>
@@ -106,7 +106,6 @@ function StremioImport() {
   );
 }
 
-const openUrl = (url: string) => (Platform.OS === "web" ? window.open(url, "_blank", "noopener") : Linking.openURL(url));
 
 const SOURCES = [{ id: "fr", label: "StremioFR" }, { id: "stremio", label: "Stremio" }] as const;
 const pickHost = (e: CatalogEntry) => e.hosts.findIndex(h => h.up !== false) >= 0 ? e.hosts.findIndex(h => h.up !== false) : 0;
@@ -144,7 +143,7 @@ function Catalogue() {
   }, [source, lists]);
   const act = async (e: CatalogEntry, h: Host) => {
     setMsg(null);
-    if (!h.manifest) { openUrl(h.configure!); setMsg({ ok: true, text: `Page de ${e.name} ouverte : colle le lien d'installation qu'elle te donne dans le champ en haut.` }); return; }
+    if (!h.manifest) { openExternal(h.configure!); setMsg({ ok: true, text: `Page de ${e.name} ouverte : colle le lien d'installation qu'elle te donne dans le champ en haut.` }); return; }
     setBusy(e.key);
     try { const { addon } = await addAddon(h.manifest); setMsg({ ok: true, text: `${addon.manifest.name} est installé.` }); }
     catch (err: any) { setMsg({ ok: false, text: `${e.name} : ${/fetch|network|Failed/i.test(err?.message) ? "addon injoignable pour le moment." : err?.message ?? "erreur inconnue."}` }); }
@@ -260,7 +259,7 @@ function AddonRow({ a, first, last }: { a: Addon; first: boolean; last: boolean 
     <View style={st.row}>
       <AddonInfo a={a} />
       {configureUrl(a) ? (
-        <Pressable onPress={() => openUrl(configureUrl(a)!)} accessibilityLabel={`Configurer ${m.name}`} style={({ hovered }: any) => [st.cfg, hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}>
+        <Pressable onPress={() => openExternal(configureUrl(a)!)} accessibilityLabel={`Configurer ${m.name}`} style={({ hovered }: any) => [st.cfg, hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}>
           <Icon name="gear" size={16} color={C.soft} /><Text style={font(600, 13)}>Configurer</Text>
         </Pressable>
       ) : null}
