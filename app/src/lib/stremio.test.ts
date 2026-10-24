@@ -42,4 +42,8 @@ test("bibliothèque Stremio : titres ajoutés, ni retirés ni seulement vus", ()
   const lib = toLibrary([item("tt1"), item("tt2", { removed: true }), item("tt3", { temp: true }), item("tt4", { type: "other" })]);
   assert.deepEqual(lib.map(i => i.meta.id), ["tt1"]);
   assert.equal(lib[0].addedAt, Date.parse("2026-09-01T10:00:00Z"));
+  // Vu : coché dans Stremio, ou film fini ; une série avec un épisode fini n'est pas « vue ».
+  const vus = toLibrary([item("tt5", { state: { timeOffset: 0, timesWatched: 1 } }), item("tt6", { type: "series", state: { timeOffset: 0, timesWatched: 1 } }),
+    item("tt7", { type: "series", state: { timeOffset: 0, flaggedWatched: 1 } }), item("tt8")]);
+  assert.deepEqual(vus.map(i => !!i.watched), [true, false, true, false]);
 });

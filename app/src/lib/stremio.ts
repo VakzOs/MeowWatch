@@ -33,7 +33,7 @@ export async function waitForAuth(code: string, { signal, timeoutMs = 5 * 60e3 }
 type Descriptor = { transportUrl: string; manifest: Manifest; flags?: { official?: boolean; protected?: boolean } };
 type LibraryItem = {
   _id: string; name: string; type: string; poster?: string | null; removed: boolean; temp: boolean; _ctime?: string; _mtime: string;
-  state: { lastWatched?: string | null; timeOffset: number; duration?: number; video_id?: string | null };
+  state: { lastWatched?: string | null; timeOffset: number; duration?: number; video_id?: string | null; timesWatched?: number; flaggedWatched?: number };
 };
 
 /** Étape 3 : ce que l'on récupère du compte. La clé Stremio n'est gardée nulle part. */
@@ -66,12 +66,14 @@ export const toProgress = (items: LibraryItem[]): Progress[] =>
       updatedAt: Date.parse(i.state.lastWatched || i._mtime) || Date.now(),
     }));
 
-/** Bibliothèque Stremio → bibliothèque Meow Watch : les titres ajoutés et pas retirés (« temp » = seulement vus). */
+/** Bibliothèque Stremio → bibliothèque Meow Watch : les titres ajoutés et pas retirés (« temp » = seulement vus).
+ *  Vu : coché « vu » dans Stremio, ou film vu jusqu'au bout (pour une série, timesWatched compte un seul épisode). */
 export const toLibrary = (items: LibraryItem[]): Item[] =>
   items.filter(i => i.type !== "other" && !i.removed && !i.temp)
     .map(i => {
       const addedAt = Date.parse(i._ctime || i._mtime) || Date.now();
-      return { meta: { id: i._id, type: i.type, name: i.name, poster: i.poster || undefined }, addedAt, updatedAt: addedAt };
+      const watched = !!i.state?.flaggedWatched || (i.type === "movie" && !!i.state?.timesWatched);
+      return { meta: { id: i._id, type: i.type, name: i.name, poster: i.poster || undefined }, addedAt, updatedAt: addedAt, ...(watched && { watched }) };
     });
 
 /** Ajoute les addons importés après ceux déjà installés, sans doublon. */
