@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Icon } from "../components/Icon";
 import { C, font, TYPE_FR } from "../components/theme";
-import { configureUrl, type Addon } from "../lib/addons";
+import { addonKinds, configureUrl, fetchAddonCatalog, hostInstalled, searchCatalog, type Addon, type CatalogEntry, type Host } from "../lib/addons";
 import { addAddon, importFromStremio, moveAddon, removeAddon, useStore } from "../lib/store";
 import { createLink, fetchAccount, waitForAuth } from "../lib/stremio";
 
@@ -41,6 +41,8 @@ export default function Addons() {
           <Text style={font(500, 13, C.faint)}>l'ordre décide quel addon répond en premier</Text>
         </View>
         {addons.map((a, i) => <AddonRow key={a.url} a={a} first={i === 0} last={i === addons.length - 1} />)}
+
+        <Catalogue />
       </ScrollView>
     </>
   );
@@ -105,18 +107,100 @@ function StremioImport() {
 
 const openUrl = (url: string) => (Platform.OS === "web" ? window.open(url, "_blank", "noopener") : Linking.openURL(url));
 
+const SOURCES = [{ id: "fr", label: "StremioFR", note: "addons français, recensés par stremiofr.me" }, { id: "stremio", label: "Stremio", note: "catalogue communautaire officiel" }] as const;
+
+/** Catalogues d'addons : installation en un clic, ou page de réglages quand l'addon se configure d'abord. */
+function Catalogue() {
+  const installed = useStore(s => s.addons);
+  const [source, setSource] = useState<"fr" | "stremio">("fr");
+  const [lists, setLists] = useState<Partial<Record<"fr" | "stremio", CatalogEntry[] | "erreur">>>({});
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    if (lists[source]) return;
+    fetchAddonCatalog(source).then(l => setLists(x => ({ ...x, [source]: l })), () => setLists(x => ({ ...x, [source]: "erreur" })));
+  }, [source, lists]);
+  const install = async (e: CatalogEntry, url: string) => {
+    setBusy(url); setMsg(null);
+    try { const { addon } = await addAddon(url); setMsg({ ok: true, text: `${addon.manifest.name} est installé.` }); }
+    catch (err: any) { setMsg({ ok: false, text: `${e.name} : ${/fetch|network|Failed/i.test(err?.message) ? "addon injoignable pour le moment." : err?.message ?? "erreur inconnue."}` }); }
+    setBusy(null);
+  };
+  const list = lists[source], shown = Array.isArray(list) ? searchCatalog(list, q) : [];
+  return (
+    <>
+      <View style={st.h}>
+        <Text style={font(600, 18)}>Catalogue</Text>
+        <Text style={font(500, 13, C.faint)}>{SOURCES.find(x => x.id === source)!.note}</Text>
+      </View>
+      <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }} accessibilityRole="tablist">
+        {SOURCES.map(x => (
+          <Pressable key={x.id} onPress={() => setSource(x.id)} accessibilityRole="tab" accessibilityState={{ selected: source === x.id }} style={({ hovered }: any) => [st.cfg, source === x.id ? { backgroundColor: C.red } : hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}>
+            <Text style={font(600, 13)}>{x.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <View style={[st.add, { marginBottom: 12 }]}>
+        <TextInput value={q} onChangeText={setQ} placeholder="Chercher un addon (flux, sous-titres, anime…)" placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false} style={[font(400, 15), st.input]} accessibilityLabel="Chercher dans le catalogue" />
+      </View>
+      <Text style={[font(400, 13, C.faint), { marginBottom: 12 }]}>Addons de la communauté, non vérifiés. « Configurer » ouvre la page de l'addon : colle ensuite le lien qu'elle te donne dans le champ du haut.</Text>
+      {msg ? <Text style={[font(500, 14, msg.ok ? C.soft : "#FF8A94"), { marginBottom: 10 }]}>{msg.text}</Text> : null}
+      {list === "erreur" ? <Text style={font(400, 14, "#FF8A94")}>Impossible de charger ce catalogue pour le moment.</Text>
+        : !list ? <ActivityIndicator color={C.red} style={{ alignSelf: "flex-start" }} />
+        : !shown.length ? <Text style={font(400, 14, C.mute)}>Aucun addon ne correspond.</Text>
+        : shown.map(e => (
+          <View key={e.key} style={[st.row, { alignItems: "flex-start" }]}>
+            <Info name={e.name} logo={e.logo} sub={e.tag} description={e.description} />
+            <View style={{ gap: 6, alignItems: "flex-end", maxWidth: 300 }}>
+              {e.hosts.map((h, i) => <HostBtn key={i} h={h} name={e.name} installed={hostInstalled(h, installed)} busy={busy} onInstall={url => install(e, url)} />)}
+            </View>
+          </View>
+        ))}
+    </>
+  );
+}
+
+function HostBtn({ h, name, installed, busy, onInstall }: { h: Host; name: string; installed: boolean; busy: string | null; onInstall: (url: string) => void }) {
+  const label = [h.label, h.up === false ? "hors ligne" : ""].filter(Boolean).join(" · ");
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      {label ? <Text style={font(500, 12, h.up === false ? "#FF8A94" : C.faint)} numberOfLines={1}>{h.up ? "● " : ""}{label}</Text> : null}
+      {installed ? <Text style={[font(600, 13, C.faint), st.cfg]}>Installé</Text>
+        : h.manifest ? (
+          <Pressable onPress={() => onInstall(h.manifest!)} disabled={!!busy} accessibilityLabel={`Installer ${name}${h.label ? ` (${h.label})` : ""}`} style={({ hovered }: any) => [st.cfg, { backgroundColor: C.red }, hovered && { opacity: 0.9 }, busy && busy !== h.manifest && { opacity: 0.5 }]}>
+            {busy === h.manifest ? <ActivityIndicator color={C.ink} size="small" /> : <Text style={font(700, 13)}>Installer</Text>}
+          </Pressable>
+        ) : (
+          <Pressable onPress={() => openUrl(h.configure!)} accessibilityLabel={`Configurer ${name}${h.label ? ` (${h.label})` : ""}`} style={({ hovered }: any) => [st.cfg, hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}>
+            <Icon name="gear" size={16} color={C.soft} /><Text style={font(600, 13)}>Configurer</Text>
+          </Pressable>
+        )}
+    </View>
+  );
+}
+
+function Info({ name, logo, sub, description, version }: { name: string; logo?: string; sub?: string; description?: string; version?: string }) {
+  return (
+    <>
+      {logo ? <Image source={logo} style={st.logo} contentFit="contain" /> : <View style={[st.logo, st.mono]}><Text style={font(700, 18)}>{name[0]}</Text></View>}
+      <View style={{ flex: 1 }}>
+        <Text style={font(700, 16)} numberOfLines={1}>{name}{version ? <Text style={font(400, 13, C.faint)}>  {version}</Text> : null}</Text>
+        {sub ? <Text style={font(400, 13, C.mute)} numberOfLines={1}>{sub}</Text> : null}
+        {description ? <Text style={[font(400, 13, C.faint), { marginTop: 2 }]} numberOfLines={2}>{description}</Text> : null}
+      </View>
+    </>
+  );
+}
+
+const AddonInfo = ({ a: { manifest: m } }: { a: Addon }) =>
+  <Info name={m.name} logo={m.logo} version={m.version} description={m.description} sub={[addonKinds(m), (m.types ?? []).map(t => TYPE_FR[t] ?? t).join(", ")].filter(Boolean).join(" · ")} />;
+
 function AddonRow({ a, first, last }: { a: Addon; first: boolean; last: boolean }) {
   const m = a.manifest;
-  const res = (m.resources ?? []).map(r => (typeof r === "string" ? r : r.name));
-  const what = [res.includes("catalog") || m.catalogs?.length ? "catalogues" : "", res.includes("meta") ? "fiches" : "", res.includes("stream") ? "flux" : "", res.includes("subtitles") ? "sous-titres" : ""].filter(Boolean).join(", ");
   return (
     <View style={st.row}>
-      {m.logo ? <Image source={m.logo} style={st.logo} contentFit="contain" /> : <View style={[st.logo, st.mono]}><Text style={font(700, 18)}>{m.name[0]}</Text></View>}
-      <View style={{ flex: 1 }}>
-        <Text style={font(700, 16)} numberOfLines={1}>{m.name}{m.version ? <Text style={font(400, 13, C.faint)}>  {m.version}</Text> : null}</Text>
-        <Text style={font(400, 13, C.mute)} numberOfLines={1}>{[what, (m.types ?? []).map(t => TYPE_FR[t] ?? t).join(", ")].filter(Boolean).join(" · ")}</Text>
-        {m.description ? <Text style={[font(400, 13, C.faint), { marginTop: 2 }]} numberOfLines={2}>{m.description}</Text> : null}
-      </View>
+      <AddonInfo a={a} />
       {configureUrl(a) ? (
         <Pressable onPress={() => openUrl(configureUrl(a)!)} accessibilityLabel={`Configurer ${m.name}`} style={({ hovered }: any) => [st.cfg, hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}>
           <Icon name="gear" size={16} color={C.soft} /><Text style={font(600, 13)}>Configurer</Text>
