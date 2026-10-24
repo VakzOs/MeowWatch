@@ -199,6 +199,11 @@ function navigateur(box: HTMLDivElement, url: string, onError: (m: string) => vo
 const MPV_CODECS: Record<string, string> = { h264: "H264", hevc: "HEVC", vc1: "VC-1", av1: "AV1", vp9: "VP9", mpeg2video: "MPEG-2",
   truehd: "TrueHD", ac3: "AC3", eac3: "E-AC3", dts: "DTS", aac: "AAC", opus: "Opus", flac: "FLAC", mp3: "MP3" };
 const PROPS = { "time-pos": "double", duration: "double", "track-list": "node" };
+// Filet de sécurité : marqué pendant que mpv tourne, effacé à la fermeture normale. Si l'appli plante (code natif),
+// la marque reste et le lancement suivant prend le lecteur avancé, au lieu de replanter en boucle.
+const MPV_TRY = "meowwatch:mpv-en-cours";
+const mark = (on: boolean) => { try { on ? localStorage.setItem(MPV_TRY, "1") : localStorage.removeItem(MPV_TRY); } catch { } };
+const crashed = () => { try { return !!localStorage.getItem(MPV_TRY); } catch { return false; } };
 let mpvGone: Promise<unknown> = Promise.resolve(); // une seule instance par fenêtre : la suivante attend la fin de la précédente
 
 async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
@@ -209,6 +214,7 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
   let loaded: (ok: boolean) => void = () => {};
   const ready = new Promise<boolean>(ok => (loaded = ok));
   await mpvGone;
+  mark(true);
   const off = await t.event.listen("mpv-event-main", ({ payload: e }: any) => {
     if (e.event === "property-change") props[e.name] = e.data;
     else if (e.event === "file-loaded") loaded(true);
@@ -216,7 +222,7 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
   });
   await inv("init", { mpvConfig: { initialOptions: { vo: "gpu-next", hwdec: "auto-safe", "keep-open": "yes", "force-window": "yes",
     pause: "yes", ytdl: "no", osc: "no", "input-default-bindings": "no", "sub-auto": "no", "audio-display": "no" }, observedProperties: PROPS } });
-  const fail = async (m: string) => { off(); await inv("destroy").catch(() => {}); throw new Error(m); };
+  const fail = async (m: string) => { off(); await inv("destroy").catch(() => {}); mark(false); throw new Error(m); };
   await inv("command", { name: "loadfile", args: [url] });
   if (!(await Promise.race([ready, new Promise<boolean>(ok => setTimeout(() => ok(false), 30000))]))) return fail("mpv n'a pas pu ouvrir ce lien");
 
@@ -224,7 +230,10 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
   const opaque: [HTMLElement, string][] = [];
   for (let el: HTMLElement | null = box; el; el = el.parentElement) { opaque.push([el, el.style.background]); el.style.background = "transparent"; }
 
-  const list: any[] = (await inv("get_property", { name: "track-list", format: "node" }).catch(() => null)) ?? props["track-list"] ?? [];
+  // Pistes : seulement par l'événement observé. Ne jamais lire une propriété « node » avec get_property : libmpv-wrapper
+  // (nov. 2025) y fait écrire un mpv_node de 16 octets dans un pointeur de 8, puis libère n'importe quoi : l'appli plantait.
+  for (let i = 0; i < 30 && !props["track-list"]?.length; i++) await new Promise(r => setTimeout(r, 100));
+  const list: any[] = props["track-list"] ?? [];
   const label = (x: any, extras: string[]) => trackLabel(langCode(x.lang, x.title), x.title, extras);
   const audio: Track[] = list.filter(x => x.type === "audio").map(x => ({ id: x.id, lang: langCode(x.lang, x.title),
     label: label(x, [MPV_CODECS[x.codec] ?? String(x.codec ?? "").toUpperCase(), CHANNELS[x["demux-channel-count"]] ?? ""]) }));
@@ -248,14 +257,15 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
     setRate: r => { set("speed", r); },
     setVolume: v => { set("volume", Math.round(v * 100)); },
     audio, subs, audioId: aid, subId: -1,
-    selectAudio: async id => { await set("aid", id); eng.audioId = id; eng.info = infoOf(id); },
+    // aid / sid en texte : le wrapper envoie tout nombre en « double », format que mpv refuse pour un choix de piste.
+    selectAudio: async id => { await set("aid", String(id)); eng.audioId = id; eng.info = infoOf(id); },
     // Sous-titres du fichier : dessinés par mpv ; ceux des addons : par notre calque, comme dans les autres lecteurs.
-    selectSub: async id => { await set("sid", id >= 0 && !cues.has(id) ? id : "no"); cues.show(id); eng.subId = id; },
+    selectSub: async id => { await set("sid", id >= 0 && !cues.has(id) ? String(id) : "no"); cues.show(id); eng.subId = id; },
     addSub: async (url, lang, label) => { const id = await cues.add(url); eng.subs.push({ id, lang, label, ext: true }); return id; },
     canDelay: true, setSubDelay: s => { set("sub-delay", s); cues.setDelay(s); },
     suspended: () => false, resume: async () => {},
     resize: () => {},
-    destroy: () => { off(); cues.destroy(); mpvGone = inv("destroy").catch(() => {}); for (const [el, bg] of opaque) el.style.background = bg; },
+    destroy: () => { off(); cues.destroy(); mpvGone = inv("destroy").catch(() => {}).then(() => mark(false)); for (const [el, bg] of opaque) el.style.background = bg; },
   };
   return eng;
 }
@@ -264,7 +274,8 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
 export async function createEngine(box: HTMLDivElement, url: string, file: string | undefined, onError: (m: string) => void): Promise<Engine> {
   let why: Engine["why"] = "cors";
   let detail: string | undefined;
-  if (desktop?.mpv) try { return await mpv(box, url); } catch (e) { console.warn("mpv :", e); detail = `mpv : ${String((e as Error)?.message ?? e).slice(0, 200)}`; }
+  if (desktop?.mpv && crashed()) { mark(false); detail = "mpv : l'appli s'est fermée au dernier essai, lecteur avancé cette fois"; }
+  else if (desktop?.mpv) try { return await mpv(box, url); } catch (e) { console.warn("mpv :", e); detail = `mpv : ${String((e as Error)?.message ?? e).slice(0, 200)}`; }
   // Appli Windows : si le serveur du debrid refuse le lecteur avancé, le relais local lit le lien à sa place.
   const relay = relayed(url), name = file || new URL(url).pathname; // format deviné d'après le lien d'origine
   const direct = await readable(url);
