@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, fromStremio, fromStremioFR, searchCatalog, hostInstalled, categorize, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, fetchCatalog, kitsuCatalogUrl, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, fromStremio, fromStremioFR, searchCatalog, hostInstalled, categorize, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -134,4 +134,23 @@ test("catalogues d'addons : Stremio, StremioFR, recherche et addons déjà insta
   assert.equal(searchCatalog(fr, " ").length, 2);
   const mine = [{ url: "https://comet.e.com/eyJjb25maWciOjF9/manifest.json", manifest: { id: "comet", name: "Comet" } }];
   assert.deepEqual(fr[1].hosts.map(h => hostInstalled(h, mine)), [true, false]);
+});
+
+test("catalogues Kitsu filtrés par genre : demandés à Kitsu par catégorie", async () => {
+  const airing = { type: "anime", id: "kitsu-anime-airing", extra: [{ name: "genre", options: ["Romance"] }, { name: "skip" }] };
+  const kitsu: Addon = { url: "https://anime-kitsu.strem.fun/manifest.json", manifest: { id: "community.anime.kitsu", name: "Anime Kitsu", catalogs: [airing] } };
+  assert.ok(genreOptions(airing).includes("Slice of Life"));
+  const u = new URL(kitsuCatalogUrl(airing, "Slice of Life", 40)!);
+  assert.equal(u.searchParams.get("filter[categories]"), "slice-of-life");
+  assert.equal(u.searchParams.get("filter[status]"), "current");
+  assert.equal(u.searchParams.get("page[offset]"), "40");
+  assert.equal(kitsuCatalogUrl({ type: "anime", id: "kitsu-anime-trending" }, "Romance"), null);
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => {
+    assert.ok(url.startsWith("https://kitsu.io/api/edge/anime?"));
+    return Response.json({ data: [{ id: "42", attributes: { canonicalTitle: "Kusuriya", subtype: "TV", startDate: "2025-01-10", posterImage: { medium: "p.jpg" } } }] });
+  }) as typeof fetch;
+  try {
+    assert.deepEqual(await fetchCatalog(kitsu, airing, { genre: "Romance" }), [{ id: "kitsu:42", type: "series", name: "Kusuriya", description: undefined, releaseInfo: "2025", poster: "p.jpg", background: undefined }]);
+  } finally { globalThis.fetch = real; }
 });

@@ -68,7 +68,37 @@ export const discoverCatalogs = (addons: Addon[]) =>
     const req = required(c);
     return req.every(n => n === "genre") && (!req.length || genreOptions(c).length > 0);
   }).map(c => ({ addon: a, catalog: c })));
-export const genreOptions = (c: Catalog) => (c.extra ?? []).find(e => e.name === "genre")?.options ?? [];
+export const genreOptions = (c: Catalog) => kitsuSort(c) ? KITSU_CATEGORIES : (c.extra ?? []).find(e => e.name === "genre")?.options ?? [];
+
+// L'addon Anime Kitsu filtre avec les anciens « genres » de Kitsu, absents des animés récents (Romance vide en Top Airing).
+// Ses catalogues filtrés par genre sont donc demandés directement à Kitsu, par catégorie (API publique, CORS « * »),
+// avec le même tri que l'addon ; les ids `kitsu:` restent ceux de l'addon, qui fournit fiches et flux.
+const KITSU_CATALOGS: Record<string, { sort: string; status?: string }> = {
+  "kitsu-anime-airing": { sort: "-average_rating", status: "current" },
+  "kitsu-anime-popular": { sort: "-user_count" },
+  "kitsu-anime-rating": { sort: "-average_rating" },
+};
+const kitsuSort = (c: Catalog) => KITSU_CATALOGS[c.id];
+/** Catégories Kitsu les plus fournies (titre = slug en minuscules avec tirets). */
+export const KITSU_CATEGORIES = ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Romance", "Science Fiction", "Slice of Life", "School Life",
+  "Supernatural", "Mystery", "Horror", "Thriller", "Psychological", "Sports", "Music", "Idol", "Historical", "Military", "Mecha", "Martial Arts",
+  "Swordplay", "Super Power", "Magic", "Magical Girl", "Isekai", "Demon", "Vampire", "Space", "Virtual Reality", "Motorsport", "Cops", "Harem",
+  "Ecchi", "Parody", "Kids", "Friendship", "Shounen", "Shoujo", "Seinen", "Josei", "Shoujo Ai", "Shounen Ai", "Yaoi", "Gender Bender"];
+
+export function kitsuCatalogUrl(c: Catalog, genre: string, skip = 0): string | null {
+  const k = kitsuSort(c);
+  if (!k) return null;
+  const p = new URLSearchParams({
+    "filter[categories]": genre.toLowerCase().replace(/ /g, "-"), "filter[subtype]": "TV,OVA,ONA,movie,special",
+    "filter[status]": k.status ?? "finished,current,upcoming", sort: k.sort, "page[limit]": "20", "page[offset]": String(skip),
+  });
+  return `https://kitsu.io/api/edge/anime?${p}`;
+}
+type KitsuAnime = { id: string; attributes: { canonicalTitle: string; subtype: string; synopsis?: string; startDate?: string; posterImage?: { medium?: string }; coverImage?: { original?: string } } };
+const kitsuMeta = ({ id, attributes: a }: KitsuAnime): Meta => ({
+  id: `kitsu:${id}`, type: a.subtype === "movie" ? "movie" : "series", name: a.canonicalTitle, description: a.synopsis,
+  releaseInfo: a.startDate?.slice(0, 4), poster: a.posterImage?.medium, background: a.coverImage?.original,
+});
 export const genreRequired = (c: Catalog) => required(c).includes("genre");
 
 /** Genres du catalogue qui renvoient au moins un titre : l'addon Kitsu propose une liste fixe, souvent vide (35 sur 61 en « Top Airing »).
@@ -185,6 +215,8 @@ export const hostInstalled = (h: Host, installed: Addon[]) => {
 };
 
 export async function fetchCatalog(a: Addon, c: Catalog, extra?: Record<string, string>): Promise<Meta[]> {
+  const kitsu = extra?.genre && kitsuCatalogUrl(c, extra.genre, Number(extra.skip ?? 0));
+  if (kitsu) return ((await getJSON<{ data?: KitsuAnime[] }>(kitsu)).data ?? []).map(kitsuMeta);
   const r = await getJSON<{ metas?: Meta[] }>(catalogUrl(a, c, extra));
   return r.metas ?? [];
 }

@@ -25,6 +25,9 @@ const GENRE_FR: Record<string, string> = {
   // Genres des addons d'animés (Kitsu…)
   Space: "Espace", "Slice of Life": "Tranche de vie", Supernatural: "Surnaturel", Sports: "Sport", Psychological: "Psychologique",
   Magic: "Magie", School: "École", Military: "Militaire", Historical: "Historique", Mecha: "Mecha", Ecchi: "Ecchi", Shounen: "Shōnen", Shoujo: "Shōjo", Seinen: "Seinen", Josei: "Josei", Isekai: "Isekai",
+  "Science Fiction": "Science-fiction", "School Life": "Vie scolaire", Idol: "Idols", "Martial Arts": "Arts martiaux", Swordplay: "Combats au sabre",
+  "Super Power": "Super-pouvoirs", "Magical Girl": "Magical girl", Demon: "Démons", Vampire: "Vampires", "Virtual Reality": "Réalité virtuelle",
+  Motorsport: "Sport automobile", Cops: "Police", Parody: "Parodie", Kids: "Enfants", Friendship: "Amitié", "Gender Bender": "Changement de sexe",
 };
 // Noms des catalogues de Cinemeta (en anglais) ; ceux des autres addons restent tels quels.
 const CATALOG_FR: Record<string, string> = { Popular: "Populaires", New: "Nouveautés", Featured: "À la une", Top: "Les mieux notés", Trending: "Tendances" };
