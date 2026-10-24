@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { Icon, type IconName } from "../components/Icon";
 import { C, font } from "../components/theme";
 import { api, type Admin } from "../lib/api";
 import { ProfileEditor } from "../components/Profiles";
@@ -11,29 +12,41 @@ import { leaveProfile, logout, pull, setLang, updateProfile, useStore } from "..
 
 const day = (t: number) => new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
 
+type Tab = "profil" | "lecture" | "adulte" | "compte" | "langue" | "acces" | "apropos";
+
 export default function Reglages() {
   const user = useStore(s => s.user)!;
+  const [tab, setTab] = useState<Tab>("profil");
+  const narrow = useWindowDimensions().width < 1000;
+  const groups: [string, [Tab, IconName, string][]][] = [
+    ["Profil", [["profil", "user", "Mon profil"], ["lecture", "screen", "Lecture"], ["adulte", "shield", "Contenu adulte"]]],
+    ["Compte", [["compte", "sync", "Discord et synchro"], ["langue", "globe", "Langue des fiches"]]],
+    ["Serveur", [...(user.owner && user.profile?.main ? [["acces", "people", "Accès et invitations"] as [Tab, IconName, string]] : []), ["apropos", "info", "À propos"]]],
+  ];
+  const Pane = { profil: ProfileSettings, lecture: Playback, adulte: Adult, compte: Account, langue: Language, acces: Access, apropos: About }[tab];
   return (
-    <>
-      <ScrollView contentContainerStyle={{ padding: 32, paddingBottom: 80, maxWidth: 880 }}>
-        <Text style={[font(700, 28), { marginBottom: 8 }]}>Réglages</Text>
-        <Text style={[font(600, 18), st.h]}>Compte Discord</Text>
-        <View style={st.row}>
-          <Avatar name={user.name} src={user.avatar} size={48} />
-          <View style={{ flex: 1 }}>
-            <Text style={font(700, 17)}>{user.name}</Text>
-            <Text style={font(400, 14, C.mute)}>Connecté avec Discord{user.owner ? " · propriétaire" : ""}</Text>
-          </View>
-          <Btn label="Se déconnecter" onPress={logout} ghost />
-        </View>
-        <ProfileSettings />
-        <Playback />
-        <Sync />
-        <Language />
-        {user.owner && user.profile?.main ? <Access /> : null}
-        <About />
+    <View style={{ flex: 1, flexDirection: narrow ? "column" : "row" }}>
+      <ScrollView style={narrow ? { flexGrow: 0 } : st.sub} contentContainerStyle={narrow ? { padding: 20, paddingBottom: 0, gap: 4 } : { padding: 24, gap: 2 }} horizontal={narrow}>
+        {narrow ? null : <Text style={[font(700, 28), { paddingHorizontal: 12, marginBottom: 8 }]}>Réglages</Text>}
+        {groups.map(([title, tabs]) => (
+          <Fragment key={title}>
+            {narrow ? null : <Text style={[font(700, 12, C.faint), st.group]}>{title.toUpperCase()}</Text>}
+            {tabs.map(([k, icon, label]) => (
+              <Pressable key={k} onPress={() => setTab(k)} accessibilityRole="tab" accessibilityState={{ selected: tab === k }}
+                style={({ hovered }: any) => [st.tab, tab === k ? st.tabCur : hovered && st.tabHover]}>
+                {({ hovered }: any) => <>
+                  <Icon name={icon} color={tab === k ? C.red : hovered ? C.ink : C.mute} />
+                  <Text style={font(500, 15, tab === k || hovered ? C.ink : C.mute)}>{label}</Text>
+                </>}
+              </Pressable>
+            ))}
+          </Fragment>
+        ))}
       </ScrollView>
-    </>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: narrow ? 20 : 32, paddingBottom: 80, maxWidth: 760 }}>
+        <Pane />
+      </ScrollView>
+    </View>
   );
 }
 
@@ -42,7 +55,7 @@ function ProfileSettings() {
   const profile = useStore(s => s.user?.profile)!;
   return (
     <>
-      <Text style={[font(600, 18), st.h]}>Profil</Text>
+      <Title label="Mon profil" sub="Nom et avatar du profil ouvert." />
       <View style={[st.row, { padding: 20 }]}>
         <View style={{ flex: 1 }}><ProfileEditor key={profile.id} profile={profile} onChange={updateProfile} onDeleted={leaveProfile} /></View>
       </View>
@@ -54,49 +67,62 @@ const AUDIO = [{ k: "vo", label: "Version originale" }, ...["fr", "en", "ja", "e
 const SUBS2 = [{ k: "", label: "Aucun" }, ...["fr", "en", "es", "de", "it", "pt", "ja"].map(k => ({ k, label: langName(k) }))];
 const SUBS = [{ k: "", label: "Désactivés" }, ...["fr", "en", "es", "de", "it", "pt", "ja"].map(k => ({ k, label: langName(k) }))];
 
-/** Langues choisies au lancement d'une vidéo, pour le profil ouvert ; les animés ont leur propre règle. */
-function Playback() {
+/** Préférences du profil ouvert, enregistrées sur le serveur. */
+function usePrefs() {
   const profile = useStore(s => s.user?.profile)!;
   const prefs = profile.prefs ?? DEFAULT_PREFS;
-  const [menu, setMenu] = useState<string | null>(null);
   const put = (next: LangPrefs) => {
     updateProfile({ ...profile, prefs: next });
     api("/api/profiles/prefs", { method: "PUT", body: JSON.stringify(next) }).catch(() => {});
   };
+  return { profile, prefs, put };
+}
+
+/** Langues choisies au lancement d'une vidéo, pour le profil ouvert ; les animés ont leur propre règle. */
+function Playback() {
+  const { profile, prefs, put } = usePrefs();
+  const [menu, setMenu] = useState<string | null>(null);
   const save = (k: "films" | "animes", patch: Partial<LangChoice>) => put({ ...prefs, [k]: { ...prefs[k], ...patch } });
+  const lines: [keyof LangChoice, string, { k: string; label: string }[]][] = [["audio", "Audio", AUDIO], ["audio2", "Sinon", AUDIO], ["subs", "Sous-titres", SUBS], ["subs2", "Sinon", SUBS2]];
   return (
     <>
-      <Text style={[font(600, 18), st.h]}>Lecture</Text>
-      {([["films", "Films et séries"], ["animes", "Animés"]] as const).map(([k, title]) => {
-        const field = (f: keyof LangChoice, label: string, items: { k: string; label: string }[]) => (
-          <View style={{ gap: 4 }}>
-            <Text style={font(500, 12, C.mute)}>{label}</Text>
-            <Select id={`${k}-${f}`} open={menu} setOpen={setMenu} items={items} value={prefs[k][f] ?? ""} onChange={v => save(k, { [f]: v })} />
+      <Title label="Lecture" sub={`Pistes choisies au lancement d'une vidéo, pour le profil ${profile.name}.`} />
+      <View style={[st.row, { flexDirection: "column", alignItems: "stretch", gap: 10, padding: 16 }]}>
+        <View style={st.line}>
+          <View style={st.lineLabel} />
+          {["Films et séries", "Animés"].map(t => <Text key={t} style={[font(700, 12, C.faint), { flex: 1 }]}>{t.toUpperCase()}</Text>)}
+        </View>
+        {lines.map(([f, label, items]) => (
+          <View key={f} style={[st.line, { zIndex: menu?.endsWith(`-${f}`) ? 10 : 1 }]}>
+            <Text style={[font(500, 14, C.mute), st.lineLabel]}>{label}</Text>
+            {(["films", "animes"] as const).map(k => (
+              <View key={k} style={{ flex: 1 }}>
+                {f === "subs2" && !prefs[k].subs ? null
+                  : <Select id={`${k}-${f}`} open={menu} setOpen={setMenu} items={items} value={prefs[k][f] ?? ""} onChange={v => save(k, { [f]: v })} />}
+              </View>
+            ))}
           </View>
-        );
-        return (
-          <View key={k} style={[st.row, { flexDirection: "column", alignItems: "stretch", zIndex: menu?.startsWith(k) ? 10 : 1 }]}>
-            <Text style={font(600, 15)}>{title}</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-              {field("audio", "Audio", AUDIO)}
-              {field("audio2", "Sinon", AUDIO)}
-              {field("subs", "Sous-titres", SUBS)}
-              {prefs[k].subs ? field("subs2", "Sinon", SUBS2) : null}
-            </View>
-          </View>
-        );
-      })}
-      <Text style={[font(400, 13, C.mute), { marginTop: 4 }]}>
+        ))}
+      </View>
+      <Text style={[font(400, 13, C.mute), { marginTop: 4, lineHeight: 19 }]}>
         Si le fichier n'a ni le premier ni le second choix, le lecteur garde sa piste par défaut ; les sous-titres viennent du fichier, sinon des addons (OpenSubtitles…). Animés : ceux des addons d'animés, et les animations japonaises.
       </Text>
-      <Text style={[font(600, 18), st.h]}>Contenu adulte</Text>
+    </>
+  );
+}
+
+function Adult() {
+  const { prefs, put } = usePrefs();
+  const shown = prefs.adult !== false;
+  return (
+    <>
+      <Title label="Contenu adulte" sub="Pour le profil ouvert." />
       <View style={st.row}>
         <View style={{ flex: 1 }}>
-          <Text style={font(600, 15)}>{prefs.adult === false ? "Masqué" : "Affiché"}</Text>
-          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>Addons pour adultes et genres pour adultes (Hentai, Ecchi…) de Découvrir, pour ce profil.</Text>
+          <Text style={font(600, 15)}>Afficher le contenu adulte</Text>
+          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>Addons pour adultes et genres pour adultes (Hentai, Ecchi…) de Découvrir.</Text>
         </View>
-        <Btn label="Afficher" onPress={() => put({ ...prefs, adult: true })} ghost={prefs.adult === false} />
-        <Btn label="Masquer" onPress={() => put({ ...prefs, adult: false })} ghost={prefs.adult !== false} />
+        <Switch value={shown} onValueChange={v => put({ ...prefs, adult: v })} trackColor={{ false: "#3A3A40", true: C.red }} thumbColor={C.ink} {...{ activeThumbColor: C.ink }} accessibilityLabel="Afficher le contenu adulte" />
       </View>
     </>
   );
@@ -108,7 +134,7 @@ function Language() {
   const user = useStore(s => s.user)!;
   return (
     <>
-      <Text style={[font(600, 18), st.h]}>Langue des fiches</Text>
+      <Title label="Langue des fiches" sub="Langue des titres, résumés et épisodes." />
       <View style={st.row}>
         <View style={{ flex: 1 }}>
           <Text style={font(600, 15)}>{lang === "en" ? "Anglais (Cinemeta)" : "Français"}</Text>
@@ -124,8 +150,9 @@ function Language() {
   );
 }
 
-/** La synchro est automatique ; ce bloc la rend visible. */
-function Sync() {
+/** Compte Discord et synchro (automatique ; ce bloc la rend visible). */
+function Account() {
+  const user = useStore(s => s.user)!;
   const lastSync = useStore(s => s.lastSync);
   const addons = useStore(s => s.addons.length);
   const [busy, setBusy] = useState(false);
@@ -135,7 +162,15 @@ function Sync() {
   const ago = !lastSync ? "pas encore" : Date.now() - lastSync < 60000 ? "à l'instant" : `il y a ${Math.round((Date.now() - lastSync) / 60000)} min`;
   return (
     <>
-      <Text style={[font(600, 18), st.h]}>Synchro</Text>
+      <Title label="Discord et synchro" sub="Le compte est commun à tous les profils." />
+      <View style={st.row}>
+        <Avatar name={user.name} src={user.avatar} size={48} />
+        <View style={{ flex: 1 }}>
+          <Text style={font(700, 17)}>{user.name}</Text>
+          <Text style={font(400, 14, C.mute)}>Connecté avec Discord{user.owner ? " · propriétaire" : ""}</Text>
+        </View>
+        <Btn label="Se déconnecter" onPress={logout} ghost />
+      </View>
       <View style={st.row}>
         <View style={{ flex: 1 }}>
           <Text style={font(600, 15)}>{failed ? "Serveur injoignable, la copie de cet appareil est utilisée" : `Synchronisé ${ago}`}</Text>
@@ -162,7 +197,8 @@ function Access() {
   if (!data) return <ActivityIndicator color={C.red} style={{ marginTop: 32 }} />;
   return (
     <>
-      <Text style={[font(600, 18), st.h]}>Inviter quelqu'un</Text>
+      <Title label="Accès et invitations" />
+      <Text style={[font(600, 18), { marginBottom: 6 }]}>Inviter quelqu'un</Text>
       <Text style={[font(400, 15, C.mute), { marginBottom: 14 }]}>Le lien sert une seule fois et expire au bout de 7 jours. La personne se connecte avec son compte Discord.</Text>
       <View style={{ flexDirection: "row", gap: 10 }}>
         <TextInput value={note} onChangeText={setNote} onSubmitEditing={invite} placeholder="Pour qui ? (facultatif)" placeholderTextColor={C.faint} style={[font(400, 15), st.input]} accessibilityLabel="Pour qui" />
@@ -212,7 +248,7 @@ function About() {
   const built = BUILD ? new Date(BUILD) : null;
   return (
     <>
-      <Text style={[font(600, 18), st.h]}>À propos</Text>
+      <Title label="À propos" />
       <View style={[st.row, { flexDirection: "column", alignItems: "flex-start", gap: 6 }]}>
         <Text style={font(400, 14, C.soft)}>{desktop ? `Appli Windows · version ${desktop.version}` : "Version web (navigateur)"}</Text>
         <Text style={font(400, 14, C.mute)}>
@@ -220,6 +256,15 @@ function About() {
         </Text>
       </View>
     </>
+  );
+}
+
+function Title({ label, sub }: { label: string; sub?: string }) {
+  return (
+    <View style={{ marginBottom: 20 }}>
+      <Text style={font(700, 26)}>{label}</Text>
+      {sub ? <Text style={[font(400, 14, C.mute), { marginTop: 6 }]}>{sub}</Text> : null}
+    </View>
   );
 }
 
@@ -232,6 +277,13 @@ function Btn({ label, onPress, ghost }: { label: string; onPress: () => void; gh
 }
 
 const st = StyleSheet.create({
+  sub: { width: 260, flexGrow: 0, borderRightWidth: 1, borderRightColor: "rgba(255,255,255,0.07)" },
+  group: { letterSpacing: 0.8, paddingHorizontal: 12, paddingTop: 18, paddingBottom: 6 },
+  tab: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8 },
+  tabCur: { backgroundColor: "rgba(255,255,255,0.08)" },
+  tabHover: { backgroundColor: "rgba(255,255,255,0.05)" },
+  line: { flexDirection: "row", alignItems: "center", gap: 12 },
+  lineLabel: { width: 96 },
   h: { marginTop: 36, marginBottom: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: 14, padding: 14, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.06)", marginBottom: 8 },
   input: { flex: 1, height: 44, paddingHorizontal: 16, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.08)", outlineStyle: "none" } as any,

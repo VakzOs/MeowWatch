@@ -29,6 +29,13 @@ const SHAPES = {
   plus: <Path d="M12 5v14M5 12h14" />,
   check: <Path d="m5 12.5 4.5 4.5L19 7" />,
   link: <Path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />,
+  user: <><Circle cx="12" cy="8" r="4" /><Path d="M4 21c1-4 4.5-6 8-6s7 2 8 6" /></>,
+  screen: <><Rect x="3" y="5" width="18" height="14" rx="2" /><Path d="m10 9 5 3-5 3z" /></>,
+  shield: <Path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />,
+  sync: <Path d="M20 12a8 8 0 0 1-14 5M4 12a8 8 0 0 1 14-5M18 3v4h-4M6 21v-4h4" />,
+  globe: <><Circle cx="12" cy="12" r="9" /><Path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" /></>,
+  people: <><Circle cx="9" cy="8" r="3.5" /><Path d="M2.5 20c.8-3.5 3.5-5 6.5-5s5.7 1.5 6.5 5" /><Circle cx="17" cy="9" r="2.5" /><Path d="M17 14c2.5 0 4 1.4 4.5 4" /></>,
+  info: <><Circle cx="12" cy="12" r="9" /><Path d="M12 11v6M12 7.5v.5" /></>,
 };
 export type IconName = keyof typeof SHAPES;
 
