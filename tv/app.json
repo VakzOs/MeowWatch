@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Meow Watch",
+    "slug": "meowwatch-tv",
+    "scheme": "meowwatch",
+    "version": "0.1.0",
+    "orientation": "landscape",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0B0C",
+    "android": {
+      "package": "com.vkzdev.meowwatch.tv",
+      "adaptiveIcon": {
+        "backgroundColor": "#D6182A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      ["@react-native-tvos/config-tv", { "isTV": true, "androidTVBanner": "./assets/banner.png" }],
+      "./plugins/android-tv-et-telephone.js"
+    ],
+    "experiments": { "typedRoutes": false }
+  }
+}

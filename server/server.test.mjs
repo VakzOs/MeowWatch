@@ -230,4 +230,6 @@ test("connexion d'une télé par code", async () => {
   assert.ok(token);
   assert.equal((await (await api("/api/auth/me", `mw_session=${token}`)).json()).id, "1");
   assert.equal((await poll()).status, 410); // servi une seule fois
+  // appli native : même session par l'en-tête Authorization
+  assert.equal((await (await fetch(A + "/api/auth/me", { headers: { authorization: `Bearer ${token}` } })).json()).id, "1");
 });

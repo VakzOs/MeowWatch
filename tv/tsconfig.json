@@ -1,0 +1,6 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": { "strict": true },
+  "include": ["src", "../app/src/lib", "../app/src/components/theme.ts", "../app/src/components/avatars.ts", "../app/src/components/Icon.tsx", "expo-env.d.ts"],
+  "exclude": ["node_modules", "../app/src/lib/*.test.ts", "../app/src/lib/player.ts", "../app/src/lib/desktop.ts"]
+}
