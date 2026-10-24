@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Icon } from "../components/Icon";
+import { Select } from "../components/Select";
 import { C, font, TYPE_FR } from "../components/theme";
 import { addonKinds, configureUrl, fetchAddonCatalog, hostInstalled, searchCatalog, type Addon, type CatalogEntry, type Host } from "../lib/addons";
 import { addAddon, importFromStremio, moveAddon, removeAddon, useStore } from "../lib/store";
@@ -107,76 +108,109 @@ function StremioImport() {
 
 const openUrl = (url: string) => (Platform.OS === "web" ? window.open(url, "_blank", "noopener") : Linking.openURL(url));
 
-const SOURCES = [{ id: "fr", label: "StremioFR", note: "addons français, recensés par stremiofr.me" }, { id: "stremio", label: "Stremio", note: "catalogue communautaire officiel" }] as const;
+const SOURCES = [{ id: "fr", label: "StremioFR" }, { id: "stremio", label: "Stremio" }] as const;
+const cap = (t = "") => t.charAt(0).toUpperCase() + t.slice(1);
+const pickHost = (e: CatalogEntry) => e.hosts.findIndex(h => h.up !== false) >= 0 ? e.hosts.findIndex(h => h.up !== false) : 0;
 
-/** Catalogues d'addons : installation en un clic, ou page de réglages quand l'addon se configure d'abord. */
+/** Catalogues d'addons, en cartes : un bouton par addon, l'hébergeur se choisit dans un menu quand il y en a plusieurs. */
 function Catalogue() {
   const installed = useStore(s => s.addons);
+  const { width } = useWindowDimensions();
+  const cols = width >= 940 ? 2 : 1;
   const [source, setSource] = useState<"fr" | "stremio">("fr");
   const [lists, setLists] = useState<Partial<Record<"fr" | "stremio", CatalogEntry[] | "erreur">>>({});
   const [q, setQ] = useState("");
+  const [menu, setMenu] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => {
     if (lists[source]) return;
     fetchAddonCatalog(source).then(l => setLists(x => ({ ...x, [source]: l })), () => setLists(x => ({ ...x, [source]: "erreur" })));
   }, [source, lists]);
-  const install = async (e: CatalogEntry, url: string) => {
-    setBusy(url); setMsg(null);
-    try { const { addon } = await addAddon(url); setMsg({ ok: true, text: `${addon.manifest.name} est installé.` }); }
+  const act = async (e: CatalogEntry, h: Host) => {
+    setMsg(null);
+    if (!h.manifest) { openUrl(h.configure!); setMsg({ ok: true, text: `Page de ${e.name} ouverte : colle le lien d'installation qu'elle te donne dans le champ en haut.` }); return; }
+    setBusy(e.key);
+    try { const { addon } = await addAddon(h.manifest); setMsg({ ok: true, text: `${addon.manifest.name} est installé.` }); }
     catch (err: any) { setMsg({ ok: false, text: `${e.name} : ${/fetch|network|Failed/i.test(err?.message) ? "addon injoignable pour le moment." : err?.message ?? "erreur inconnue."}` }); }
     setBusy(null);
   };
   const list = lists[source], shown = Array.isArray(list) ? searchCatalog(list, q) : [];
+  // StremioFR range ses addons par section (flux, catalogues, autres) ; le catalogue Stremio est une seule liste.
+  const groups = source === "fr" ? [...new Set(shown.map(e => e.tag))].map(t => ({ title: cap(t), items: shown.filter(e => e.tag === t) })) : [{ title: "", items: shown }];
+  const rows = (items: CatalogEntry[]) => Array.from({ length: Math.ceil(items.length / cols) }, (_, i) => items.slice(i * cols, i * cols + cols));
+
+  const card = (e: CatalogEntry) => {
+    const i = picked[e.key] ?? pickHost(e), h = e.hosts[i], done = hostInstalled(h, installed), many = e.hosts.length > 1;
+    const sub = many ? `${e.hosts.length} hébergeurs` : h.label ? `par ${h.label}` : cap(e.tag);
+    return (
+      <View key={e.key} style={st.card}>
+        <View style={{ flexDirection: "row", gap: 14, alignItems: "center" }}>
+          {e.logo ? <Image source={e.logo} style={st.logo} contentFit="contain" /> : <View style={[st.logo, st.mono]}><Text style={font(700, 18)}>{e.name[0]}</Text></View>}
+          <View style={{ flex: 1 }}>
+            <Text style={font(700, 16)} numberOfLines={1}>{e.name}</Text>
+            <Text style={font(500, 13, C.faint)} numberOfLines={1}>{sub}{!many && h.up === false ? <Text style={{ color: "#FF8A94" }}> · hors ligne</Text> : null}</Text>
+          </View>
+        </View>
+        {e.description || cols > 1 ? <Text style={[font(400, 13, C.mute), { lineHeight: 18 }, cols > 1 && { height: 36 }]} numberOfLines={2}>{e.description}</Text> : null}
+        <View style={{ flexDirection: "row", gap: 8, alignItems: "center", marginTop: "auto" as any }}>
+          {many ? (
+            <View style={{ flex: 1 }}>
+              <Select id={e.key} open={menu} setOpen={setMenu} value={String(i)} onChange={k => setPicked(p => ({ ...p, [e.key]: +k }))}
+                items={e.hosts.map((x, j) => ({ k: String(j), label: x.label ?? `Hébergeur ${j + 1}`, note: x.up === false ? "hors ligne" : hostInstalled(x, installed) ? "installé" : undefined }))} />
+            </View>
+          ) : <View style={{ flex: 1 }} />}
+          {done ? (
+            <View style={[st.act, st.ghost]}><Icon name="check" size={16} color={C.mute} /><Text style={font(600, 14, C.mute)}>Installé</Text></View>
+          ) : (
+            <Pressable onPress={() => act(e, h)} disabled={!!busy} accessibilityLabel={`${h.manifest ? "Installer" : "Configurer"} ${e.name}${h.label ? ` (${h.label})` : ""}`}
+              style={({ hovered }: any) => [st.act, h.manifest ? { backgroundColor: C.red } : st.ghost, hovered && (h.manifest ? { opacity: 0.9 } : { backgroundColor: "rgba(255,255,255,0.16)" }), busy && busy !== e.key && { opacity: 0.5 }]}>
+              {busy === e.key ? <ActivityIndicator color={C.ink} size="small" />
+                : h.manifest ? <Text style={font(700, 14)}>Installer</Text>
+                : <><Icon name="gear" size={16} color={C.soft} /><Text style={font(600, 14)}>Configurer</Text></>}
+            </Pressable>
+          )}
+        </View>
+      </View>
+    );
+  };
+
   return (
     <>
       <View style={st.h}>
         <Text style={font(600, 18)}>Catalogue</Text>
-        <Text style={font(500, 13, C.faint)}>{SOURCES.find(x => x.id === source)!.note}</Text>
+        <Text style={font(500, 13, C.faint)}>addons de la communauté, non vérifiés</Text>
       </View>
-      <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }} accessibilityRole="tablist">
-        {SOURCES.map(x => (
-          <Pressable key={x.id} onPress={() => setSource(x.id)} accessibilityRole="tab" accessibilityState={{ selected: source === x.id }} style={({ hovered }: any) => [st.cfg, source === x.id ? { backgroundColor: C.red } : hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}>
-            <Text style={font(600, 13)}>{x.label}</Text>
-          </Pressable>
-        ))}
+      <View style={{ flexDirection: "row", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+        <View style={st.seg} accessibilityRole="tablist">
+          {SOURCES.map(x => (
+            <Pressable key={x.id} onPress={() => setSource(x.id)} accessibilityRole="tab" accessibilityState={{ selected: source === x.id }} style={({ hovered }: any) => [st.segBtn, source === x.id ? { backgroundColor: C.raisedHover } : hovered && { backgroundColor: "rgba(255,255,255,0.06)" }]}>
+              <Text style={font(600, 14, source === x.id ? C.ink : C.mute)}>{x.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={[st.input, st.search]}>
+          <Icon name="search" size={16} color={C.faint} />
+          <TextInput value={q} onChangeText={setQ} placeholder="Chercher un addon" placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false} style={[font(400, 15), { flex: 1, height: 48, outlineStyle: "none" } as any]} accessibilityLabel="Chercher dans le catalogue" />
+        </View>
       </View>
-      <View style={[st.add, { marginBottom: 12 }]}>
-        <TextInput value={q} onChangeText={setQ} placeholder="Chercher un addon (flux, sous-titres, anime…)" placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false} style={[font(400, 15), st.input]} accessibilityLabel="Chercher dans le catalogue" />
-      </View>
-      <Text style={[font(400, 13, C.faint), { marginBottom: 12 }]}>Addons de la communauté, non vérifiés. « Configurer » ouvre la page de l'addon : colle ensuite le lien qu'elle te donne dans le champ du haut.</Text>
-      {msg ? <Text style={[font(500, 14, msg.ok ? C.soft : "#FF8A94"), { marginBottom: 10 }]}>{msg.text}</Text> : null}
+      {msg ? <Text style={[font(500, 14, msg.ok ? C.soft : "#FF8A94"), { marginBottom: 12 }]}>{msg.text}</Text> : null}
       {list === "erreur" ? <Text style={font(400, 14, "#FF8A94")}>Impossible de charger ce catalogue pour le moment.</Text>
-        : !list ? <ActivityIndicator color={C.red} style={{ alignSelf: "flex-start" }} />
+        : !list ? <ActivityIndicator color={C.red} style={{ alignSelf: "flex-start", marginTop: 8 }} />
         : !shown.length ? <Text style={font(400, 14, C.mute)}>Aucun addon ne correspond.</Text>
-        : shown.map(e => (
-          <View key={e.key} style={[st.row, { alignItems: "flex-start" }]}>
-            <Info name={e.name} logo={e.logo} sub={e.tag} description={e.description} />
-            <View style={{ gap: 6, alignItems: "flex-end", maxWidth: 300 }}>
-              {e.hosts.map((h, i) => <HostBtn key={i} h={h} name={e.name} installed={hostInstalled(h, installed)} busy={busy} onInstall={url => install(e, url)} />)}
-            </View>
+        : groups.map(g => (
+          <View key={g.title} style={{ marginBottom: 12 }}>
+            {g.title ? <Text style={[font(600, 12, C.faint), st.group]}>{g.title.toUpperCase()}</Text> : null}
+            {rows(g.items).map((r, i) => (
+              <View key={i} style={{ flexDirection: "row", gap: 12, marginBottom: 12, zIndex: r.some(e => e.key === menu) ? 10 : 1 }}>
+                {r.map(card)}
+                {r.length < cols ? <View style={{ flex: cols - r.length }} /> : null}
+              </View>
+            ))}
           </View>
         ))}
     </>
-  );
-}
-
-function HostBtn({ h, name, installed, busy, onInstall }: { h: Host; name: string; installed: boolean; busy: string | null; onInstall: (url: string) => void }) {
-  const label = [h.label, h.up === false ? "hors ligne" : ""].filter(Boolean).join(" · ");
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      {label ? <Text style={font(500, 12, h.up === false ? "#FF8A94" : C.faint)} numberOfLines={1}>{h.up ? "● " : ""}{label}</Text> : null}
-      {installed ? <Text style={[font(600, 13, C.faint), st.cfg]}>Installé</Text>
-        : h.manifest ? (
-          <Pressable onPress={() => onInstall(h.manifest!)} disabled={!!busy} accessibilityLabel={`Installer ${name}${h.label ? ` (${h.label})` : ""}`} style={({ hovered }: any) => [st.cfg, { backgroundColor: C.red }, hovered && { opacity: 0.9 }, busy && busy !== h.manifest && { opacity: 0.5 }]}>
-            {busy === h.manifest ? <ActivityIndicator color={C.ink} size="small" /> : <Text style={font(700, 13)}>Installer</Text>}
-          </Pressable>
-        ) : (
-          <Pressable onPress={() => openUrl(h.configure!)} accessibilityLabel={`Configurer ${name}${h.label ? ` (${h.label})` : ""}`} style={({ hovered }: any) => [st.cfg, hovered && { backgroundColor: "rgba(255,255,255,0.16)" }]}>
-            <Icon name="gear" size={16} color={C.soft} /><Text style={font(600, 13)}>Configurer</Text>
-          </Pressable>
-        )}
-    </View>
   );
 }
 
@@ -232,5 +266,11 @@ const st = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 14, padding: 14, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.06)", marginBottom: 8 },
   logo: { width: 44, height: 44, borderRadius: 10 },
   mono: { backgroundColor: C.raised, alignItems: "center", justifyContent: "center" },
+  card: { flex: 1, gap: 12, padding: 16, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.06)" },
+  act: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, height: 44, minWidth: 124, paddingHorizontal: 16, borderRadius: 10 },
+  seg: { flexDirection: "row", padding: 4, gap: 4, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.06)" },
+  segBtn: { height: 40, paddingHorizontal: 16, borderRadius: 9, justifyContent: "center" },
+  search: { flexDirection: "row", alignItems: "center", gap: 10, minWidth: 240, height: 48 },
+  group: { letterSpacing: 1, marginTop: 8, marginBottom: 10 },
   icon: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center" },
 });
