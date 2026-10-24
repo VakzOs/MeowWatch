@@ -2,6 +2,7 @@
 // et sous-titres intégrés. Il doit pouvoir lire le lien (CORS). Sinon, « navigateur » : la balise <video>, comme avant.
 import { desktop, relayed } from "./desktop";
 import { langCode, parseVtt, trackLabel, type Cue } from "./lang";
+import type { Chapter } from "./skip";
 
 export type Track = { id: number; lang: string; label: string; forced?: boolean; ext?: boolean }; // ext : sous-titre d'un addon
 export type Engine = {
@@ -18,6 +19,7 @@ export type Engine = {
   canDelay: boolean; setSubDelay(s: number): void;
   suspended(): boolean; resume(): Promise<void>; // son bloqué par le navigateur tant qu'on n'a pas cliqué
   resize(): void; destroy(): void;
+  chapters(): Chapter[]; // chapitres nommés du fichier (repères d'intro et de générique)
   setSubStyle?(s: { size: number; color: string; bg: string; lift: boolean }): void; // mpv : sous-titres du fichier dessinés par lui
 };
 
@@ -91,6 +93,7 @@ async function avance(box: HTMLDivElement, url: string, file?: string): Promise<
   let start: number | null = 0; // position demandée avant la première lecture (null : déjà lancé)
   const eng: Engine = {
     kind: "avance", info: infoOf(defAudio),
+    chapters: () => (p.getChapters() ?? []).map((c: any) => ({ title: String(c.metadata?.title ?? ""), start: (Number(c.start) * c.timeBase.num) / c.timeBase.den })),
     time: () => Number(p.currentTime) / 1000,
     duration: () => Number(p.getDuration()) / 1000,
     // Un saut avant la première lecture fait échouer libmedia (« player status is not loaded ») : la reprise à une
@@ -174,7 +177,7 @@ function navigateur(box: HTMLDivElement, url: string, onError: (m: string) => vo
       // Safari seul expose les pistes audio d'un fichier ; ailleurs la liste reste vide.
       const at: any[] = Array.from((v as any).audioTracks ?? []);
       const eng: Engine = {
-        kind: "navigateur",
+        kind: "navigateur", chapters: () => [],
         time: () => v.currentTime, duration: () => v.duration || 0,
         play: () => v.play(), pause: () => v.pause(), seek: s => { v.currentTime = s; },
         setRate: r => { v.playbackRate = r; }, setVolume: x => { v.volume = Math.min(1, x); },
@@ -199,7 +202,7 @@ function navigateur(box: HTMLDivElement, url: string, onError: (m: string) => vo
 
 const MPV_CODECS: Record<string, string> = { h264: "H264", hevc: "HEVC", vc1: "VC-1", av1: "AV1", vp9: "VP9", mpeg2video: "MPEG-2",
   truehd: "TrueHD", ac3: "AC3", eac3: "E-AC3", dts: "DTS", aac: "AAC", opus: "Opus", flac: "FLAC", mp3: "MP3" };
-const PROPS = { "time-pos": "double", duration: "double", "track-list": "node" };
+const PROPS = { "time-pos": "double", duration: "double", "track-list": "node", "chapter-list": "node" };
 // Filet de sécurité : marqué pendant que mpv tourne, effacé à la fermeture normale. Si l'appli plante (code natif),
 // la marque reste et le lancement suivant prend le lecteur avancé, au lieu de replanter en boucle.
 const MPV_TRY = "meowwatch:mpv-en-cours";
@@ -252,6 +255,7 @@ async function mpv(box: HTMLDivElement, url: string): Promise<Engine> {
   const cues = cueLayer(box, () => eng.time());
   const eng: Engine = {
     kind: "mpv", info: infoOf(aid),
+    chapters: () => (props["chapter-list"] ?? []).map((c: any) => ({ title: String(c.title ?? ""), start: c.time })),
     time: () => props["time-pos"] ?? 0,
     duration: () => props.duration ?? 0,
     play: async () => { await set("pause", false); },
