@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { test } from "node:test";
+import { gzipSync } from "node:zlib";
 import { decodeSubtitle, isPrivate, start, toVtt } from "./server.mjs";
 
 const PEOPLE = { "code-eric": { id: "1", username: "eric" }, "code-ami": { id: "2", username: "ami", global_name: "Ami", avatar: "abc" }, "code-x": { id: "3", username: "x" } };
@@ -28,7 +29,13 @@ const tmdbSrv = createServer((req, res) => {
   if (u.pathname === "/3/movie/120") return send({ title: "Le Seigneur des anneaux : La Communauté de l'anneau", overview: "Un hobbit…", genres: [{ name: "Aventure" }] });
   res.statusCode = 404; send({});
 }).listen(0);
-const app = await start({ PORT: "0", DB_PATH: ":memory:", DISCORD_CLIENT_ID: "id", DISCORD_CLIENT_SECRET: "s", OWNER_DISCORD_ID: "1", DISCORD_URL: D, WEB_DIR: "/nonexistent", TMDB_API_KEY: "cle", TMDB_URL: `http://localhost:${tmdbSrv.address().port}` });
+// Faux IMDb : jeux de données gzippés (en-tête, \\N pour les épisodes sans numéro, un épisode sans note).
+const IMDB = {
+  "/title.ratings.tsv.gz": "tconst\taverageRating\tnumVotes\ntt1\t8.6\t6729\ntt2\t9.6\t14604\ntt9\t7.0\t10\n",
+  "/title.episode.tsv.gz": "tconst\tparentTconst\tseasonNumber\tepisodeNumber\ntt1\ttt0460681\t5\t1\ntt2\ttt0460681\t5\t8\ntt3\ttt0460681\t5\t9\ntt9\ttt0460681\t\\N\t\\N\n",
+};
+const imdbSrv = createServer((req, res) => (IMDB[req.url] ? res.end(gzipSync(IMDB[req.url])) : ((res.statusCode = 404), res.end()))).listen(0);
+const app = await start({ PORT: "0", DB_PATH: ":memory:", DISCORD_CLIENT_ID: "id", DISCORD_CLIENT_SECRET: "s", OWNER_DISCORD_ID: "1", DISCORD_URL: D, WEB_DIR: "/nonexistent", TMDB_API_KEY: "cle", TMDB_URL: `http://localhost:${tmdbSrv.address().port}`, IMDB_URL: `http://localhost:${imdbSrv.address().port}` });
 const A = `http://localhost:${app.server.address().port}`;
 
 const setCookies = r => r.headers.getSetCookie().map(c => c.split(";")[0]);
@@ -193,4 +200,14 @@ test("préférences de langue du profil et relais des sous-titres", async () => 
   assert.equal(decodeSubtitle(twice), fr); // deux fois de suite : pas d'état gardé entre deux fichiers
 });
 
-test.after(async () => { await app.close(); discord.close(); tmdbSrv.close(); });
+test.after(async () => { await app.close(); discord.close(); tmdbSrv.close(); imdbSrv.close(); });
+
+test("notes d'épisode importées depuis IMDb", async () => {
+  const [, c] = await login("code-eric");
+  await app.refreshRatings(true);
+  assert.equal((await api("/api/ratings?id=tt0460681")).status, 401);
+  assert.deepEqual(await (await api("/api/ratings?id=tt0460681", c)).json(), { "5:1": 8.6, "5:8": 9.6 });
+  assert.equal((await api("/api/ratings?id=x", c)).status, 400);
+  await app.refreshRatings(); // moins de 20 h : rien n'est retéléchargé, les notes restent
+  assert.equal(Object.keys(await (await api("/api/ratings?id=tt0460681", c)).json()).length, 2);
+});

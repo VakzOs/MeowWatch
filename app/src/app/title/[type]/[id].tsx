@@ -26,6 +26,12 @@ export default function Title() {
     setFr(null);
     if (canTranslate && lang !== "en" && /^tt\d+$/.test(id)) api<Translation>(`/api/translate?type=${type}&id=${id}&lang=${lang}`).then(setFr, () => {});
   }, [type, id, lang, canTranslate]);
+  // Notes IMDb des épisodes (« 5:1 » → 8.6), importées chaque jour par le serveur.
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  useEffect(() => {
+    setRatings({});
+    if (type !== "movie" && /^tt\d+$/.test(id)) api<Record<string, number>>(`/api/ratings?id=${id}`).then(setRatings, () => {});
+  }, [type, id]);
   // Les textes traduits remplacent ceux de l'addon quand ils existent ; images et identifiants ne changent pas.
   const t = (key: "name" | "description") => fr?.[key] || meta[key];
   const [fullText, setFullText] = useState(false);
@@ -151,7 +157,10 @@ export default function Title() {
             <ScrollView contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}>
               {episodes.filter(e => e.season === season).map(e => (
                 <Pressable key={e.id} onPress={() => setVideo(e)} style={({ hovered }: any) => [st.ep, hovered && st.epHover]}>
-                  {e.thumbnail ? <Image source={e.thumbnail} style={st.thumb} contentFit="cover" /> : <View style={[st.thumb, { backgroundColor: C.raised }]} />}
+                  <View>
+                    {e.thumbnail ? <Image source={e.thumbnail} style={st.thumb} contentFit="cover" /> : <View style={[st.thumb, { backgroundColor: C.raised }]} />}
+                    {ratings[`${e.season}:${e.episode}`] ? <Rating value={ratings[`${e.season}:${e.episode}`]} /> : null}
+                  </View>
                   <View style={{ flex: 1 }}>
                     <Text style={font(600, 14)} numberOfLines={2}>{e.episode}. {epName(e) ?? `Épisode ${e.episode}`}</Text>
                     {e.released ? <Text style={font(400, 12, C.faint)}>{new Date(e.released).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</Text> : null}
@@ -256,6 +265,13 @@ function Chips({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+// Échelle de SeriesGraph : excellent, très bon, bon, moyen, mauvais, à fuir.
+const SCALE: [number, string, string][] = [[9, "#186A3B", C.ink], [8, "#28B463", C.ink], [7, "#F4D03F", "#111"], [6, "#F39C12", "#111"], [5, "#E74C3C", C.ink], [0, "#8E44AD", C.ink]];
+function Rating({ value }: { value: number }) {
+  const [, bg, ink] = SCALE.find(([min]) => value >= min)!, text = value.toFixed(1).replace(".", ",");
+  return <View style={[st.rating, { backgroundColor: bg }]} accessibilityLabel={`Note IMDb ${text}`}><Text style={font(700, 12, ink)}>{text}</Text></View>;
+}
+
 const st = StyleSheet.create({
   root: { flex: 1, flexDirection: "row", backgroundColor: "#08080A" },
   info: { padding: 40, paddingTop: 28, paddingBottom: 48, minHeight: "100%" as any, justifyContent: "flex-end" },
@@ -284,6 +300,7 @@ const st = StyleSheet.create({
   ep: { flexDirection: "row", gap: 12, padding: 8, borderRadius: 10, alignItems: "center" },
   epHover: { backgroundColor: "rgba(255,255,255,0.07)" },
   thumb: { width: 120, aspectRatio: 16 / 9, borderRadius: 8 },
+  rating: { position: "absolute", right: 5, bottom: 5, minWidth: 32, height: 22, paddingHorizontal: 5, borderRadius: 6, alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.5)" } as any,
   track: { height: 3, borderRadius: 2, backgroundColor: "#333", marginTop: 6, overflow: "hidden" },
   fill: { height: 3, backgroundColor: C.red },
   stream: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.06)", marginBottom: 8 },

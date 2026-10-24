@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Notes d'épisode</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ground: #121214; --raised: #18181B; --soft: #D4D4D8; --mute: #A8A8AD; --faint: #8A8A90; --red: #D6182A;
+    --awesome: #186A3B; --great: #28B463; --good: #F4D03F; --average: #F39C12; --bad: #E74C3C; --garbage: #8E44AD; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--ground); color: #fff; font: 400 14px "Instrument Sans", system-ui, sans-serif; padding: 32px; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .lead { color: var(--mute); margin-bottom: 26px; }
+  .cols { display: flex; gap: 40px; align-items: flex-start; }
+  .panel { width: 420px; background: #0d0d0f; border-radius: 14px; padding: 18px 16px; }
+  .tag { font-size: 12px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; }
+  .season { display: inline-block; background: var(--red); border-radius: 999px; padding: 5px 12px; font-weight: 700; font-size: 13px; margin-bottom: 14px; }
+  .strip { display: flex; gap: 3px; margin: -4px 0 16px; }
+  .strip i { flex: 1; height: 8px; border-radius: 2px; }
+  .ep { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+  .thumb { position: relative; width: 120px; height: 68px; border-radius: 8px; flex: none; background: linear-gradient(135deg, #3a3f4a, #1c1f26); }
+  .txt { flex: 1; min-width: 0; }
+  .t { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .d { color: var(--faint); font-size: 12px; margin-top: 2px; }
+  .sq { width: 34px; height: 26px; border-radius: 6px; display: grid; place-items: center; font-weight: 700; font-size: 12.5px; flex: none; }
+  .thumb .sq { position: absolute; right: 5px; bottom: 5px; width: 32px; height: 22px; font-size: 12px; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  .dark { color: #111; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 26px; color: var(--mute); font-size: 12.5px; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; }
+</style>
+</head>
+<body>
+  <h1>Notes d'épisode</h1>
+  <p class="lead">Supernatural, saison 5. Note de la communauté à côté de chaque épisode, couleurs comme SeriesGraph.</p>
+  <div class="cols">
+    <div class="panel"><div class="tag">A · Carré à droite du titre</div><div class="season">Saison 5</div><div class="strip" id="stripA"></div><div id="a"></div></div>
+    <div class="panel"><div class="tag">B · Pastille sur la vignette</div><div class="season">Saison 5</div><div id="b"></div></div>
+  </div>
+  <div class="legend" id="legend"></div>
+<script>
+  const EPS = [["Sympathy for the Devil", 8.6, "10 sept. 2009"], ["Good God, Y'All", 8.6, "17 sept. 2009"], ["Free to Be You and Me", 8.5, "24 sept. 2009"],
+    ["The End", 9.1, "1 oct. 2009"], ["Fallen Idols", 7.8, "8 oct. 2009"], ["I Believe the Children Are Our Future", 8.5, "5 nov. 2009"],
+    ["The Curious Case of Dean Winchester", 8.7, "12 nov. 2009"], ["Changing Channels", 9.6, "19 nov. 2009"], ["The Real Ghostbusters", 8.8, "26 nov. 2009"], ["Abandon All Hope", 9.2, "3 déc. 2009"]];
+  const SCALE = [[9, "awesome", "Excellent"], [8, "great", "Très bon"], [7, "good", "Bon"], [6, "average", "Moyen"], [5, "bad", "Mauvais"], [0, "garbage", "À fuir"]];
+  const lvl = n => SCALE.find(([min]) => n >= min);
+  const sq = n => { const [, k] = lvl(n); return `<div class="sq ${k === "good" || k === "average" ? "dark" : ""}" style="background:var(--${k})">${n.toFixed(1).replace(".", ",")}</div>`; };
+  const row = (e, i, onThumb) => `<div class="ep"><div class="thumb">${onThumb ? sq(e[1]) : ""}</div><div class="txt"><div class="t">${i + 1}. ${e[0]}</div><div class="d">${e[2]}</div></div>${onThumb ? "" : sq(e[1])}</div>`;
+  a.innerHTML = EPS.slice(0, 8).map((e, i) => row(e, i, false)).join("");
+  b.innerHTML = EPS.slice(0, 8).map((e, i) => row(e, i, true)).join("");
+  stripA.innerHTML = EPS.map(e => `<i style="background:var(--${lvl(e[1])[1]})" title="${e[1]}"></i>`).join("");
+  legend.innerHTML = SCALE.map(([min, k, l], i) => `<span><i style="background:var(--${k})"></i>${l} ${i === 0 ? "9+" : i === 5 ? "< 5" : `${min}-${min + 1}`}</span>`).join("");
+</script>
+</body>
+</html>

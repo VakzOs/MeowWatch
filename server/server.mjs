@@ -5,6 +5,9 @@ import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
 import { lookup } from "node:dns/promises";
 import { createServer } from "node:http";
 import { isIP } from "node:net";
+import { createInterface } from "node:readline";
+import { Readable } from "node:stream";
+import { createGunzip } from "node:zlib";
 import { dirname, extname, join, normalize } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
@@ -76,6 +79,7 @@ export function start(env = process.env) {
     discord: (env.DISCORD_URL ?? "https://discord.com").replace(/\/$/, ""), // remplaçable pour les tests
     tmdbKey: env.TMDB_API_KEY ?? "", // facultatif : fiches traduites (clé v3 ou jeton de lecture v4)
     tmdb: (env.TMDB_URL ?? "https://api.themoviedb.org").replace(/\/$/, ""),
+    imdb: (env.IMDB_URL ?? "https://datasets.imdbws.com").replace(/\/$/, ""), // notes d'épisode (jeux de données publics)
     web: env.WEB_DIR ?? join(dirname(fileURLToPath(import.meta.url)), "../app/dist"),
     db: env.DB_PATH ?? "./data/meowwatch.db",
     allowPrivate: env.ALLOW_PRIVATE_FETCH === "1", // tests : sous-titres servis en local
@@ -96,6 +100,8 @@ export function start(env = process.env) {
     CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, name TEXT NOT NULL, color TEXT NOT NULL, pin TEXT, created_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS profile_progress (profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE, meta_id TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (profile_id, meta_id));
     CREATE TABLE IF NOT EXISTS profile_library (profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE, meta_id TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (profile_id, meta_id));
+    CREATE TABLE IF NOT EXISTS episode_ratings (show TEXT NOT NULL, season INTEGER NOT NULL, episode INTEGER NOT NULL, rating REAL NOT NULL, votes INTEGER NOT NULL, PRIMARY KEY (show, season, episode)) WITHOUT ROWID;
+    CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     PRAGMA foreign_keys = ON;`);
   // Bases créées avant les profils : la session retient le profil choisi.
   try { db.exec("ALTER TABLE sessions ADD COLUMN profile_id TEXT"); } catch { }
@@ -133,6 +139,9 @@ export function start(env = process.env) {
     saveProgress: "INSERT INTO profile_progress (profile_id, meta_id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(profile_id, meta_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at WHERE excluded.updated_at > profile_progress.updated_at",
     // Bibliothèque : même règle ; un titre retiré reste en base (removed) pour que les autres appareils l'apprennent.
     library: "SELECT data FROM profile_library WHERE profile_id = ? ORDER BY updated_at DESC LIMIT 5000",
+    ratings: "SELECT season, episode, rating FROM episode_ratings WHERE show = ?",
+    kv: "SELECT value FROM kv WHERE key = ?",
+    setKv: "INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
     saveLibrary: "INSERT INTO profile_library (profile_id, meta_id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(profile_id, meta_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at WHERE excluded.updated_at > profile_library.updated_at",
   }).map(([k, sql]) => [k, db.prepare(sql)]));
 
@@ -172,6 +181,43 @@ export function start(env = process.env) {
     if (!r.ok) throw new Error(`TMDB ${r.status}`);
     return r.json();
   }
+  // Notes d'épisode (comme SeriesGraph) : jeux de données publics d'IMDb (usage personnel), rechargés chaque jour.
+  // Les notes vont dans une table temporaire, puis on ne garde que celles des épisodes. Les lignes sont écrites par
+  // paquets dans une transaction sans await : les requêtes des utilisateurs ne s'y mêlent jamais.
+  async function* tsv(name) {
+    const r = await fetch(`${cfg.imdb}/${name}`);
+    if (!r.ok) throw new Error(`${name} ${r.status}`);
+    let batch = [], head = true;
+    for await (const line of createInterface({ input: Readable.fromWeb(r.body).pipe(createGunzip()), crlfDelay: Infinity })) {
+      if (head) { head = false; continue; }
+      batch.push(line.split("\t"));
+      if (batch.length === 50000) { yield batch; batch = []; }
+    }
+    if (batch.length) yield batch;
+  }
+  const tx = fn => { db.exec("BEGIN"); try { fn(); db.exec("COMMIT"); } catch (e) { db.exec("ROLLBACK"); throw e; } };
+  let importing = false;
+  async function refreshRatings(force = false) {
+    if (importing || (!force && Date.now() - +(q.kv.get("ratings_at")?.value ?? 0) < 20 * 36e5)) return;
+    importing = true;
+    try {
+      db.exec("CREATE TEMP TABLE IF NOT EXISTS r (id TEXT PRIMARY KEY, rating REAL, votes INTEGER) WITHOUT ROWID; DELETE FROM r;" +
+        "CREATE TEMP TABLE IF NOT EXISTS e AS SELECT * FROM episode_ratings WHERE 0; DELETE FROM e;");
+      const addR = db.prepare("INSERT OR IGNORE INTO r VALUES (?, ?, ?)"), getR = db.prepare("SELECT rating, votes FROM r WHERE id = ?");
+      const addE = db.prepare("INSERT OR IGNORE INTO e VALUES (?, ?, ?, ?, ?)");
+      for await (const b of tsv("title.ratings.tsv.gz")) tx(() => { for (const [id, rating, votes] of b) addR.run(id, +rating, +votes); });
+      for await (const b of tsv("title.episode.tsv.gz")) tx(() => {
+        for (const [id, show, season, episode] of b) {
+          const r = season !== "\\N" && episode !== "\\N" && getR.get(id);
+          if (r) addE.run(show, +season, +episode, r.rating, r.votes);
+        }
+      });
+      tx(() => { db.exec("DELETE FROM episode_ratings; INSERT OR IGNORE INTO episode_ratings SELECT * FROM e; DELETE FROM r; DELETE FROM e;"); q.setKv.run("ratings_at", String(Date.now())); });
+      console.log("Notes IMDb importées :", db.prepare("SELECT count(*) n FROM episode_ratings").get().n, "épisodes");
+    } catch (e) { console.error("Notes IMDb :", e.message); }
+    finally { importing = false; }
+  }
+
   async function translated(type, imdb, lang) {
     const key = `${lang}:${type}:${imdb}`, hit = tmdbCache.get(key);
     if (hit && hit.at > Date.now() - 7 * 864e5) return hit.data;
@@ -268,6 +314,11 @@ export function start(env = process.env) {
       if (!["movie", "series"].includes(type) || !/^tt\d{5,10}$/.test(id) || !/^[a-z]{2}-[A-Z]{2}$/.test(lang)) return json(res, 400, { error: "requête invalide" });
       try { const data = await translated(type, id, lang); data ? json(res, 200, data, { "cache-control": "private, max-age=86400" }) : json(res, 404, { error: "introuvable sur TMDB" }); }
       catch (e) { console.error("TMDB :", e.message); json(res, 502, { error: "TMDB indisponible" }); }
+    }),
+    "GET /api/ratings": member((req, res, url) => {
+      const id = url.searchParams.get("id") ?? "";
+      if (!/^tt\d{5,10}$/.test(id)) return json(res, 400, { error: "requête invalide" });
+      json(res, 200, Object.fromEntries(q.ratings.all(id).map(r => [`${r.season}:${r.episode}`, r.rating])), { "cache-control": "private, max-age=3600" });
     }),
     "GET /api/invite": (req, res, url) => json(res, q.invite.get(url.searchParams.get("code") ?? "", Date.now()) ? 200 : 404, {}),
 
@@ -410,10 +461,13 @@ export function start(env = process.env) {
       console.error(e); if (!res.headersSent) json(res, 500, { error: "erreur serveur" });
     }
   });
-  return new Promise(ok => server.listen(cfg.port, () => ok({ server, db, close: () => new Promise(r => server.close(() => { db.close(); r(); })) })));
+  return new Promise(ok => server.listen(cfg.port, () => ok({ server, db, refreshRatings, close: () => new Promise(r => server.close(() => { db.close(); r(); })) })));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const { server } = await start();
+  const { server, refreshRatings } = await start();
+  // Notes d'épisode : au démarrage puis vérifiées toutes les 6 h (rechargées si elles ont plus de 20 h).
+  setTimeout(refreshRatings, 5000);
+  setInterval(refreshRatings, 6 * 36e5);
   console.log(`MeowWatch sur le port ${server.address().port}`);
 }
