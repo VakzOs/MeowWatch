@@ -150,6 +150,14 @@ export function toggleLibrary(meta: Meta) {
   set({ library: { ...state.library, [meta.id]: item } });
   pushLibrary([item]);
 }
+/** Coche ou décoche « Vu » sur un titre de la bibliothèque. */
+export function toggleWatched(id: string) {
+  const cur = state.library[id];
+  if (!cur) return;
+  const item: LibraryItem = { ...cur, watched: !cur.watched, updatedAt: Date.now() };
+  set({ library: { ...state.library, [id]: item } });
+  pushLibrary([item]);
+}
 /** Recherche de l'accueil (dans la barre du haut de l'appli Windows). */
 export const setQuery = (query: string) => set({ query });
 /** Image floutée derrière toute l'appli (titre sélectionné). */

@@ -12,7 +12,7 @@ export type Progress = {
 };
 
 /** Titre de la bibliothèque d'un profil. Retiré : gardé avec `removed` pour que les autres appareils l'apprennent. */
-export type LibraryItem = { meta: Pick<Meta, "id" | "type" | "name" | "poster" | "background" | "releaseInfo">; addedAt: number; updatedAt: number; removed?: boolean };
+export type LibraryItem = { meta: Pick<Meta, "id" | "type" | "name" | "poster" | "background" | "releaseInfo">; addedAt: number; updatedAt: number; removed?: boolean; watched?: boolean };
 
 /** Fusion de deux listes (reprise, bibliothèque) : pour chaque titre, la plus récente gagne. Renvoie aussi ce que le serveur n'a pas encore. */
 export function mergeNewest<T extends { meta: { id: string }; updatedAt: number }>(local: Record<string, T>, remote: T[]) {
