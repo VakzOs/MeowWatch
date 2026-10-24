@@ -3,7 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View, type NativeScrol
 import { Card, hoverTitle, openTitle } from "../components/Row";
 import { Select } from "../components/Select";
 import { C, catalogName, font, genreList, TYPE_FR } from "../components/theme";
-import { canSkip, discoverCatalogs, fetchCatalog, genreOptions, genreRequired, type Meta } from "../lib/addons";
+import { canSkip, discoverCatalogs, fetchCatalog, filledGenres, genreOptions, genreRequired, type Meta } from "../lib/addons";
 import { useStore } from "../lib/store";
 
 /** Découvrir, façon Stremio : type, catalogue et genre en haut, grille d'affiches qui se charge au défilement. */
@@ -20,8 +20,16 @@ export default function Decouvrir() {
   const ofType = all.filter(c => c.catalog.type === curType);
   const keyOf = (c: (typeof all)[number]) => `${c.addon.url}|${c.catalog.id}`;
   const cur = ofType.find(c => keyOf(c) === key) ?? ofType[0];
-  const genres = cur ? genreOptions(cur.catalog) : [];
-  const curGenre = cur && genreRequired(cur.catalog) ? genre ?? genres[0] : genre;
+  // Genres vides retirés du menu une fois sondés (tous affichés en attendant) ; le genre choisi reste toujours visible.
+  const [filled, setFilled] = useState<Record<string, string[]>>({});
+  const curKey = cur && keyOf(cur);
+  useEffect(() => {
+    if (!cur || !curKey || filled[curKey] || !genreOptions(cur.catalog).length) return;
+    filledGenres(cur.addon, cur.catalog).then(g => setFilled(f => ({ ...f, [curKey]: g })));
+  }, [curKey]);
+  const list = cur ? (curKey && filled[curKey]) || genreOptions(cur.catalog) : [];
+  const curGenre = cur && genreRequired(cur.catalog) ? genre ?? list[0] : genre;
+  const genres = curGenre && !list.includes(curGenre) ? [curGenre, ...list] : list;
 
   // Pages de résultats ; on repart de zéro quand le choix change.
   const [items, setItems] = useState<Meta[]>([]);
