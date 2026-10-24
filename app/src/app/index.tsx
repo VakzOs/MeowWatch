@@ -12,6 +12,7 @@ const open = openTitle, hover = hoverTitle;
 export default function Home() {
   const addons = useStore(s => s.addons);
   const progress = useStore(s => s.progress);
+  const library = useStore(s => s.library);
   const query = useStore(s => s.query); // partagée avec la barre du haut de l'appli Windows
   const [search, setSearch] = useState("");
   useEffect(() => { const t = setTimeout(() => setSearch(query.trim()), 400); return () => clearTimeout(t); }, [query]);
@@ -30,6 +31,8 @@ export default function Home() {
       },
     }));
   }, [addons, search]);
+  const saved = useMemo(() => Object.values(library).filter(i => !i.removed).sort((a, b) => b.addedAt - a.addedAt), [library]);
+  const loadSaved = useMemo(() => async () => saved.map(i => ({ meta: i.meta as Meta })), [saved]);
   const loadResume = useMemo(() => async () => resume.map(p => ({ meta: p.meta as Meta, wide: true, progress: p.duration ? p.time / p.duration : 0, sub: p.label })), [resume]);
 
   return (
@@ -43,6 +46,7 @@ export default function Home() {
             </View>
           )}
           {!search && resume.length ? <Row title="Reprendre" note="sur tous tes appareils" load={loadResume} onSelect={open} onHover={hover} /> : null}
+          {!search && saved.length ? <Row title="Ma bibliothèque" note="derniers ajouts" load={loadSaved} onSelect={open} onHover={hover} /> : null}
           {rows.map(r => <Row key={r.key} title={r.title} note={r.note} load={r.load} onSelect={open} onHover={hover} />)}
           {!rows.length ? <Text style={[font(400, 15, C.mute), { padding: 32 }]}>{search ? "Aucun addon installé ne sait chercher." : "Aucun catalogue : ajoute un addon dans la page Addons."}</Text> : null}
         </ScrollView>
