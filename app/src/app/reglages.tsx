@@ -5,6 +5,7 @@ import { C, font } from "../components/theme";
 import { api, type Admin } from "../lib/api";
 import { ProfileEditor } from "../components/Profiles";
 import { Select } from "../components/Select";
+import { desktop } from "../lib/desktop";
 import { DEFAULT_PREFS, langName, type LangChoice, type LangPrefs } from "../lib/lang";
 import { leaveProfile, logout, pull, setLang, updateProfile, useStore } from "../lib/store";
 
@@ -30,6 +31,7 @@ export default function Reglages() {
         <Sync />
         <Language />
         {user.owner && user.profile?.main ? <Access /> : null}
+        <About />
       </ScrollView>
     </>
   );
@@ -200,6 +202,25 @@ const copy = (text: string) => { if (Platform.OS === "web") navigator.clipboard?
 function Avatar({ name, src, size }: { name: string; src: string | null; size: number }) {
   return src ? <Image source={src} style={{ width: size, height: size, borderRadius: size / 2 }} />
     : <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.red, alignItems: "center", justifyContent: "center" }}><Text style={font(700, size * 0.4)}>{name[0]?.toUpperCase()}</Text></View>;
+}
+
+// Date du build du site (Dockerfile) : permet de vérifier qu'un redéploiement a bien été pris.
+const BUILD = process.env.EXPO_PUBLIC_BUILD;
+
+/** Versions : appli Windows et site. */
+function About() {
+  const built = BUILD ? new Date(BUILD) : null;
+  return (
+    <>
+      <Text style={[font(600, 18), st.h]}>À propos</Text>
+      <View style={[st.row, { flexDirection: "column", alignItems: "flex-start", gap: 6 }]}>
+        <Text style={font(400, 14, C.soft)}>{desktop ? `Appli Windows · version ${desktop.version}` : "Version web (navigateur)"}</Text>
+        <Text style={font(400, 14, C.mute)}>
+          {built && !isNaN(+built) ? `Site mis à jour le ${built.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} à ${built.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : "Site : version de développement"}
+        </Text>
+      </View>
+    </>
+  );
 }
 
 function Btn({ label, onPress, ghost }: { label: string; onPress: () => void; ghost?: boolean }) {

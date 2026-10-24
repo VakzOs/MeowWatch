@@ -284,7 +284,6 @@ export function WebPlayer({ p }: { p: PlayParams }) {
       <View style={[st.top, desktop && { paddingRight: 160 }, !show && st.hidden]} pointerEvents={show ? "box-none" : "none"}>
         <Pressable onPress={back} style={({ hovered }: any) => [st.round, hovered && st.roundOn]} accessibilityLabel="Retour"><Icon name="back" color={C.ink} /></Pressable>
         <Text style={[font(600, 17), { flex: 1 }]} numberOfLines={1}>{p.name}{p.label ? ` · ${p.label}` : ""}</Text>
-        {eng ? <Text style={font(500, 12, C.mute)}>{ENGINE[eng.kind]}</Text> : null}
       </View>
 
       {/* Bas : barre de progression et boutons */}
