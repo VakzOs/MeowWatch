@@ -213,3 +213,21 @@ test("notes d'épisode importées depuis IMDb", async () => {
   await app.refreshRatings(); // moins de 20 h : rien n'est retéléchargé, les notes restent
   assert.equal(Object.keys(await (await api("/api/ratings?id=tt0460681", c)).json()).length, 2);
 });
+
+test("connexion d'une télé par code", async () => {
+  const start = await (await fetch(A + "/api/tv/start", { method: "POST" })).json();
+  assert.match(start.code, /^[A-HJ-NP-Z2-9]{6}$/);
+  const poll = (secret = start.secret) => fetch(`${A}/api/tv/poll?code=${start.code}&secret=${secret}`);
+  assert.deepEqual(await (await poll()).json(), { pending: true });
+  assert.equal((await poll("faux")).status, 403);
+  const [, c] = await login("code-eric");
+  assert.equal((await api("/api/tv/approve", undefined, { method: "POST", body: JSON.stringify({ code: start.code }) })).status, 401);
+  assert.equal((await api("/api/tv/approve", c, { method: "POST", body: JSON.stringify({ code: "AAAAAA" }) })).status, 404);
+  // saisi comme on le lit à l'écran : minuscules et tiret
+  const typed = `${start.code.slice(0, 3)}-${start.code.slice(3)}`.toLowerCase();
+  assert.equal((await api("/api/tv/approve", c, { method: "POST", body: JSON.stringify({ code: typed }) })).status, 200);
+  const { token } = await (await poll()).json();
+  assert.ok(token);
+  assert.equal((await (await api("/api/auth/me", `mw_session=${token}`)).json()).id, "1");
+  assert.equal((await poll()).status, 410); // servi une seule fois
+});
