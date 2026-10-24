@@ -17,6 +17,7 @@ export type PlayParams = { url: string; file?: string; binge?: string; addon?: s
 // Réglages du lecteur, retenus sur l'appareil.
 type Prefs = { volume: number; muted: boolean; size: number; color: string; bg: string; blur: boolean; autoNext: boolean };
 const PREFS_KEY = "meowwatch:lecteur";
+const DELAY_KEY = "meowwatch:decalage:"; // + identifiant du titre (la série, pas l'épisode)
 const DEFAULT: Prefs = { volume: 1, muted: false, size: 1, color: "", bg: "", blur: false, autoNext: true };
 const SIZES = [{ k: 0.8, label: "Petit" }, { k: 1, label: "Normal" }, { k: 1.3, label: "Grand" }, { k: 1.6, label: "Très grand" }];
 const COLORS = [{ k: "", label: "D'origine" }, { k: "#FFFFFF", label: "Blanc" }, { k: "#FFE14D", label: "Jaune" }];
@@ -125,6 +126,9 @@ export function WebPlayer({ p }: { p: PlayParams }) {
       if (dead) return x.destroy();
       e = x;
       x.setVolume(saved.muted ? 0 : saved.volume);
+      // Décalage des sous-titres retenu pour ce titre (souvent le même sur toute une série).
+      const d = Number(await AsyncStorage.getItem(DELAY_KEY + p.id).catch(() => null)) || 0;
+      if (d) { setDelay(d); x.setSubDelay(d); }
       if (+p.start > 0) x.seek(+p.start);
       try { await x.play(); setPaused(false); } catch { setBlocked(true); }
       if (x.suspended()) setBlocked(true);
@@ -212,7 +216,11 @@ export function WebPlayer({ p }: { p: PlayParams }) {
   const pickExt = async (s: Ext) => { picked.current = true; if (eng) { await useExt(eng, s).catch(() => {}); refresh(); } };
   const lastSub = useRef(-1);
   const toggleSubs = () => { if (!eng?.subs.length) return; if (eng.subId >= 0) { lastSub.current = eng.subId; pickSub(-1); } else pickSub(lastSub.current >= 0 ? lastSub.current : eng.subs[0].id); };
-  const changeDelay = (d: number) => { const x = Math.round(d * 10) / 10; setDelay(x); eng?.setSubDelay(x); };
+  const changeDelay = (d: number) => {
+    const x = Math.round(d * 10) / 10;
+    setDelay(x); eng?.setSubDelay(x);
+    (x ? AsyncStorage.setItem(DELAY_KEY + p.id, String(x)) : AsyncStorage.removeItem(DELAY_KEY + p.id)).catch(() => {});
+  };
   const changeRate = (r: number) => { setRate(r); eng?.setRate(r); };
   const fullscreen = () => {
     // Appli Windows : plein écran de la fenêtre (celui du HTML ne remplirait que la fenêtre).
