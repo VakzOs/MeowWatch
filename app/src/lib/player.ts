@@ -87,13 +87,16 @@ async function avance(box: HTMLDivElement, url: string, file?: string): Promise<
   // Avant la lecture, libmedia n'a pas encore choisi de piste : on part de celle marquée « par défaut » (AV_DISPOSITION_DEFAULT).
   const defAudio = (streams.find(s => s.mediaType === "Audio" && s.disposition & 1) ?? streams.find(s => s.mediaType === "Audio"))?.id ?? -1;
   const subs = streams.filter(s => s.mediaType === "Subtitle").map(s => track(s, [s.disposition & FORCED ? "Forcés" : "", s.disposition & SDH ? "Malentendants" : ""]));
+  let start: number | null = 0; // position demandée avant la première lecture (null : déjà lancé)
   const eng: Engine = {
     kind: "avance", info: infoOf(defAudio),
     time: () => Number(p.currentTime) / 1000,
     duration: () => Number(p.getDuration()) / 1000,
-    play: async () => { await p.play(); },
+    // Un saut avant la première lecture fait échouer libmedia (« player status is not loaded ») : la reprise à une
+    // position passait pour du son bloqué et le choix de langue se perdait. On saute juste après le lancement.
+    play: async () => { await p.play(); const s = start; start = null; if (s) eng.seek(s); },
     pause: () => { p.pause(); },
-    seek: s => { p.seek(BigInt(Math.max(0, Math.round(s * 1000)))); },
+    seek: s => { if (start !== null) start = s; else p.seek(BigInt(Math.max(0, Math.round(s * 1000)))); },
     setRate: r => p.setPlaybackRate(r),
     setVolume: v => p.setVolume(v),
     audio, subs,
