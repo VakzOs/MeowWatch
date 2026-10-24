@@ -47,13 +47,29 @@ fn install_update(app: tauri::AppHandle, pending: tauri::State<Pending>) -> Resu
     app.restart()
 }
 
+/// Liens externes (réglages d'un addon, bande-annonce…) dans le navigateur par défaut : la fenêtre n'ouvre pas de popup.
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    let web = url.starts_with("https://") || url.starts_with("http://");
+    if !web || url.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        return Err("adresse refusée".into());
+    }
+    #[cfg(windows)]
+    let (prog, args) = ("rundll32", ["url.dll,FileProtocolHandler", url.as_str()]);
+    #[cfg(target_os = "macos")]
+    let (prog, args) = ("open", ["--", url.as_str()]);
+    #[cfg(not(any(windows, target_os = "macos")))]
+    let (prog, args) = ("xdg-open", ["--", url.as_str()]);
+    std::process::Command::new(prog).args(args).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_libmpv::init())
         .manage(Pending::default())
-        .invoke_handler(tauri::generate_handler![update_status, install_update])
+        .invoke_handler(tauri::generate_handler![update_status, install_update, open_url])
         .setup(|app| {
             let relay = relay::start(SITE);
             // Le site sait qu'il tourne dans l'appli, et où trouver le relais (avant ses propres scripts).

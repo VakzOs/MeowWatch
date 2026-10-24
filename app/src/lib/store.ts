@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSyncExternalStore } from "react";
-import { CINEMETA, fetchManifest, type Addon } from "./addons";
+import { CINEMETA, fetchManifest, isAdultAddon, type Addon } from "./addons";
 import { api, type Profile, type User } from "./api";
 import { mergeAddons } from "./stremio";
 import { isDone, mergeNewest, type LibraryItem, type Progress } from "./sync";
@@ -27,6 +27,15 @@ function set(patch: Partial<State>) {
 
 export function useStore<T>(pick: (s: State) => T): T {
   return useSyncExternalStore(l => (listeners.add(l), () => listeners.delete(l)), () => pick(state), () => pick(state));
+}
+
+/** Addons vus par le profil ouvert : sans ceux pour adultes s'il les masque (Réglages > Contenu adulte).
+ *  Mémorisé : useSyncExternalStore exige le même tableau tant que rien ne change. */
+let seen: { addons?: Addon[]; hide?: boolean; out: Addon[] } = { out: [] };
+export function visibleAddons(s: State): Addon[] {
+  const hide = s.user?.profile?.prefs?.adult === false;
+  if (seen.addons !== s.addons || seen.hide !== hide) seen = { addons: s.addons, hide, out: hide ? s.addons.filter(a => !isAdultAddon(a.manifest)) : s.addons };
+  return seen.out;
 }
 
 const readJSON = async (k: string) => { try { return JSON.parse((await AsyncStorage.getItem(k)) ?? "null"); } catch { return null; } };
@@ -111,6 +120,14 @@ export function moveAddon(url: string, dir: -1 | 1) {
 export function saveProgress(p: Progress) {
   const entry = { ...p, done: isDone(p) };
   set({ progress: { ...state.progress, [p.meta.id]: entry } });
+  push(entry);
+}
+/** Retire le titre de l'historique (« Reprendre », « Vu récemment ») sur tous les appareils du profil. */
+export function removeProgress(id: string) {
+  const p = state.progress[id];
+  if (!p) return;
+  const entry = { ...p, done: true, removed: true, updatedAt: Date.now() };
+  set({ progress: { ...state.progress, [id]: entry } });
   push(entry);
 }
 /** Import Stremio : addons ajoutés au compte, reprises plus récentes et titres de la bibliothèque ajoutés au profil ouvert. */

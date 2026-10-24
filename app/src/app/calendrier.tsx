@@ -6,7 +6,7 @@ import { hoverTitle, openTitle } from "../components/Row";
 import { C, font } from "../components/theme";
 import { fetchMeta, type Addon, type Meta } from "../lib/addons";
 import { dayKey, episodesByDay, monthGrid, type CalEpisode } from "../lib/calendar";
-import { useStore } from "../lib/store";
+import { useStore, visibleAddons } from "../lib/store";
 
 // ponytail: fiches gardées en mémoire le temps de l'onglet (pas de rafraîchissement) ; suffisant pour une bibliothèque de quelques centaines de séries.
 const metaCache = new Map<string, Promise<Meta | null>>();
@@ -21,7 +21,7 @@ const epLabel = (e: CalEpisode) => (e.video.season !== undefined ? `S${e.video.s
 
 /** Calendrier, façon Stremio : les épisodes des séries de la bibliothèque, par jour de sortie. */
 export default function Calendrier() {
-  const addons = useStore(s => s.addons);
+  const addons = useStore(visibleAddons);
   const library = useStore(s => s.library);
   const series = useMemo(() => Object.values(library).filter(i => !i.removed && i.meta.type !== "movie"), [library]);
   const [metas, setMetas] = useState<Meta[] | null>(null);

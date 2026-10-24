@@ -17,7 +17,7 @@ export default function Bibliotheque() {
 
   const all = Object.values(library).filter(i => !i.removed);
   const types = [...new Set(all.map(i => i.meta.type))];
-  const watched = (id: string) => progress[id]?.updatedAt ?? 0;
+  const watched = (id: string) => (progress[id]?.removed ? 0 : progress[id]?.updatedAt ?? 0);
   const items = all.filter(i => !type || i.meta.type === type).sort((a, b) =>
     sort === "name" ? a.meta.name.localeCompare(b.meta.name, "fr") : sort === "watched" ? watched(b.meta.id) - watched(a.meta.id) : b.addedAt - a.addedAt);
 

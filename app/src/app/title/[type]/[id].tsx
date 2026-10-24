@@ -1,22 +1,23 @@
 import { Image } from "expo-image";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../../../components/Icon";
 import { C, font, genreList } from "../../../components/theme";
 import { describe, epLabel, fetchMeta, fetchStreamsFor, imdbEquivalent, pickNextStream, sortedEpisodes, type FoundStream, type Meta, type Video } from "../../../lib/addons";
 import { api, type Translation } from "../../../lib/api";
-import { desktop } from "../../../lib/desktop";
+import { desktop, openExternal } from "../../../lib/desktop";
 import { isAnime } from "../../../lib/lang";
-import { getProgress, setAmbiance, toggleLibrary, useStore } from "../../../lib/store";
+import { getProgress, removeProgress, setAmbiance, toggleLibrary, useStore, visibleAddons } from "../../../lib/store";
 
 const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
 /** Page d'un titre, façon Stremio : grande image, infos à gauche, épisodes puis flux dans la colonne de droite. */
 export default function Title() {
   const { type, id, name, poster, season: askedSeason } = useLocalSearchParams<{ type: string; id: string; name?: string; poster?: string; season?: string }>();
-  const addons = useStore(s => s.addons);
+  const addons = useStore(visibleAddons);
   const inLibrary = useStore(s => !!s.library[id] && !s.library[id].removed);
+  const watched = useStore(s => !!s.progress[id] && !s.progress[id].removed);
   const [meta, setMeta] = useState<Meta>({ id, type, name: name ?? "", poster });
   const lang = useStore(s => s.lang);
   const canTranslate = useStore(s => !!s.user?.translate);
@@ -74,7 +75,7 @@ export default function Title() {
   const playable = shown.filter(s => s.url).length; // les flux sans vidéo (avis d'addon, lien externe) ne sont jamais « Meilleur »
 
   const play = (s: FoundStream, v: Video | null = video) => {
-    if (!s.url) return s.externalUrl && Linking.openURL(s.externalUrl);
+    if (!s.url) return s.externalUrl && openExternal(s.externalUrl);
     const vid = v?.id ?? id;
     const alt = imdbEquivalent(meta, v);
     router.push({ pathname: "/play", params: {
@@ -142,8 +143,14 @@ export default function Title() {
             <Icon name={inLibrary ? "check" : "plus"} size={18} color={C.ink} />
             <Text style={font(600, 15)}>{inLibrary ? "Dans la bibliothèque" : "Bibliothèque"}</Text>
           </Pressable>
+          {watched ? (
+            <Pressable onPress={() => removeProgress(id)} accessibilityLabel="Retirer de l'historique" style={({ hovered }: any) => [st.ghost, st.row, hovered && { backgroundColor: "rgba(255,255,255,0.18)" }]}>
+              <Icon name="close" size={18} color={C.ink} />
+              <Text style={font(600, 15)}>Retirer de l'historique</Text>
+            </Pressable>
+          ) : null}
           {trailer ? (
-            <Pressable onPress={() => Linking.openURL(`https://www.youtube.com/watch?v=${trailer}`)} style={({ hovered }: any) => [st.ghost, hovered && { backgroundColor: "rgba(255,255,255,0.18)" }]}>
+            <Pressable onPress={() => openExternal(`https://www.youtube.com/watch?v=${trailer}`)} style={({ hovered }: any) => [st.ghost, hovered && { backgroundColor: "rgba(255,255,255,0.18)" }]}>
               <Text style={font(600, 15)}>Bande-annonce</Text>
             </Pressable>
           ) : null}

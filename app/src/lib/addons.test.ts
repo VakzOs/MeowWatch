@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, fetchCatalog, kitsuCatalogUrl, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, fromStremio, fromStremioFR, searchCatalog, hostInstalled, categorize, ping, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, fetchCatalog, kitsuCatalogUrl, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, fromStremio, fromStremioFR, searchCatalog, hostInstalled, categorize, ping, isAdultAddon, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -129,6 +129,7 @@ test("catalogues d'addons : Stremio, StremioFR, recherche et addons déjà insta
   assert.deepEqual(categorize("Auto Subtitle Translate"), ["Sous-titres"]);
   assert.deepEqual(categorize("Ratings"), ["Autres"]);
   assert.deepEqual(categorize("Hot", [], true), ["Adultes"]);
+  assert.ok(isAdultAddon({ id: "x", name: "Hot", behaviorHints: { adult: true } }) && isAdultAddon({ id: "y", name: "XXX catalog" }) && !isAdultAddon(cinemeta.manifest));
   assert.deepEqual(categorize("Porn catalog 18+", ["Catalogues"]), ["Catalogues", "Adultes"]);
   assert.deepEqual(searchCatalog([...stremio, ...fr], "FRANÇAIS").map(e => e.name), ["Lumio"]);
   assert.equal(searchCatalog(fr, " ").length, 2);

@@ -6,7 +6,7 @@ export type Resource = string | { name: string; types?: string[]; idPrefixes?: s
 export type Manifest = {
   id: string; name: string; version?: string; description?: string; logo?: string;
   types?: string[]; idPrefixes?: string[]; resources?: Resource[]; catalogs?: Catalog[];
-  behaviorHints?: { configurable?: boolean; configurationRequired?: boolean };
+  behaviorHints?: { configurable?: boolean; configurationRequired?: boolean; adult?: boolean };
 };
 export type Addon = { url: string; manifest: Manifest };
 
@@ -175,6 +175,8 @@ export function categorize(text: string, base: Category[] = [], adult = false): 
   return CATEGORIES.filter(x => c.has(x));
 }
 
+export const isAdultAddon = (m: Manifest) => categorize(`${m.name} ${m.description ?? ""}`, [], !!m.behaviorHints?.adult).includes("Adultes");
+
 /** Catalogue communautaire de Stremio (celui de leur onglet Addons). */
 export const STREMIO_COLLECTION = "https://api.strem.io/addonscollection.json";
 export function fromStremio(list: { transportUrl?: string; manifest?: Manifest }[]): CatalogEntry[] {
@@ -183,7 +185,7 @@ export function fromStremio(list: { transportUrl?: string; manifest?: Manifest }
     const description = m!.description?.replace(/<[^>]+>/g, ""), res = (m!.resources ?? []).map(r => (typeof r === "string" ? r : r.name)), types = m!.types ?? [];
     const base: Category[] = [...(res.includes("stream") ? ["Flux" as const] : []), ...(res.includes("catalog") || res.includes("meta") ? ["Catalogues" as const] : []),
       ...(res.includes("subtitles") ? ["Sous-titres" as const] : []), ...(types.includes("anime") ? ["Animés" as const] : []), ...(types.some(t => t === "channel" || t === "tv") ? ["TV" as const] : [])];
-    return { key: url!, name: m!.name, logo: m!.logo, description, tag: addonKinds(m!), cats: categorize(`${m!.name} ${description ?? ""}`, base, !!(m!.behaviorHints as any)?.adult),
+    return { key: url!, name: m!.name, logo: m!.logo, description, tag: addonKinds(m!), cats: categorize(`${m!.name} ${description ?? ""}`, base, !!m!.behaviorHints?.adult),
       hosts: [cfg ? { configure: cfg } : { manifest: url }] };
   });
 }
