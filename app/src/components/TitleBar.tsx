@@ -39,7 +39,7 @@ export function TitleBar({ bare }: { bare?: boolean }) {
           </View>
         </View>
       )}
-      <View style={st.caption}>
+      <View style={st.caption} {...({ dataSet: { mwCaption: "" } } as any)}>{/* l'appli n'ajoute pas ses boutons de secours */}
         <Caption label="Réduire" onPress={win.minimize}><Path d="M0 5.5h10" stroke="currentColor" /></Caption>
         <Caption label="Agrandir" onPress={win.toggleMaximize}><Rect x={0.5} y={0.5} width={9} height={9} rx={1.5} fill="none" stroke="currentColor" /></Caption>
         <Caption label="Fermer" close onPress={win.close}><Path d="M0 0l10 10M10 0L0 10" stroke="currentColor" /></Caption>

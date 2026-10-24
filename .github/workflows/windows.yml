@@ -20,7 +20,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: desktop/src-tauri -> target
+          workspaces: |
+            desktop/src-tauri -> target
+            desktop/setup/src-tauri -> target
       - run: npm ci
         working-directory: desktop
       - uses: tauri-apps/tauri-action@v0
@@ -33,6 +35,20 @@ jobs:
           projectPath: desktop
           tagName: windows-v__VERSION__
           releaseName: Meow Watch pour Windows __VERSION__
-          releaseBody: "Télécharge le fichier « …_x64-setup.exe » ci-dessous et lance-le. Si Meow Watch est déjà installé, il se met à jour tout seul."
+          releaseBody: "Télécharge « Installer-Meow-Watch.exe » ci-dessous et lance-le. Si Meow Watch est déjà installé, il se met à jour tout seul (le fichier …_x64-setup.exe sert aux mises à jour)."
           releaseDraft: false
           prerelease: false
+      # Installateur au design de Meow Watch : embarque l'installateur NSIS ci-dessus (MW_SETUP) et le lance en silence.
+      - name: Installateur Meow Watch
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $nsis = Get-ChildItem desktop/src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          $env:MW_SETUP = $nsis.FullName
+          $version = (Get-Content desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          Push-Location desktop/setup
+          npx tauri build --no-bundle
+          Pop-Location
+          Copy-Item desktop/setup/src-tauri/target/release/meow-watch-setup.exe Installer-Meow-Watch.exe
+          gh release upload "windows-v$version" Installer-Meow-Watch.exe --clobber --repo ${{ github.repository }}

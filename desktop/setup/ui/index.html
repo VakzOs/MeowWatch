@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Installer Meow Watch</title>
+<style>
+  @font-face { font-family: "Instrument Sans"; font-weight: 400; src: url(InstrumentSans_400Regular.ttf); }
+  @font-face { font-family: "Instrument Sans"; font-weight: 600; src: url(InstrumentSans_600SemiBold.ttf); }
+  @font-face { font-family: "Instrument Sans"; font-weight: 700; src: url(InstrumentSans_700Bold.ttf); }
+  :root { --red: #D6182A; --soft: #D4D4D8; --mute: #A8A8AD; --faint: #8A8A90; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { display: flex; background: #121214; color: #fff; font: 400 14px "Instrument Sans", "Segoe UI", sans-serif; user-select: none; overflow: hidden; }
+  .art { position: relative; width: 236px; flex: none; background: var(--red); display: grid; place-items: center; }
+  .art img { width: 150px; }
+  .art small { position: absolute; bottom: 16px; left: 0; right: 0; text-align: center; color: rgba(245,240,230,0.8); font-size: 12px; }
+  .body { position: relative; flex: 1; padding: 46px 34px 26px; display: flex; flex-direction: column; }
+  .drag { position: absolute; top: 0; left: 0; right: 46px; height: 34px; }
+  .close { position: absolute; top: 0; right: 0; width: 46px; height: 32px; border: 0; background: transparent; color: #e8e8e8; display: grid; place-items: center; cursor: default; }
+  .close:hover { background: #C42B1C; }
+  h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .lead { color: var(--mute); line-height: 1.5; margin-bottom: 20px; }
+  label { display: flex; gap: 10px; align-items: center; color: var(--soft); margin-bottom: 11px; cursor: pointer; width: fit-content; }
+  input[type=checkbox] { appearance: none; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid #555; display: grid; place-items: center; margin: 0; cursor: pointer; }
+  input[type=checkbox]:checked { background: var(--red); border-color: var(--red); }
+  input[type=checkbox]:checked::after { content: ""; width: 9px; height: 5px; border: solid #fff; border-width: 0 0 2px 2px; transform: translate(0, -1px) rotate(-45deg); }
+  input[type=checkbox]:focus-visible, .btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .foot { margin-top: auto; display: flex; align-items: center; gap: 12px; }
+  .foot small { color: var(--faint); font-size: 12px; margin-right: auto; line-height: 1.4; }
+  .btn { height: 42px; padding: 0 22px; border: 0; border-radius: 10px; background: var(--red); color: #fff; font: 700 15px "Instrument Sans", sans-serif; cursor: pointer; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.ghost { background: rgba(255,255,255,0.12); }
+  .prog { height: 6px; border-radius: 3px; background: #2a2a2e; overflow: hidden; margin: 14px 0 10px; }
+  .prog b { display: block; height: 6px; width: 0; background: var(--red); border-radius: 3px; transition: width 0.6s ease; }
+  .step { color: var(--mute); font-size: 13px; }
+  .err { color: #FF8A94; line-height: 1.5; margin-top: 4px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="art"><img src="tampon.svg" alt=""><small id="version">Meow Watch</small></div>
+  <div class="body">
+    <div class="drag" data-tauri-drag-region></div>
+    <button class="close" id="close" aria-label="Fermer"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></button>
+
+    <section id="form">
+      <h1>Installer Meow Watch</h1>
+      <p class="lead">Tes films, séries et animés avec tes addons Stremio, sur Windows.</p>
+      <label><input type="checkbox" id="desktop" checked>Créer un raccourci sur le Bureau</label>
+      <label><input type="checkbox" id="launch" checked>Lancer Meow Watch après l'installation</label>
+      <label><input type="checkbox" id="startup">Ouvrir au démarrage de Windows</label>
+    </section>
+
+    <section id="busy" hidden>
+      <h1>Installation…</h1>
+      <p class="lead" style="margin-bottom:0">Copie des fichiers de Meow Watch.</p>
+      <div class="prog"><b id="bar"></b></div>
+      <div class="step" id="step">Préparation</div>
+    </section>
+
+    <section id="done" hidden>
+      <h1>C'est prêt</h1>
+      <p class="lead">Meow Watch est installé. Il se mettra à jour tout seul, sans repasser par ici.</p>
+    </section>
+
+    <section id="failed" hidden>
+      <h1>L'installation a échoué</h1>
+      <p class="err" id="error"></p>
+    </section>
+
+    <div class="foot">
+      <small id="where">Dans ton dossier utilisateur<br>Sans droits administrateur</small>
+      <button class="btn" id="go">Installer</button>
+    </div>
+  </div>
+<script>
+  const T = window.__TAURI__, $ = id => document.getElementById(id);
+  const show = id => ["form", "busy", "done", "failed"].forEach(s => ($(s).hidden = s !== id));
+  T?.core.invoke("version").then(v => ($("version").textContent = `Version ${v}`));
+  $("close").onclick = () => T?.core.invoke("quit");
+  let state = "form", launched = false;
+  $("go").onclick = async () => {
+    if (state === "done" || state === "failed") return T?.core.invoke(state === "done" && !launched ? "open_app" : "quit");
+    state = "busy"; show("busy"); $("go").hidden = true;
+    // Progression : l'installateur caché ne la donne pas, on avance par étapes jusqu'à la fin réelle.
+    const steps = [[25, "Copie des fichiers"], [60, "Création des raccourcis"], [85, "Dernières vérifications"]];
+    let i = 0; const tick = setInterval(() => { if (i < steps.length) { $("bar").style.width = steps[i][0] + "%"; $("step").textContent = steps[i][1]; i++; } }, 700);
+    const opts = { desktop: $("desktop").checked, launch: $("launch").checked, startup: $("startup").checked };
+    try {
+      await T.core.invoke("install", opts);
+      clearInterval(tick); $("bar").style.width = "100%"; $("step").textContent = "Terminé";
+      launched = opts.launch;
+      setTimeout(() => {
+        if (launched) return T.core.invoke("quit"); // l'appli s'ouvre : l'installateur se ferme
+        state = "done"; show("done"); $("where").hidden = true; $("go").hidden = false; $("go").textContent = "Lancer Meow Watch";
+      }, 600);
+    } catch (e) {
+      clearInterval(tick);
+      state = "failed"; show("failed"); $("error").textContent = String(e); $("go").hidden = false; $("go").textContent = "Fermer";
+    }
+  };
+</script>
+</body>
+</html>

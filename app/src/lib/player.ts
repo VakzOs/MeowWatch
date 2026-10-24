@@ -3,10 +3,12 @@
 import { relayed } from "./desktop";
 import { langCode, parseVtt, trackLabel, type Cue } from "./lang";
 
-export type Track = { id: number; lang: string; label: string; forced?: boolean; ext?: boolean }; // ext : sous-titre d'un addon
+export type Track = { id: number; lang: string; label: string; forced?: boolean; ext?: boolean; bad?: boolean }; // ext : sous-titre d'un addon ; bad : son que le lecteur ne sait pas décoder
 export type Engine = {
   kind: "avance" | "navigateur";
   why?: "cors" | "echec"; // pourquoi le lecteur avancé n'a pas servi
+  detail?: string; // message d'erreur du lecteur avancé
+  info?: string; // « H264 1080p · AC3 5.1 »
   time(): number; duration(): number;
   play(): Promise<void>; pause(): void; seek(s: number): void;
   setRate(r: number): void; setVolume(v: number): void;
@@ -20,6 +22,10 @@ export type Engine = {
 
 const FORCED = 0x40, SDH = 0x80; // AV_DISPOSITION_* de FFmpeg
 const CHANNELS: Record<number, string> = { 1: "Mono", 2: "Stéréo", 6: "5.1", 8: "7.1" };
+// Identifiants de codecs de FFmpeg (AVCodecID) les plus courants dans les fichiers des debrids.
+const CODECS: Record<number, string> = { 2: "MPEG-2", 12: "MPEG-4", 27: "H264", 70: "VC-1", 167: "VP9", 173: "HEVC", 225: "AV1",
+  86017: "MP3", 86018: "AAC", 86019: "AC3", 86020: "DTS", 86021: "Vorbis", 86028: "FLAC", 86045: "MLP", 86056: "E-AC3", 86060: "TrueHD", 86076: "Opus" };
+const NO_DECODER = new Set([86045, 86060]); // libmedia n'a pas de décodeur TrueHD / MLP
 
 let lib: Promise<any> | null = null;
 /** libmedia est servie par l'appli (public/libmedia, copiée à l'installation) : ses workers et modules doivent être de la même origine. */
@@ -53,24 +59,42 @@ async function avance(box: HTMLDivElement, url: string, file?: string): Promise<
   await p.load(url, e ? { ext: e } : undefined);
   const streams: any[] = p.getStreams();
   const track = (s: any, extras: string[]): Track => {
-    const lang = langCode(s.metadata?.language, s.metadata?.title);
-    return { id: s.id, lang, label: trackLabel(lang, s.metadata?.title, extras), forced: !!(s.disposition & FORCED) };
+    const lang = langCode(s.metadata?.language, s.metadata?.title), bad = NO_DECODER.has(s.codecparProxy?.codecId);
+    return { id: s.id, lang, label: trackLabel(lang, s.metadata?.title, [...extras, bad ? "non lu ici" : ""]), forced: !!(s.disposition & FORCED), bad };
   };
-  const audio = streams.filter(s => s.mediaType === "Audio").map(s => track(s, [CHANNELS[s.codecparProxy?.chLayout?.nbChannels] ?? ""]));
+  const codec = (s: any) => CODECS[s?.codecparProxy?.codecId] ?? "";
+  const audio = streams.filter(s => s.mediaType === "Audio").map(s => track(s, [codec(s), CHANNELS[s.codecparProxy?.chLayout?.nbChannels] ?? ""]));
+  const video = streams.find(s => s.mediaType === "Video");
+  const infoOf = (audioId: number) => {
+    const a = streams.find(s => s.id === audioId);
+    return [[codec(video), video?.codecparProxy?.height ? `${video.codecparProxy.height}p` : ""].filter(Boolean).join(" "),
+      [codec(a), CHANNELS[a?.codecparProxy?.chLayout?.nbChannels] ?? ""].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
+  };
+  // Avant la lecture, libmedia n'a pas encore choisi de piste : on part de celle marquée « par défaut » (AV_DISPOSITION_DEFAULT).
+  const defAudio = (streams.find(s => s.mediaType === "Audio" && s.disposition & 1) ?? streams.find(s => s.mediaType === "Audio"))?.id ?? -1;
+  let started = false;
   const subs = streams.filter(s => s.mediaType === "Subtitle").map(s => track(s, [s.disposition & FORCED ? "Forcés" : "", s.disposition & SDH ? "Malentendants" : ""]));
   const eng: Engine = {
-    kind: "avance",
+    kind: "avance", info: infoOf(defAudio),
     time: () => Number(p.currentTime) / 1000,
     duration: () => Number(p.getDuration()) / 1000,
-    play: () => p.play(),
+    play: async () => {
+      await p.play();
+      if (started) return;
+      started = true;
+      // Son par défaut illisible (TrueHD des REMUX) : une autre piste de la même langue, sinon la première lisible.
+      const cur = audio.find(t => t.id === eng.audioId);
+      const alt = cur?.bad ? audio.find(t => !t.bad && t.lang === cur.lang) ?? audio.find(t => !t.bad) : undefined;
+      if (alt) await eng.selectAudio(alt.id);
+    },
     pause: () => { p.pause(); },
     seek: s => { p.seek(BigInt(Math.max(0, Math.round(s * 1000)))); },
     setRate: r => p.setPlaybackRate(r),
     setVolume: v => p.setVolume(v),
     audio, subs,
-    audioId: p.getSelectedAudioStreamId(),
+    audioId: defAudio,
     subId: -1,
-    selectAudio: async id => { await p.selectAudio(id); eng.audioId = id; },
+    selectAudio: async id => { await p.selectAudio(id); eng.audioId = id; eng.info = infoOf(id); },
     selectSub: async id => {
       const own = cues.has(id);
       if (id >= 0 && !own && id !== p.getSelectedSubtitleStreamId()) await p.selectSubtitle(id);
@@ -165,12 +189,13 @@ export async function createEngine(box: HTMLDivElement, url: string, file: strin
   const relay = relayed(url), name = file || new URL(url).pathname; // format deviné d'après le lien d'origine
   const direct = await readable(url);
   if (!direct && relay && (await readable(relay))) url = relay;
+  let detail: string | undefined;
   if (direct || url === relay) {
     why = "echec";
     const inner = document.createElement("div");
     Object.assign(inner.style, { position: "absolute", inset: "0" });
     box.appendChild(inner);
-    try { return await avance(inner, url, name); } catch (e) { console.warn("libmedia :", e); inner.remove(); }
+    try { return await avance(inner, url, name); } catch (e) { console.warn("libmedia :", e); detail = String((e as Error)?.message ?? e).slice(0, 200); inner.remove(); }
   }
-  return Object.assign(await navigateur(box, url, onError), { why });
+  return Object.assign(await navigateur(box, url, onError), { why, detail });
 }
