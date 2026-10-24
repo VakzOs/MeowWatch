@@ -12,18 +12,18 @@ import { leaveProfile, logout, pull, setLang, updateProfile, useStore } from "..
 
 const day = (t: number) => new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
 
-type Tab = "profil" | "lecture" | "adulte" | "compte" | "langue" | "acces" | "apropos";
+type Tab = "profil" | "lecture" | "contenu" | "compte" | "langue" | "acces" | "apropos";
 
 export default function Reglages() {
   const user = useStore(s => s.user)!;
   const [tab, setTab] = useState<Tab>("profil");
   const narrow = useWindowDimensions().width < 1000;
   const groups: [string, [Tab, IconName, string][]][] = [
-    ["Profil", [["profil", "user", "Mon profil"], ["lecture", "screen", "Lecture"], ["adulte", "shield", "Contenu adulte"]]],
+    ["Profil", [["profil", "user", "Mon profil"], ["lecture", "screen", "Lecture"], ["contenu", "shield", "Contenu"]]],
     ["Compte", [["compte", "sync", "Discord et synchro"], ["langue", "globe", "Langue des fiches"]]],
     ["Serveur", [...(user.owner && user.profile?.main ? [["acces", "people", "Accès et invitations"] as [Tab, IconName, string]] : []), ["apropos", "info", "À propos"]]],
   ];
-  const Pane = { profil: ProfileSettings, lecture: Playback, adulte: Adult, compte: Account, langue: Language, acces: Access, apropos: About }[tab];
+  const Pane = { profil: ProfileSettings, lecture: Playback, contenu: Content, compte: Account, langue: Language, acces: Access, apropos: About }[tab];
   return (
     <View style={{ flex: 1, flexDirection: narrow ? "column" : "row" }}>
       <ScrollView style={narrow ? { flexGrow: 0 } : st.sub} contentContainerStyle={narrow ? { padding: 20, paddingBottom: 0, gap: 4 } : { padding: 24, gap: 2 }} horizontal={narrow}>
@@ -111,12 +111,13 @@ function Playback() {
   );
 }
 
-function Adult() {
+/** Ce que le profil ouvert voit dans Découvrir et sur les fiches (contenu adulte, bientôt l'anti-spoil). */
+function Content() {
   const { prefs, put } = usePrefs();
   const shown = prefs.adult !== false;
   return (
     <>
-      <Title label="Contenu adulte" sub="Pour le profil ouvert." />
+      <Title label="Contenu" sub="Ce que ce profil voit dans Découvrir et sur les fiches." />
       <View style={st.row}>
         <View style={{ flex: 1 }}>
           <Text style={font(600, 15)}>Afficher le contenu adulte</Text>
@@ -124,14 +125,12 @@ function Adult() {
         </View>
         <Switch value={shown} onValueChange={v => put({ ...prefs, adult: v })} trackColor={{ false: "#3A3A40", true: C.red }} thumbColor={C.ink} {...{ activeThumbColor: C.ink }} accessibilityLabel="Afficher le contenu adulte" />
       </View>
-      <Text style={[font(600, 18), st.h]}>Anti-spoil</Text>
       <View style={st.row}>
         <View style={{ flex: 1 }}>
-          <Text style={font(600, 15)}>{prefs.spoil ? "Aperçus floutés" : "Aperçus visibles"}</Text>
-          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>Floute l'image des épisodes que tu n'as pas encore vus (liste des épisodes, épisode suivant), pour ce profil.</Text>
+          <Text style={font(600, 15)}>Anti-spoil</Text>
+          <Text style={[font(400, 13, C.mute), { marginTop: 2 }]}>Floute l'image des épisodes que tu n'as pas encore vus (liste des épisodes, épisode suivant).</Text>
         </View>
-        <Btn label="Visibles" onPress={() => put({ ...prefs, spoil: false })} ghost={!!prefs.spoil} />
-        <Btn label="Floutés" onPress={() => put({ ...prefs, spoil: true })} ghost={!prefs.spoil} />
+        <Switch value={!!prefs.spoil} onValueChange={v => put({ ...prefs, spoil: v })} trackColor={{ false: "#3A3A40", true: C.red }} thumbColor={C.ink} {...{ activeThumbColor: C.ink }} accessibilityLabel="Anti-spoil" />
       </View>
     </>
   );
