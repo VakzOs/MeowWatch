@@ -11,10 +11,10 @@ export type { LibraryItem, Progress };
 // Les addons (communs au compte), la reprise et la bibliothèque (propres au profil) vivent sur le serveur ;
 // l'appareil en garde une copie pour démarrer vite et tenir si le réseau saute.
 export type Lang = "fr-FR" | "en";
-type State = { lang: Lang; ready: boolean; addons: Addon[]; progress: Record<string, Progress>; library: Record<string, LibraryItem>; ambiance?: string; user?: User | null; lastSync?: number };
+type State = { lang: Lang; ready: boolean; addons: Addon[]; progress: Record<string, Progress>; library: Record<string, LibraryItem>; ambiance?: string; user?: User | null; lastSync?: number; query: string };
 
 const LEGACY_KEY = "meowwatch:v1"; // avant la synchro : données sans compte
-let state: State = { lang: "fr-FR", ready: false, addons: [], progress: {}, library: {} };
+let state: State = { lang: "fr-FR", ready: false, addons: [], progress: {}, library: {}, query: "" };
 const listeners = new Set<() => void>();
 const key = () => `meowwatch:v1:${state.user?.id}:${state.user?.profile?.id}`;
 
@@ -133,6 +133,8 @@ export function toggleLibrary(meta: Meta) {
   set({ library: { ...state.library, [meta.id]: item } });
   pushLibrary([item]);
 }
+/** Recherche de l'accueil (dans la barre du haut de l'appli Windows). */
+export const setQuery = (query: string) => set({ query });
 /** Image floutée derrière toute l'appli (titre sélectionné). */
 export const setAmbiance = (ambiance?: string) => ambiance !== state.ambiance && set({ ambiance });
 export const getProgress = (id: string): Progress | undefined => { const p = state.progress[id]; return p && !p.done ? p : undefined; };

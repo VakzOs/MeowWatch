@@ -1,0 +1,38 @@
+# Appli Windows : à chaque étiquette windows-vX.Y.Z, construit l'installateur (NSIS), signe la mise à jour et publie
+# une « Release » GitHub avec latest.json, que l'appli installée consulte pour se mettre à jour toute seule.
+name: Appli Windows
+
+on:
+  push:
+    tags: ["windows-v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+      - run: npm ci
+        working-directory: desktop
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Clé privée de signature des mises à jour (Settings > Secrets and variables > Actions)
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        with:
+          projectPath: desktop
+          tagName: windows-v__VERSION__
+          releaseName: Meow Watch pour Windows __VERSION__
+          releaseBody: "Télécharge le fichier « …_x64-setup.exe » ci-dessous et lance-le. Si Meow Watch est déjà installé, il se met à jour tout seul."
+          releaseDraft: false
+          prerelease: false

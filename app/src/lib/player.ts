@@ -1,5 +1,6 @@
 // Moteurs de lecture du web. « avancé » : libmedia (WASM) décode le fichier lui-même : MKV, HEVC, DTS/AC3, pistes audio
 // et sous-titres intégrés. Il doit pouvoir lire le lien (CORS). Sinon, « navigateur » : la balise <video>, comme avant.
+import { relayed } from "./desktop";
 import { langCode, parseVtt, trackLabel, type Cue } from "./lang";
 
 export type Track = { id: number; lang: string; label: string; forced?: boolean; ext?: boolean }; // ext : sous-titre d'un addon
@@ -160,12 +161,16 @@ function navigateur(box: HTMLDivElement, url: string, onError: (m: string) => vo
 /** Lecteur avancé si le lien le permet, sinon celui du navigateur. */
 export async function createEngine(box: HTMLDivElement, url: string, file: string | undefined, onError: (m: string) => void): Promise<Engine> {
   let why: Engine["why"] = "cors";
-  if (await readable(url)) {
+  // Appli Windows : si le serveur du debrid refuse le lecteur avancé, le relais local lit le lien à sa place.
+  const relay = relayed(url), name = file || new URL(url).pathname; // format deviné d'après le lien d'origine
+  const direct = await readable(url);
+  if (!direct && relay && (await readable(relay))) url = relay;
+  if (direct || url === relay) {
     why = "echec";
     const inner = document.createElement("div");
     Object.assign(inner.style, { position: "absolute", inset: "0" });
     box.appendChild(inner);
-    try { return await avance(inner, url, file); } catch (e) { console.warn("libmedia :", e); inner.remove(); }
+    try { return await avance(inner, url, name); } catch (e) { console.warn("libmedia :", e); inner.remove(); }
   }
   return Object.assign(await navigateur(box, url, onError), { why });
 }

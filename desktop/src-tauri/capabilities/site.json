@@ -1,0 +1,20 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "site",
+  "description": "Ce que le site Meow Watch peut faire dans l'appli : boutons de la fenêtre, mise à jour.",
+  "windows": ["main"],
+  "remote": { "urls": ["https://meowwatch.vkzdev.com/*"] },
+  "permissions": [
+    "core:event:default",
+    "core:window:default",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen",
+    "allow-update-status",
+    "allow-install-update"
+  ]
+}

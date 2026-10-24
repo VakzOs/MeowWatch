@@ -2,10 +2,12 @@ import { Image } from "expo-image";
 import { Link, usePathname, type Href } from "expo-router";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { desktop } from "../lib/desktop";
 import { leaveProfile, useStore } from "../lib/store";
 import { BrandMark } from "./BrandMark";
 import { ProfileAvatar } from "./Profiles";
 import { Icon, type IconName } from "./Icon";
+import { drag, TitleBar } from "./TitleBar";
 import { C, font } from "./theme";
 
 const NAV: { label: string; icon: IconName; href?: Href }[] = [
@@ -42,7 +44,7 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
       {ambiance ? <Image source={ambiance} style={st.amb} blurRadius={48} contentFit="cover" transition={400} /> : null}
       <View style={st.scrim} pointerEvents="none" />
       <View ref={side} style={[st.side, bare && { display: "none" }]}>
-        <View style={st.brand}>
+        <View style={st.brand} {...(desktop ? drag : {})}>
           <BrandMark size={32} />
           <Text style={font(700, 18)}>Meow Watch</Text>
         </View>
@@ -59,7 +61,8 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
           </Pressable>
         ) : null}
       </View>
-      <View ref={main} style={{ flex: 1 }}>{children}</View>
+      <View ref={main} style={[{ flex: 1 }, desktop && !bare && { paddingTop: 44 }]}>{children}</View>
+      {desktop ? <TitleBar bare={bare} /> : null}
     </View>
   );
 }
