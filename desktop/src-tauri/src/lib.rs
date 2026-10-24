@@ -8,6 +8,28 @@ use tauri_plugin_updater::{Update, UpdaterExt};
 
 const SITE: &str = "https://meowwatch.vkzdev.com";
 
+/// Secours : si le site n'affiche pas sa barre (ancienne version, page en erreur), boutons de la fenêtre et zone pour la
+/// déplacer, ajoutés par l'appli au bout de 4 s. Sinon la fenêtre sans bordure ne pourrait ni bouger ni se fermer.
+const FALLBACK_BAR: &str = r#"
+setTimeout(function () {
+  if (document.querySelector('[data-mw-caption]') || !window.__TAURI__) return;
+  var w = window.__TAURI__.window.getCurrentWindow();
+  var bar = document.createElement('div');
+  bar.setAttribute('data-tauri-drag-region', '');
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:32px;z-index:2147483647;display:flex;justify-content:flex-end';
+  [['M0 5.5h10', function () { w.minimize(); }], ['M.5 .5h9v9h-9z', function () { w.toggleMaximize(); }], ['M0 0l10 10M10 0L0 10', function () { w.close(); }, true]].forEach(function (b) {
+    var e = document.createElement('div');
+    e.style.cssText = 'width:46px;height:32px;display:grid;place-items:center;color:#e8e8e8;background:rgba(0,0,0,.35)';
+    e.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10"><path d="' + b[0] + '" stroke="currentColor" fill="none"/></svg>';
+    e.onmouseenter = function () { e.style.background = b[2] ? '#C42B1C' : 'rgba(255,255,255,.12)'; };
+    e.onmouseleave = function () { e.style.background = 'rgba(0,0,0,.35)'; };
+    e.onclick = b[1];
+    bar.appendChild(e);
+  });
+  document.body.appendChild(bar);
+}, 4000);
+"#;
+
 /// Mise à jour déjà téléchargée, installée quand on clique sur « Redémarrer ».
 #[derive(Default)]
 struct Pending(Mutex<Option<(Update, Vec<u8>)>>);
@@ -34,10 +56,11 @@ pub fn run() {
             let relay = relay::start(SITE);
             // Le site sait qu'il tourne dans l'appli, et où trouver le relais (avant ses propres scripts).
             let init = format!(
-                "window.__MW_DESKTOP__ = {{ relay: 'http://127.0.0.1:{}/?t={}&u=', version: '{}' }};",
+                "window.__MW_DESKTOP__ = {{ relay: 'http://127.0.0.1:{}/?t={}&u=', version: '{}' }};{}",
                 relay.port,
                 relay.token,
-                app.package_info().version
+                app.package_info().version,
+                FALLBACK_BAR
             );
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(SITE.parse().expect("adresse du site")))
                 .title("Meow Watch")

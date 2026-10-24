@@ -3,6 +3,8 @@ import type { Meta } from "./addons";
 export type Progress = {
   meta: Pick<Meta, "id" | "type" | "name" | "poster" | "background">;
   videoId: string; label?: string; time: number; duration: number; updatedAt: number;
+  /** Source regardée (bingeGroup et addon du flux) : « Reprendre » relance la même. */
+  binge?: string; addon?: string;
   /** Vu jusqu'au bout : gardé (pour que les autres appareils l'apprennent) mais hors de « Reprendre ». */
   done?: boolean;
 };

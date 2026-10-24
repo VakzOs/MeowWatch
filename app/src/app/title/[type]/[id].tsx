@@ -1,10 +1,10 @@
 import { Image } from "expo-image";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../../../components/Icon";
 import { C, font, genreList } from "../../../components/theme";
-import { describe, epLabel, fetchMeta, fetchStreamsFor, imdbEquivalent, sortedEpisodes, type FoundStream, type Meta, type Video } from "../../../lib/addons";
+import { describe, epLabel, fetchMeta, fetchStreamsFor, imdbEquivalent, pickNextStream, sortedEpisodes, type FoundStream, type Meta, type Video } from "../../../lib/addons";
 import { api, type Translation } from "../../../lib/api";
 import { desktop } from "../../../lib/desktop";
 import { isAnime } from "../../../lib/lang";
@@ -29,6 +29,10 @@ export default function Title() {
   // Les textes traduits remplacent ceux de l'addon quand ils existent ; images et identifiants ne changent pas.
   const t = (key: "name" | "description") => fr?.[key] || meta[key];
   const [fullText, setFullText] = useState(false);
+  // « Lire la suite » seulement si le texte est vraiment coupé (sur grand écran, il tient souvent en 4 lignes).
+  const descRef = useRef<any>(null), [clamped, setClamped] = useState(false);
+  const checkClamp = () => { const el = descRef.current as HTMLElement | null; if (el && !fullText && el.scrollHeight !== undefined) setClamped(el.scrollHeight > el.clientHeight + 2); };
+  useEffect(() => { const id = setTimeout(checkClamp, 50); return () => clearTimeout(id); }, [fr?.description, meta.description]);
   // Animé : règle de langues à part (Réglages > Lecture).
   const anime = isAnime(type, id, meta.genres, meta.country, fr?.originalLanguage);
   const epName = (e: Video) => fr?.episodes[`${e.season}:${e.episode}`]?.name || e.name || e.title;
@@ -75,7 +79,22 @@ export default function Title() {
   // Bouton principal : reprend l'épisode en cours, sinon le premier ; ouvre ses flux dans la colonne.
   const main = isSeries ? resumeEp ?? episodes.find(e => e.season === seasons[0]) : null;
   const mainLabel = saved ? `Reprendre${saved.label ? ` ${saved.label}` : ""}` : isSeries && main ? `Regarder ${epLabel(main)}` : "Lecture";
-  const onMain = () => (isSeries ? main && (setSeason(main.season), setVideo(main)) : shown.find(s => s.url) && play(shown.find(s => s.url)!, null));
+  // « Reprendre » lance tout de suite l'épisode en cours avec la même source qu'avant (sinon le premier flux lisible) ;
+  // sans flux lisible, ou pour un premier visionnage, on ouvre la liste des flux.
+  const [starting, setStarting] = useState(false);
+  const onMain = async () => {
+    if (saved && (!isSeries || resumeEp)) {
+      setStarting(true);
+      const v = isSeries ? resumeEp! : null;
+      const list = await fetchStreamsFor(addons, type, v?.id ?? id, imdbEquivalent(meta, v)).catch(() => []);
+      setStarting(false);
+      const s = pickNextStream(list, saved.binge, saved.addon);
+      if (s?.url) return play(s, v);
+    }
+    if (isSeries) return main && (setSeason(main.season), setVideo(main));
+    const s = shown.find(s => s.url);
+    if (s) play(s, null);
+  };
   const trailer = meta.trailerStreams?.[0]?.ytId;
 
   return (
@@ -100,8 +119,8 @@ export default function Title() {
           <>
             <Text style={st.label}>Résumé</Text>
             {/* Résumé limité à 4 lignes : un long texte poussait les boutons hors de l'écran. */}
-            <Text style={[font(400, 16, C.soft), { lineHeight: 24, maxWidth: 720 }]} numberOfLines={fullText ? undefined : 4}>{t("description")}</Text>
-            {(t("description")?.length ?? 0) > 280 ? (
+            <Text ref={descRef} onLayout={checkClamp} style={[font(400, 16, C.soft), { lineHeight: 24, maxWidth: 720 }]} numberOfLines={fullText ? undefined : 4}>{t("description")}</Text>
+            {clamped || fullText ? (
               <Pressable onPress={() => setFullText(!fullText)} style={{ alignSelf: "flex-start", marginTop: 6 }}>
                 {({ hovered }: any) => <Text style={[font(600, 14, hovered ? C.ink : C.mute), { textDecorationLine: "underline" }]}>{fullText ? "Réduire" : "Lire la suite"}</Text>}
               </Pressable>
@@ -110,7 +129,7 @@ export default function Title() {
         ) : null}
         <View style={st.actions}>
           <Pressable onPress={onMain} style={({ hovered }: any) => [st.play, hovered && { opacity: 0.9 }]}>
-            <Icon name="play" color={C.ink} />
+            {starting ? <ActivityIndicator color={C.ink} size="small" /> : <Icon name="play" color={C.ink} />}
             <Text style={font(700, 16)}>{mainLabel}</Text>
           </Pressable>
           <Pressable onPress={() => toggleLibrary(meta)} accessibilityLabel={inLibrary ? "Retirer de la bibliothèque" : "Ajouter à la bibliothèque"} style={({ hovered }: any) => [st.ghost, st.row, hovered && { backgroundColor: "rgba(255,255,255,0.18)" }]}>

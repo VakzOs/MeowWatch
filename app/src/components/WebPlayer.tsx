@@ -22,7 +22,7 @@ const SIZES = [{ k: 0.8, label: "Petit" }, { k: 1, label: "Normal" }, { k: 1.3, 
 const COLORS = [{ k: "", label: "D'origine" }, { k: "#FFFFFF", label: "Blanc" }, { k: "#FFE14D", label: "Jaune" }];
 const BGS = [{ k: "", label: "Aucun" }, { k: "rgba(0,0,0,0.55)", label: "Léger" }, { k: "rgba(0,0,0,0.9)", label: "Noir" }];
 const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
-const WHY = { cors: "(Lecteur avancé impossible : le serveur du lien ne l'autorise pas.)", echec: "(Lecteur avancé impossible : il n'a pas su lire ce fichier.)" };
+const WHY = { cors: "(Lecteur avancé impossible : le serveur du lien ne l'autorise pas.)", echec: "(Lecteur avancé impossible : il n'a pas su lire ce fichier. Détail dans le menu Flux.)" };
 
 const clock = (s: number) => {
   if (!isFinite(s) || s < 0) s = 0;
@@ -155,7 +155,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
       if (t < 5 || !d) return;
       saveProgress({
         meta: { id: p.id, type: p.type, name: p.name, poster: p.poster || undefined, background: p.background || undefined },
-        videoId: p.videoId, label: p.label || undefined, time: t, duration: d, updatedAt: Date.now(),
+        videoId: p.videoId, label: p.label || undefined, time: t, duration: d, updatedAt: Date.now(), binge: p.binge || undefined, addon: p.addon || undefined,
       });
     }, 5000);
     return () => { clearInterval(tick); clearInterval(save); };
@@ -352,6 +352,7 @@ export function WebPlayer({ p }: { p: PlayParams }) {
                   return <Item key={i} on={s.url === p.url} label={`${d.quality}${d.size ? ` · ${d.size}` : ""}\n${extra || d.source}`} onPress={() => switchStream(s)} />;
                 })}
                 <Text style={st.empty}>Le nouveau flux reprend à la même position.</Text>
+                <Text style={st.empty}>{eng.kind === "avance" ? "Lecteur avancé" : "Lecteur du navigateur"}{eng.info ? ` · ${eng.info}` : ""}{eng.detail ? `\nErreur du lecteur avancé : ${eng.detail}` : ""}</Text>
               </>
             ) : null}
             {menu === "speed" ? (

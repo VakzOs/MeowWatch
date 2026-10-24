@@ -1,6 +1,6 @@
 [package]
 name = "meow-watch"
-version = "1.0.0"
+version = "1.0.1"
 description = "Meow Watch pour Windows"
 edition = "2021"
 
@@ -12,7 +12,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["devtools"] } # Ctrl+Maj+I : console pour diagnostiquer un flux
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }

@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 const SESSION_DAYS = 60, INVITE_DAYS = 7, MAX_PROFILES = 6;
 export const COLORS = ["#D6182A", "#E8833A", "#E5B92E", "#3FA66B", "#2F8FD8", "#8B5CF6"];
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".ttf": "font/ttf", ".woff2": "font/woff2" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".ttf": "font/ttf", ".woff2": "font/woff2", ".wasm": "application/wasm" };
 
 const MOJIBAKE = /[ÃÂâ][\u0080-\u00BF\u0152-\u2122]/g; // « Ã© », « â€™ » : de l'UTF-8 lu comme du Latin-1 / Windows-1252
 /** Texte d'un fichier de sous-titres : UTF-8 (même avec quelques octets abîmés), sinon Windows-1252 ; répare aussi
