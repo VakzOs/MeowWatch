@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, fetchCatalog, kitsuCatalogUrl, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, fromStremio, fromStremioFR, searchCatalog, hostInstalled, categorize, type Addon } from "./addons.ts";
+import { normalizeUrl, supports, homeCatalogs, searchCatalogs, discoverCatalogs, genreOptions, filledGenres, fetchCatalog, kitsuCatalogUrl, catalogUrl, configureUrl, describe, imdbEquivalent, streamTags, nextEpisode, pickNextStream, fromStremio, fromStremioFR, searchCatalog, hostInstalled, categorize, ping, type Addon } from "./addons.ts";
 
 test("normalizeUrl accepte les liens tels qu'on les copie", () => {
   assert.equal(normalizeUrl("stremio://torrentio.strem.fun/abc/manifest.json"), "https://torrentio.strem.fun/abc/manifest.json");
@@ -152,5 +152,20 @@ test("catalogues Kitsu filtrés par genre : demandés à Kitsu par catégorie", 
   }) as typeof fetch;
   try {
     assert.deepEqual(await fetchCatalog(kitsu, airing, { genre: "Romance" }), [{ id: "kitsu:42", type: "series", name: "Kusuriya", description: undefined, releaseInfo: "2025", poster: "p.jpg", background: undefined }]);
+  } finally { globalThis.fetch = real; }
+});
+
+test("ping : manifeste qui répond bien, en erreur, injoignable ; page de réglages qui répond", async () => {
+  const real = globalThis.fetch, modes: string[] = [];
+  globalThis.fetch = (async (u: string, init: RequestInit) => {
+    modes.push(init.mode!);
+    if (u.includes("down")) throw new TypeError("Failed to fetch");
+    if (u.includes("cfg")) return { type: "opaque", ok: false } as Response;
+    return new Response("{}", { status: u.includes("500") ? 500 : 200 });
+  }) as typeof fetch;
+  try {
+    assert.deepEqual(await Promise.all([ping({ manifest: "https://ok.dev/manifest.json" }), ping({ manifest: "https://500.dev/manifest.json" }),
+      ping({ manifest: "https://down.dev/manifest.json" }), ping({ configure: "https://cfg.dev/configure" })]), [true, false, false, true]);
+    assert.deepEqual(modes, ["cors", "cors", "cors", "no-cors"]);
   } finally { globalThis.fetch = real; }
 });

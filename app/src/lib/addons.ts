@@ -207,6 +207,16 @@ export function searchCatalog(list: CatalogEntry[], q: string) {
   const w = q.trim().toLowerCase();
   return w ? list.filter(e => [e.name, e.description, e.tag, ...e.cats].join(" ").toLowerCase().includes(w)) : list;
 }
+/** L'hébergeur répond-il ? Lien d'installation : vraie réponse (les addons ouvrent le CORS) ;
+ *  page de réglages : le navigateur sait seulement si le site répond (réponse opaque), pas s'il renvoie une erreur. */
+export async function ping(h: Host, timeout = 8000): Promise<boolean> {
+  try {
+    const r = await fetch(h.manifest ?? h.configure!, { mode: h.manifest ? "cors" : "no-cors", signal: AbortSignal.timeout(timeout) });
+    return r.type === "opaque" || r.ok;
+  } catch { return false; }
+}
+export const hostUrl = (h: Host) => h.manifest ?? h.configure ?? "";
+
 /** Un hébergeur est « installé » si un addon installé vient du même site (le lien installé porte la config, il diffère). */
 export const hostInstalled = (h: Host, installed: Addon[]) => {
   const origin = (u?: string) => { try { return u ? new URL(u).origin : ""; } catch { return ""; } };
